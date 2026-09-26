@@ -1161,7 +1161,8 @@
       U.toast('請先設定 GitHub 帳號、Repo 與 Token', 'warn');
       return openGithubSettings();
     }
-    let currentPath = ''; // 直接從 Repo 最上層開始瀏覽，避免預設路徑還沒建立時一開始就顯示錯誤
+    let currentPath = (cfg.path || '').replace(/^\/+|\/+$/g, '');
+    let triedRootFallback = false;
     const pathLabel = el('b', { text: '/' + currentPath });
     const gridEl = el('div', {});
 
@@ -1189,6 +1190,14 @@
           ])))
         ));
       }).catch((err) => {
+        // 設定的路徑如果還沒建立（例如尚未上傳任何圖片到那個資料夾），第一次自動退回 Repo 最上層，而不是直接卡在錯誤畫面
+        if (!triedRootFallback && currentPath) {
+          triedRootFallback = true;
+          currentPath = '';
+          U.toast('找不到「' + (cfg.path || '') + '」，改從 Repo 最上層瀏覽', 'warn');
+          load();
+          return;
+        }
         gridEl.innerHTML = '';
         gridEl.appendChild(el('div', { class: 'empty', style: { padding: '14px' }, text: '讀取失敗：' + err.message }));
       });
