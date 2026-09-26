@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>班級寵物探險隊 · 學生前台</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/student.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap--wide wrap topbar__inner">
+    <a class="brand" href="index.html">
+      <span class="brand__logo">🐾</span>
+      <span>班級寵物探險隊</span>
+    </a>
+
+    <nav class="nav" id="nav">
+      <button class="nav__item is-active" data-view="map">🗺️ 探險地圖</button>
+      <button class="nav__item" data-view="pet">🐾 我的寵物</button>
+      <button class="nav__item" data-view="task">📗 今日任務</button>
+      <button class="nav__item" data-view="mates">👥 班級夥伴</button>
+      <button class="nav__item" data-view="shop">🎁 兌換商店</button>
+    </nav>
+
+    <div class="topbar__right">
+      <span class="sync-chip" id="syncChip"><span class="sync-chip__dot"></span><span id="syncText">本機模式</span></span>
+      <button class="who" id="whoBtn">
+        <span class="who__avatar" id="whoAvatar">？</span>
+        <span style="text-align:left">
+          <span class="who__name" id="whoName">選擇我是誰</span>
+          <span class="who__meta" id="whoMeta">點一下切換身分</span>
+        </span>
+      </button>
+      <a class="btn btn--primary" href="teacher.html">老師後台</a>
+    </div>
+  </div>
+</header>
+
+<main id="view"></main>
+
+<script src="assets/js/core/util.js"></script>
+<script src="assets/js/core/model.js"></script>
+<script src="assets/js/core/store.js"></script>
+<script src="assets/js/student/app.js"></script>
+</body>
+</html>

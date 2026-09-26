@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>班級寵物探險隊 · 老師後台</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/teacher.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap--wide wrap topbar__inner">
+    <button class="side-toggle" id="sideToggle" title="收合／展開選單" aria-label="收合／展開選單">☰</button>
+    <a class="brand" href="index.html">
+      <span class="brand__logo">🐾</span>
+      <span>班級寵物探險隊</span>
+    </a>
+    <div class="topbar__right" style="margin-left:auto">
+      <span class="sync-chip" id="syncChip"><span class="sync-chip__dot"></span><span id="syncText">本機模式</span></span>
+      <span class="who">
+        <span class="who__avatar" id="teacherAvatar">陳</span>
+        <span style="text-align:left">
+          <span class="who__name" id="teacherName">老師</span>
+          <span class="who__meta" id="teacherMeta">已登入</span>
+        </span>
+      </span>
+      <a class="btn btn--primary" href="student.html">學生前台</a>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="side__group">
+      <div class="side__label">班級工具</div>
+      <button class="side__item is-active" data-page="overview" title="班級總覽"><span class="side__emoji">🗺️</span><span class="side__text">班級總覽</span></button>
+      <button class="side__item" data-page="batch" title="批次加點"><span class="side__emoji">⭐</span><span class="side__text">批次加點</span></button>
+      <button class="side__item" data-page="roster" title="學生與小組"><span class="side__emoji">👥</span><span class="side__text">學生與小組</span></button>
+      <button class="side__item" data-page="tools" title="課堂小工具"><span class="side__emoji">🎲</span><span class="side__text">課堂小工具</span></button>
+      <button class="side__item" data-page="pets" title="寵物與徽章"><span class="side__emoji">🐾</span><span class="side__text">寵物與徽章</span></button>
+    </div>
+    <div class="side__group">
+      <div class="side__label">紀錄與設定</div>
+      <button class="side__item" data-page="ledger" title="點數紀錄"><span class="side__emoji">⏱️</span><span class="side__text">點數紀錄</span></button>
+      <button class="side__item" data-page="redeem" title="兌換管理"><span class="side__emoji">🎁</span><span class="side__text">兌換管理</span></button>
+      <button class="side__item" data-page="board" title="排行榜"><span class="side__emoji">🏆</span><span class="side__text">排行榜</span></button>
+      <button class="side__item" data-page="rules" title="規則設定"><span class="side__emoji">🛡️</span><span class="side__text">規則設定</span></button>
+      <button class="side__item" data-page="settings" title="班級設定"><span class="side__emoji">⚙️</span><span class="side__text">班級設定</span></button>
+      <button class="side__item" data-page="sync" title="資料與同步"><span class="side__emoji">☁️</span><span class="side__text">資料與同步</span></button>
+    </div>
+    <div class="side__group">
+      <div class="side__label">說明</div>
+      <button class="side__item" data-page="guide" title="使用說明"><span class="side__emoji">📖</span><span class="side__text">使用說明</span></button>
+    </div>
+  </aside>
+
+  <main class="main" id="page"></main>
+</div>
+
+<div class="batchbar" id="batchbar"></div>
+
+<script src="assets/js/core/util.js"></script>
+<script src="assets/js/core/model.js"></script>
+<script src="assets/js/core/store.js"></script>
+<script src="assets/js/teacher/app.js"></script>
+</body>
+</html>

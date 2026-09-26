@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>班級寵物探險隊</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+  .land { min-height: 100vh; display: grid; place-items: center; padding: 40px 0;
+    background: radial-gradient(120% 90% at 50% 0%, #bfe9f6 0%, rgba(191,233,246,0) 55%), var(--bg); }
+  .land__inner { width: min(980px, 100% - 32px); text-align: center; }
+  .land__logo { font-size: 58px; }
+  .land__title { font-size: clamp(30px, 5vw, 46px); font-weight: 900; margin: 10px 0 8px; }
+  .land__sub { color: var(--ink-soft); font-size: 16px; max-width: 600px; margin: 0 auto; }
+  .doors { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 34px 0 22px; }
+  .door { background: #fff; border-radius: var(--r-lg); padding: 30px 26px; box-shadow: var(--shadow);
+    text-align: left; transition: .18s; border: 2px solid transparent; display: block; }
+  .door:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); border-color: var(--green); }
+  .door__emoji { font-size: 40px; }
+  .door__title { font-size: 22px; font-weight: 900; margin: 12px 0 8px; }
+  .door__desc { color: var(--ink-mute); font-size: 14.5px; line-height: 1.7; }
+  .door__list { margin: 14px 0 0; padding: 0; list-style: none; color: var(--ink-soft); font-size: 14px; }
+  .door__list li { padding: 3px 0; }
+  .feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 26px; }
+  .feat > div { background: #fff; border-radius: 16px; padding: 16px; box-shadow: var(--shadow-sm); font-size: 14px; }
+  .feat b { display: block; margin-bottom: 4px; }
+  @media (max-width: 760px) { .doors, .feat { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="land">
+  <div class="land__inner">
+    <div class="land__logo">🐾</div>
+    <h1 class="land__title">班級寵物探險隊</h1>
+    <p class="land__sub">孩子完成約定，就能獲得成長值與金幣；累積到一定程度，寵物會孵化、升級，還能解鎖新造型。不用安裝 App，有瀏覽器就能用。</p>
+
+    <div class="doors">
+      <a class="door" href="student.html">
+        <div class="door__emoji">🧒</div>
+        <div class="door__title">學生前台</div>
+        <p class="door__desc">看見自己的寵物、今日任務與全班進度。</p>
+        <ul class="door__list">
+          <li>🗺️ 探險地圖與班級共同任務</li>
+          <li>🐣 選寵物、餵食、升級、解鎖造型</li>
+          <li>🏅 徽章、小隊任務與進步亮點</li>
+        </ul>
+      </a>
+      <a class="door" href="teacher.html">
+        <div class="door__emoji">🧑‍🏫</div>
+        <div class="door__title">老師後台</div>
+        <p class="door__desc">加點、批次操作、紀錄查核與課堂小工具。</p>
+        <ul class="door__list">
+          <li>⭐ 個人／批次加扣點，一鍵撤銷</li>
+          <li>🎲 隨機抽點、課堂計時器</li>
+          <li>🛠️ 自訂規則、兌換商店、排行榜</li>
+        </ul>
+      </a>
+    </div>
+
+    <div class="feat">
+      <div><b>☁️ 電腦手機同步</b>可連結 Google Sheets，資料即時同步、也能在試算表直接看紀錄。</div>
+      <div><b>🔒 資料在你手上</b>預設存在本機瀏覽器，隨時可匯出 JSON 備份或還原。</div>
+      <div><b>🎨 圖像可自訂</b>寵物名稱與各等級造型圖都能在後台直接設定、上傳，不用寫程式。</div>
+    </div>
+
+    <p class="muted" style="margin-top:22px;font-size:13.5px">目前為示範資料（五年十四班 · 40 位學生），可在老師後台「班級設定」重設或匯入自己的班級名單。</p>
+  </div>
+</div>
+</body>
+</html>

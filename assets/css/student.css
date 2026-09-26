@@ -1,0 +1,218 @@
+/* ===== 學生前台 ===== */
+
+/* ---------- 探險地圖 Hero ---------- */
+.hero {
+  position: relative; min-height: 520px; overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 50% 120%, #9fdcb4 0%, rgba(159, 220, 180, 0) 60%),
+    linear-gradient(180deg, #b7e6f5 0%, #8fd6ea 28%, #7fcbd8 46%, #7bd0a8 70%, #6cc89c 100%);
+  /* 想換成你生成的插圖：在 .hero 加上 style="--hero-img:url('assets/img/map.png')" */
+  background-image: var(--hero-img, none), radial-gradient(120% 80% at 50% 120%, #9fdcb4 0%, rgba(159, 220, 180, 0) 60%), linear-gradient(180deg, #b7e6f5 0%, #8fd6ea 28%, #7fcbd8 46%, #7bd0a8 70%, #6cc89c 100%);
+  background-size: cover; background-position: center;
+}
+.hero__deco { position: absolute; inset: 0; pointer-events: none; }
+.hero__deco span { position: absolute; font-size: 34px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .14)); }
+.hero__path {
+  position: absolute; left: 50%; bottom: -60px; width: 62%; height: 360px; transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(240, 222, 178, .0) 0%, #efdfb4 22%, #e6d3a2 100%);
+  border-radius: 50% 50% 0 0 / 62% 62% 0 0;
+  box-shadow: inset 0 6px 0 rgba(255, 255, 255, .35);
+}
+.hero__inner { position: relative; z-index: 2; display: flex; gap: 20px; padding: 34px 0 46px; align-items: flex-start; }
+
+.hero-card {
+  background: rgba(255, 255, 255, .94); border-radius: var(--r-lg); padding: 26px 30px;
+  box-shadow: var(--shadow-lg); max-width: 430px; backdrop-filter: blur(4px);
+}
+.hero-card__eyebrow { color: var(--green); font-weight: 800; font-size: 14px; }
+.hero-card__title { font-size: clamp(30px, 4.2vw, 46px); font-weight: 900; margin: 10px 0 12px; line-height: 1.15; }
+.hero-card__desc { color: var(--ink-soft); font-size: 15px; }
+.hero-card__pet {
+  display: flex; align-items: center; gap: 12px; margin-top: 18px;
+  background: var(--bg-soft); border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 16px;
+}
+
+.hero-stats { margin-left: auto; display: flex; flex-direction: column; gap: 12px; width: 290px; }
+.stat-chip {
+  display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-radius: 18px;
+  background: rgba(10, 59, 54, .78); color: #fff; box-shadow: var(--shadow); backdrop-filter: blur(4px);
+}
+.stat-chip__icon { font-size: 22px; }
+.stat-chip__label { font-weight: 700; font-size: 15px; }
+.stat-chip__value { margin-left: auto; font-weight: 900; font-size: 20px; }
+
+.hero__bottom { position: absolute; left: 0; right: 0; bottom: 26px; z-index: 3; }
+.hero-mission {
+  width: min(400px, 90%);
+  background: rgba(10, 59, 54, .86); color: #fff; border: 2px solid var(--gold);
+  border-radius: 18px; padding: 16px 20px; box-shadow: var(--shadow-lg);
+}
+.hero-mission__label { color: var(--gold); font-weight: 800; font-size: 14px; }
+.hero-mission__title { font-size: 22px; font-weight: 900; margin: 6px 0 12px; }
+.hero-mission .bar { background: rgba(255, 255, 255, .22); }
+
+.hero-pet {
+  position: absolute; right: 4%; bottom: 20px; z-index: 3; text-align: center;
+  animation: float-y 4.5s ease-in-out infinite;
+}
+.hero-pet__face { font-size: 130px; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .22)); }
+.hero-pet__bubble {
+  position: absolute; right: 100%; top: 34%; margin-right: 12px; white-space: nowrap;
+  background: rgba(10, 59, 54, .86); color: #fff; border: 2px solid var(--gold);
+  border-radius: 14px; padding: 10px 16px; font-weight: 800; font-size: 15px;
+}
+
+/* ---------- 區段 ---------- */
+.sect { padding: 54px 0; }
+.sect--soft { background: var(--bg-soft); }
+.sect__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 26px; flex-wrap: wrap; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+
+/* 今日任務 */
+.task-row {
+  display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 16px;
+  background: var(--bg-soft); border: 1.5px solid var(--line); margin-bottom: 12px;
+}
+.task-row__icon { font-size: 26px; }
+.task-row__title { font-weight: 800; font-size: 16px; }
+.task-row__meta { font-size: 13px; color: var(--ink-mute); margin-top: 3px; }
+.task-row__xp {
+  background: var(--gold-soft); color: #8a6512; font-weight: 800; font-size: 14px;
+  padding: 8px 14px; border-radius: 12px; white-space: nowrap;
+}
+.task-row.is-done { border-color: #b7e3cb; background: #f2fbf6; }
+
+/* 進步亮點 */
+.rank-row {
+  display: flex; align-items: center; gap: 13px; padding: 12px 16px; border-radius: 15px; margin-bottom: 10px;
+  background: var(--bg-soft); border: 1.5px solid transparent;
+}
+.rank-row--top { background: var(--gold-soft); border-color: #f2dfae; }
+.rank-row__no {
+  width: 28px; height: 28px; border-radius: 9px; background: #fff; color: var(--ink-soft);
+  display: grid; place-items: center; font-weight: 900; font-size: 14px; flex: 0 0 auto;
+}
+.rank-row__name { font-weight: 800; }
+.rank-row__meta { font-size: 12.5px; color: var(--ink-mute); margin-top: 2px; }
+.rank-row__gain { margin-left: auto; color: var(--green); font-weight: 800; font-size: 14.5px; }
+
+/* 同學名單 */
+.roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; }
+.mate {
+  background: #fff; border-radius: 18px; padding: 16px 12px 14px; text-align: center;
+  box-shadow: var(--shadow-sm); border: 1.5px solid transparent; transition: .18s; cursor: pointer;
+}
+.mate:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: #bfe6d1; }
+.mate__avatar {
+  width: 62px; height: 62px; margin: 0 auto 10px; border-radius: 18px;
+  background: var(--green-soft); display: grid; place-items: center; font-size: 34px; position: relative;
+}
+.mate__cos { position: absolute; right: -6px; top: -6px; font-size: 17px; }
+.mate__name { font-weight: 800; font-size: 14.5px; }
+.mate__lv { color: var(--green); font-weight: 800; font-size: 13.5px; margin: 4px 0 8px; }
+
+/* ---------- 我的寵物頁 ---------- */
+.pet-hero {
+  display: grid; grid-template-columns: 340px 1fr; gap: 26px; align-items: stretch;
+}
+.pet-stage {
+  background: linear-gradient(180deg, #d7f0e2 0%, #b9e6cd 100%);
+  border-radius: var(--r-lg); padding: 26px; text-align: center; position: relative; overflow: hidden;
+}
+.pet-stage__glow {
+  position: absolute; left: 50%; bottom: 52px; width: 210px; height: 40px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(246, 196, 83, .75), rgba(246, 196, 83, 0));
+}
+.pet-stage__face { font-size: 140px; position: relative; animation: float-y 4s ease-in-out infinite; }
+.pet-stage__cos { position: absolute; right: 22%; top: 8%; font-size: 40px; }
+.pet-stage__name { font-size: 24px; font-weight: 900; margin-top: 6px; }
+.pet-stage__trait { color: #0f7a54; font-weight: 700; margin-top: 4px; }
+
+.coin-chip {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--gold-soft);
+  color: #8a6512; font-weight: 900; padding: 8px 16px; border-radius: 999px; font-size: 16px;
+}
+
+.food-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.food {
+  background: var(--bg-soft); border: 1.5px solid var(--line); border-radius: 16px;
+  padding: 14px 8px; text-align: center; transition: .16s;
+}
+.food:hover:not([disabled]) { border-color: var(--gold); transform: translateY(-3px); background: #fff; }
+.food__emoji { font-size: 30px; }
+.food__name { font-weight: 800; font-size: 14px; margin-top: 6px; }
+.food__cost { color: var(--ink-mute); font-size: 12.5px; margin-top: 3px; }
+
+.cos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 14px; }
+.cos {
+  background: var(--bg-soft); border: 1.5px solid var(--line); border-radius: 16px;
+  padding: 16px 10px; text-align: center; transition: .16s; position: relative;
+}
+.cos__emoji { font-size: 32px; }
+.cos__name { font-weight: 800; font-size: 14px; margin-top: 8px; }
+.cos__meta { font-size: 12.5px; color: var(--ink-mute); margin-top: 4px; }
+.cos.is-owned { border-color: #9edcbc; background: #f1fbf5; }
+.cos.is-locked { opacity: .62; }
+.cos.is-equipped { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.cos__tag {
+  position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 800;
+  background: var(--gold); color: #4a3405; padding: 2px 8px; border-radius: 999px;
+}
+
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; }
+.badge-item { text-align: center; padding: 14px 6px; border-radius: 14px; background: var(--bg-soft); border: 1.5px solid var(--line); }
+.badge-item.is-locked { opacity: .4; filter: grayscale(1); }
+.badge-item__emoji { font-size: 28px; }
+.badge-item__name { font-size: 12.5px; font-weight: 800; margin-top: 6px; }
+
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.shop-item { background: #fff; border-radius: 18px; padding: 18px; box-shadow: var(--shadow-sm); border: 1.5px solid var(--line); }
+.shop-item__icon { font-size: 32px; }
+.shop-item__name { font-weight: 800; font-size: 16px; margin-top: 8px; }
+.shop-item__desc { font-size: 13px; color: var(--ink-mute); margin-top: 4px; min-height: 36px; }
+
+.timeline-row { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+.timeline-row:last-child { border-bottom: none; }
+.timeline-row__icon { font-size: 20px; }
+.timeline-row__time { color: var(--ink-mute); font-size: 12.5px; }
+.timeline-row__pts { margin-left: auto; font-weight: 800; color: var(--green); }
+.timeline-row__pts.is-minus { color: var(--red); }
+
+/* 登入／選人 */
+.picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.picker-btn {
+  background: var(--bg-soft); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 8px;
+  text-align: center; font-weight: 700; transition: .14s;
+}
+.picker-btn:hover { border-color: var(--green); background: #fff; }
+.picker-btn__emoji { font-size: 26px; }
+.picker-btn__name { font-size: 13.5px; margin-top: 5px; }
+.picker-btn__no { font-size: 11.5px; color: var(--ink-mute); }
+
+/* 升級動畫 */
+.levelup { text-align: center; padding: 10px 0 4px; }
+.levelup__face { font-size: 96px; animation: pop-in .5s cubic-bezier(.2, 1.4, .5, 1); }
+.levelup__lv { font-size: 30px; font-weight: 900; color: var(--green); margin-top: 8px; }
+.levelup__note { color: var(--ink-mute); margin-top: 6px; }
+
+@media (max-width: 1080px) {
+  .hero-stats { width: 240px; }
+  .hero-pet__face { font-size: 100px; }
+  .pet-hero { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .hero { min-height: auto; }
+  .hero__inner { flex-direction: column; padding: 22px 0 30px; }
+  .hero-card { max-width: none; padding: 20px; }
+  .hero-stats { width: 100%; flex-direction: row; flex-wrap: wrap; margin: 0; }
+  .stat-chip { flex: 1 1 140px; padding: 10px 14px; }
+  .hero__bottom { position: static; }
+  .hero-mission { width: auto; margin-top: 16px; }
+  .hero-pet { position: static; margin: 10px auto 0; }
+  .hero-pet__bubble { position: static; display: inline-block; margin: 0 0 8px; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .food-grid { grid-template-columns: repeat(2, 1fr); }
+  .sect { padding: 34px 0; }
+}
