@@ -332,7 +332,8 @@
     ]);
   }
 
-  const AVATAR_SIZES = { sm: 48, md: 64, lg: 84 };
+  const AVATAR_SIZES = { xs: 40, sm: 48, md: 64, lg: 84, xl: 110, xxl: 140 };
+  const AVATAR_SIZE_LABELS = { xs: '極小', sm: '小', md: '中', lg: '大', xl: '特大', xxl: '超大' };
 
   function pageBatch() {
     const s = S.get();
@@ -428,7 +429,14 @@
 
     const editBtn = el('button', { class: 'dock-btn', text: '✏️ 編輯', title: '編輯底部工具列項目、顯示設定等', onclick: () => go('settings') });
 
-    const bar = [el('span', { class: 'dock__count', text: '已選 ' + selected.size + ' 位' })]
+    const countEl = (multiMode && selected.size > 0)
+      ? el('button', {
+          class: 'dock-btn is-active', text: '⭐ 加扣分（' + selected.size + '）',
+          title: '對已選的學生一次加分或扣分', onclick: () => openFeedbackModal(Array.from(selected)),
+        })
+      : el('span', { class: 'dock__count', text: '已選 ' + selected.size + ' 位' });
+
+    const bar = [countEl]
       .concat(row1.map(toolBtn))
       .concat([moreBtn, editBtn]);
 
@@ -1645,11 +1653,10 @@
     }
 
     const sizeRow = el('div', { class: 'tag-toggle' }, Object.keys(AVATAR_SIZES).map((id) => {
-      const labelMap = { sm: '小', md: '中', lg: '大' };
       const active = ((s.settings && s.settings.avatarCardSize) || 'md') === id;
       return el('button', {
         class: active ? 'is-on' : '',
-        text: labelMap[id] + '（' + AVATAR_SIZES[id] + 'px）',
+        text: AVATAR_SIZE_LABELS[id] + '（' + AVATAR_SIZES[id] + 'px）',
         onclick: () => setUpd('avatarCardSize', id),
       });
     }));
