@@ -606,7 +606,10 @@
                   class: 'select', style: { padding: '6px 8px' },
                   onchange: (e) => S.commit((d) => { d.students.find((x) => x.id === st.id).groupId = e.target.value; }),
                 }, s.groups.map((g) => el('option', { value: g.id, text: g.name, selected: g.id === st.groupId ? 'selected' : null })))]),
-                el('td', { class: 'col-hide-sm', text: M.petById(st.petId).emoji + ' ' + (st.petName || M.petById(st.petId).name) }),
+                el('td', { class: 'col-hide-sm' }, [el('div', { class: 'row', style: { gap: '8px' } }, [
+                  M.petFace(M.petById(st.petId), 24, M.levelFromXp(st.xp).level),
+                  el('span', { text: st.petName || M.petById(st.petId).name }),
+                ])]),
                 el('td', { text: String(st.points) }),
                 el('td', {}, [el('div', { class: 'row', style: { gap: '6px' } }, [
                   el('button', { class: 'btn btn--ghost btn--sm', text: '編輯', onclick: () => openStudentEdit(st) }),
@@ -932,49 +935,46 @@
               el('b', { text: (badgeCount[b.id] || 0) + ' 人' }),
             ]))),
           ]),
-        ]),
-      ]),
-      el('div', { class: 'cols' }, [
-        card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
-          el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
-            el('div', { class: 'rule-edit' }, [
-              el('div', { class: 'field', style: { width: '96px' } }, [
-                el('label', { class: 'field__label', text: '達到等級' }),
-                el('input', {
-                  class: 'input', type: 'number', min: '1', value: t.minLevel,
-                  onchange: (e) => S.commit((d) => { d.petStageLevels[idx].minLevel = Number(e.target.value) || 1; }),
+          card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
+            el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
+              el('div', { class: 'rule-edit' }, [
+                el('div', { class: 'field', style: { width: '80px' } }, [
+                  el('label', { class: 'field__label', text: '等級' }),
+                  el('input', {
+                    class: 'input', type: 'number', min: '1', value: t.minLevel,
+                    onchange: (e) => S.commit((d) => { d.petStageLevels[idx].minLevel = Number(e.target.value) || 1; }),
+                  }),
+                ]),
+                el('div', { class: 'field grow' }, [
+                  el('label', { class: 'field__label', text: '階段名稱' }),
+                  el('input', {
+                    class: 'input', value: t.name || '', placeholder: '例如：成熟體',
+                    onchange: (e) => S.commit((d) => { d.petStageLevels[idx].name = e.target.value; }),
+                  }),
+                ]),
+                el('button', {
+                  class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段',
+                  onclick: () => U.confirmDialog('刪除這個階段', '所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
+                    if (!ok) return;
+                    S.commit((d) => {
+                      d.petStageLevels.splice(idx, 1);
+                      Object.keys(d.petImages || {}).forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
+                    });
+                  }),
                 }),
-              ]),
-              el('div', { class: 'field grow' }, [
-                el('label', { class: 'field__label', text: '階段名稱' }),
-                el('input', {
-                  class: 'input', value: t.name || '', placeholder: '例如：成熟體',
-                  onchange: (e) => S.commit((d) => { d.petStageLevels[idx].name = e.target.value; }),
-                }),
-              ]),
-              el('button', {
-                class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段',
-                onclick: () => U.confirmDialog('刪除這個階段', '所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
-                  if (!ok) return;
-                  S.commit((d) => {
-                    d.petStageLevels.splice(idx, 1);
-                    Object.keys(d.petImages || {}).forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
-                  });
-                }),
+              ])
+            )),
+            el('button', {
+              class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增階段',
+              onclick: () => S.commit((d) => {
+                d.petStageLevels = d.petStageLevels || [];
+                const lv = d.petStageLevels.length ? Math.max.apply(null, d.petStageLevels.map((x) => x.minLevel || 1)) + 5 : 1;
+                d.petStageLevels.push({ minLevel: lv, name: '' });
+                Object.keys(d.petImages || {}).forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
               }),
-            ])
-          )),
-          el('button', {
-            class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增階段',
-            onclick: () => S.commit((d) => {
-              d.petStageLevels = d.petStageLevels || [];
-              const lv = d.petStageLevels.length ? Math.max.apply(null, d.petStageLevels.map((x) => x.minLevel || 1)) + 5 : 1;
-              d.petStageLevels.push({ minLevel: lv, name: '' });
-              Object.keys(d.petImages || {}).forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
             }),
-          }),
+          ]),
         ]),
-        null,
       ]),
       card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
         el('div', { class: 'stack' }, M.allPets().map((p) => {
@@ -1523,7 +1523,7 @@
     function list(items, valueFn, metaFn) {
       return el('div', {}, items.map((x, i) => el('div', { class: 'lead-row' + (i < 3 ? ' lead-row--' + (i + 1) : '') }, [
         el('span', { class: 'lead-row__medal', text: medal(i) }),
-        el('span', { style: { fontSize: '22px' }, text: x.emoji || M.petById(x.petId).emoji }),
+        x.emoji ? el('span', { style: { fontSize: '22px' }, text: x.emoji }) : M.petFace(M.petById(x.petId), 22, M.levelFromXp(x.xp).level),
         el('div', { class: 'grow' }, [
           el('div', { style: { fontWeight: 800 }, text: x.name }),
           el('div', { class: 'log-row__meta', text: metaFn ? metaFn(x) : '' }),

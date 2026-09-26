@@ -225,9 +225,11 @@
     const p = typeof pet === 'string' ? petById(pet) : pet || PETS[0];
     const img = stageImageFor(p, level);
     if (img) {
+      // 用 contain 而不是 cover：完整顯示老師上傳的圖片，不裁切；外層的圓形泡泡（.pet-avatar／
+      // .avatar-card__face 等）本來就比這裡的 size 大一些並置中對齊，所以圖片不會貼到圓形邊緣。
       return U.el('img', {
         class: 'pet-face', src: img, alt: p.name,
-        style: size ? { width: size + 'px', height: size + 'px', borderRadius: '50%', objectFit: 'cover' } : { borderRadius: '50%', objectFit: 'cover' },
+        style: size ? { width: size + 'px', height: size + 'px', objectFit: 'contain' } : { objectFit: 'contain' },
       });
     }
     return U.el('span', {

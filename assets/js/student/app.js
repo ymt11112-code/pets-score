@@ -65,7 +65,7 @@
           class: 'picker-btn', 'data-k': U.pad2(st.no) + st.name,
           onclick: () => { setMe(st.id); dlg.close(); },
         }, [
-          el('div', { class: 'picker-btn__emoji', text: M.petById(st.petId).emoji }),
+          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 32, M.levelFromXp(st.xp).level)]),
           el('div', { class: 'picker-btn__name', text: st.name }),
           el('div', { class: 'picker-btn__no', text: U.pad2(st.no) + ' 號' }),
         ])
@@ -245,7 +245,7 @@
       el('div', { style: { marginTop: '14px' } }, [progressBar(Math.round((pts / target) * 100), true)]),
       el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '6px' }, text: '距離下一個小隊寶箱還差 ' + Math.max(0, target - pts) + ' 點' }),
       el('div', { class: 'row', style: { marginTop: '12px', flexWrap: 'wrap', gap: '6px' } },
-        members.slice(0, 8).map((m) => el('span', { title: m.name, style: { fontSize: '22px' }, text: M.petById(m.petId).emoji }))),
+        members.slice(0, 8).map((m) => el('span', { title: m.name }, [M.petFace(M.petById(m.petId), 28, M.levelFromXp(m.xp).level)]))),
     ]);
   }
 
