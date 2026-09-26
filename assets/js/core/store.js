@@ -92,6 +92,23 @@
     });
   }
 
+  /* 列出 GitHub Repo 某個資料夾底下的檔案／子資料夾，給「從 GitHub 選擇圖片」的介面用 */
+  function githubListFiles(path) {
+    const gh = getGithubConfig();
+    if (!gh.owner || !gh.repo || !gh.token) return Promise.reject(new Error('請先在「GitHub 上傳設定」填好帳號、Repo 名稱與 Token'));
+    const branch = gh.branch || 'main';
+    const cleanPath = String(path || '').replace(/^\/+|\/+$/g, '');
+    const url = 'https://api.github.com/repos/' + gh.owner + '/' + gh.repo + '/contents' + (cleanPath ? '/' + cleanPath : '') + '?ref=' + encodeURIComponent(branch);
+    const headers = { Authorization: 'Bearer ' + gh.token, Accept: 'application/vnd.github+json' };
+    return fetch(url, { headers })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, status: res.status, json })).catch(() => ({ ok: res.ok, status: res.status, json: null })))
+      .then(({ ok, status, json }) => {
+        if (!ok) throw new Error((json && json.message) || ('GitHub 回應錯誤（狀態碼 ' + status + '）'));
+        if (!Array.isArray(json)) throw new Error('這不是一個資料夾');
+        return json.map((item) => ({ name: item.name, path: item.path, type: item.type, download_url: item.download_url || '' }));
+      });
+  }
+
   /* ---------- 事件 ---------- */
   function subscribe(fn) {
     listeners.push(fn);
@@ -210,10 +227,57 @@
     });
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
-    // 每隻寵物補上預設的 10 段進化階段（已經自訂過的寵物維持原樣，不會被蓋掉）
-    out.petImages = Object.assign({}, base.petImages, s.petImages || {});
+    migratePetStages(out, s, base);
     out.petNames = Object.assign({}, base.petNames, s.petNames || {});
     return out;
+  }
+
+  /* 寵物造型圖片以前是「每隻寵物各自存一份等級門檻＋圖片」，現在改成「全班共用一份等級門檻，
+     每隻寵物只存自己在各階段的圖片（用陣列位置對應）」。這裡把舊格式的資料原地轉換過來，
+     盡量不要遺失老師已經設定好的圖片。 */
+  function migratePetStages(out, s, base) {
+    const raw = s.petImages || {};
+    const isOldFormat = Object.keys(raw).some((id) => {
+      const v = raw[id];
+      return Array.isArray(v) && v.length > 0 && v[0] && typeof v[0] === 'object';
+    });
+
+    if (!isOldFormat) {
+      out.petStageLevels = (s.petStageLevels && s.petStageLevels.length ? s.petStageLevels : base.petStageLevels)
+        .map((t) => ({ minLevel: t.minLevel, name: t.name || '' }));
+      out.petImages = Object.assign({}, base.petImages, raw);
+      const len = out.petStageLevels.length;
+      Object.keys(out.petImages).forEach((id) => {
+        const arr = (out.petImages[id] || []).slice();
+        while (arr.length < len) arr.push('');
+        out.petImages[id] = arr;
+      });
+      return;
+    }
+
+    // 舊格式：先把所有寵物用過的等級門檻合併成一份共用清單
+    const levelNames = {};
+    base.petStageLevels.forEach((t) => { levelNames[t.minLevel] = t.name; });
+    Object.keys(raw).forEach((id) => {
+      (raw[id] || []).forEach((stg) => {
+        const lv = (stg && stg.minLevel) || 1;
+        if (!levelNames[lv] && stg && stg.name) levelNames[lv] = stg.name;
+        else if (!(lv in levelNames)) levelNames[lv] = (stg && stg.name) || '';
+      });
+    });
+    const levels = Object.keys(levelNames).map(Number).sort((a, b) => a - b);
+    out.petStageLevels = levels.map((lv) => ({ minLevel: lv, name: levelNames[lv] || '' }));
+
+    const newImages = {};
+    Object.keys(raw).forEach((id) => {
+      const arr = new Array(levels.length).fill('');
+      (raw[id] || []).forEach((stg) => {
+        const idx = levels.indexOf((stg && stg.minLevel) || 1);
+        if (idx >= 0 && stg && stg.img) arr[idx] = stg.img;
+      });
+      newImages[id] = arr;
+    });
+    out.petImages = Object.assign({}, base.petImages, newImages);
   }
 
   /* ---------- 初始化 ---------- */
@@ -636,7 +700,7 @@
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
     award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, redeem,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
-    getGithubConfig, saveGithubConfig, githubUploadImage,
+    getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
     connectSheet, useLocal, pullRemote, pushRemote, sheetCall,
   };

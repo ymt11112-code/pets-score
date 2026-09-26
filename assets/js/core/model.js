@@ -45,9 +45,6 @@
     { minLevel: 50, name: '神獸體' },
   ];
 
-  function defaultPetStages() {
-    return DEFAULT_PET_STAGES.map((s) => ({ minLevel: s.minLevel, name: s.name, img: '' }));
-  }
 
   /* 造型（金幣解鎖 / 等級解鎖） */
   const COSMETICS = [
@@ -193,22 +190,34 @@
     return list.find((p) => p.id === id) || list[0] || PETS[0];
   }
 
-  /* 依等級挑選老師在後台設定的造型圖片（存在班級資料 state.petImages 裡，不是寫死在這份檔案）。
+  /* 依等級挑選老師在後台設定的造型圖片。
+     等級門檻是全班共用的一份清單（state.petStageLevels），每隻寵物只存自己在各階段的圖片
+     （state.petImages[petId]，跟 petStageLevels 用陣列位置對應，不是各自存一份等級）。
      找不到就退回 pet.img（單張固定圖），再退回 emoji。 */
   function stageImageFor(pet, level) {
-    let all = null;
+    let levels = null;
+    let images = null;
     try {
       const S = global.PetStore;
-      if (S && S.get) all = (S.get() || {}).petImages;
-    } catch (e) { all = null; }
-    const custom = all && all[pet.id];
-    const stages = (custom && custom.length ? custom : []).filter((st) => st.img);
-    if (!stages.length) return pet.img || '';
+      if (S && S.get) {
+        const s = S.get() || {};
+        levels = s.petStageLevels;
+        images = (s.petImages || {})[pet.id];
+      }
+    } catch (e) { /* store 還沒準備好 */ }
+    if (!levels || !levels.length || !images || !images.length) return pet.img || '';
+
     const lv = level == null ? -Infinity : level;
-    const eligible = stages.filter((st) => (st.minLevel || 1) <= lv).sort((a, b) => b.minLevel - a.minLevel);
-    if (eligible.length) return eligible[0].img;
-    // 等級還沒到最低的階段門檻時，先用門檻最低的那張當作起始造型
-    return stages.slice().sort((a, b) => (a.minLevel || 1) - (b.minLevel || 1))[0].img;
+    let bestIdx = -1;
+    levels.forEach((t, i) => {
+      const min = t.minLevel || 1;
+      if (min <= lv && (bestIdx < 0 || min > (levels[bestIdx].minLevel || 1))) bestIdx = i;
+    });
+    // 從符合等級的那一階開始往前找最近一個「有設定圖片」的階段
+    for (let i = bestIdx; i >= 0; i--) { if (images[i]) return images[i]; }
+    // 等級還沒到第一個門檻時，先用最早設定好的那張圖當起始造型
+    for (let i = 0; i < images.length; i++) { if (images[i]) return images[i]; }
+    return pet.img || '';
   }
 
   /* 寵物外觀：依目前等級選對應造型圖片，沒有設定就用 emoji。level 可省略（例如陳列用途）。 */
@@ -299,8 +308,9 @@
       shop: U.deepClone(DEFAULT_SHOP),
       toolbar: U.deepClone(DEFAULT_TOOLBAR),
       attendance: {},
+      petStageLevels: DEFAULT_PET_STAGES.map((s) => ({ minLevel: s.minLevel, name: s.name })),
       petImages: PETS.reduce((acc, p) => {
-        acc[p.id] = defaultPetStages();
+        acc[p.id] = new Array(DEFAULT_PET_STAGES.length).fill('');
         return acc;
       }, {}),
       petNames: {},
@@ -343,6 +353,6 @@
   global.PetModel = {
     PETS, STAGES, COSMETICS, FOODS, BADGES, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES,
-    xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, defaultPetStages, seedState,
+    xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, seedState,
   };
 })(window);

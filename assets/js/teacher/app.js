@@ -934,13 +934,53 @@
           ]),
         ]),
       ]),
-      card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定不同等級要換上的圖片（例如 V1～V10 進化圖），改完立即套用到老師後台與學生前台，不用寫程式。', [
+      card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
+        el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
+          el('div', { class: 'rule-edit' }, [
+            el('div', { class: 'field', style: { width: '96px' } }, [
+              el('label', { class: 'field__label', text: '達到等級' }),
+              el('input', {
+                class: 'input', type: 'number', min: '1', value: t.minLevel,
+                onchange: (e) => S.commit((d) => { d.petStageLevels[idx].minLevel = Number(e.target.value) || 1; }),
+              }),
+            ]),
+            el('div', { class: 'field grow' }, [
+              el('label', { class: 'field__label', text: '階段名稱' }),
+              el('input', {
+                class: 'input', value: t.name || '', placeholder: '例如：成熟體',
+                onchange: (e) => S.commit((d) => { d.petStageLevels[idx].name = e.target.value; }),
+              }),
+            ]),
+            el('button', {
+              class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段',
+              onclick: () => U.confirmDialog('刪除這個階段', '所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
+                if (!ok) return;
+                S.commit((d) => {
+                  d.petStageLevels.splice(idx, 1);
+                  Object.keys(d.petImages || {}).forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
+                });
+              }),
+            }),
+          ])
+        )),
+        el('button', {
+          class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增階段',
+          onclick: () => S.commit((d) => {
+            d.petStageLevels = d.petStageLevels || [];
+            const lv = d.petStageLevels.length ? Math.max.apply(null, d.petStageLevels.map((x) => x.minLevel || 1)) + 5 : 1;
+            d.petStageLevels.push({ minLevel: lv, name: '' });
+            Object.keys(d.petImages || {}).forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
+          }),
+        }),
+      ]),
+      card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
         el('div', { class: 'stack' }, M.allPets().map((p) => {
-          const stages = (s.petImages || {})[p.id] || [];
-          const withImg = stages.filter((x) => x.img).length;
+          const images = (s.petImages || {})[p.id] || [];
+          const withImg = images.filter(Boolean).length;
+          const totalStages = (s.petStageLevels || []).length;
           const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
           return el('div', { class: 'rule-edit' }, [
-            M.petFace(p, 32, stages.length ? Math.max.apply(null, stages.map((x) => x.minLevel || 1)) : 1),
+            M.petFace(p, 32, 999),
             el('input', {
               class: 'input grow', value: p.name, placeholder: '寵物名稱',
               onchange: (e) => {
@@ -955,7 +995,7 @@
             }),
             el('span', {
               class: 'pill' + (withImg ? '' : ' pill--gray'),
-              text: stages.length + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
+              text: totalStages + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
             }),
             el('button', { class: 'btn btn--ghost btn--sm', text: '管理圖片', onclick: () => openPetImageManager(p) }),
             el('button', { class: 'btn btn--danger btn--sm', text: '🗑️', title: '刪除這種寵物', onclick: () => openDeletePet(p) }),
@@ -992,7 +1032,7 @@
               d.customPets = d.customPets || [];
               d.customPets.push({ id, name: nm, emoji: emoji.value.trim() || '🐾', img: '', trait: trait.value.trim(), desc: desc.value.trim() });
               d.petImages = d.petImages || {};
-              d.petImages[id] = M.defaultPetStages();
+              d.petImages[id] = new Array((d.petStageLevels || []).length).fill('');
             });
             U.toast('已新增「' + nm + '」');
           },
@@ -1024,64 +1064,42 @@
   }
 
   function openPetImageManager(pet) {
-    let stages = ((S.get().petImages || {})[pet.id] || []).map((x) => Object.assign({}, x));
+    const levels = S.get().petStageLevels || [];
+    let images = ((S.get().petImages || {})[pet.id] || []).slice();
+    while (images.length < levels.length) images.push('');
 
     function save() {
-      S.commit((d) => { d.petImages = d.petImages || {}; d.petImages[pet.id] = stages.slice(); });
+      S.commit((d) => { d.petImages = d.petImages || {}; d.petImages[pet.id] = images.slice(); });
     }
 
     const listEl = el('div', { class: 'stack' });
 
     function paint() {
       listEl.innerHTML = '';
-      if (!stages.length) {
-        listEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '還沒有設定圖片，目前會顯示 emoji：' + pet.emoji }));
+      if (!levels.length) {
+        listEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '還沒有設定任何等級門檻，請先到上面「寵物等級門檻」新增。' }));
+        return;
       }
-      stages.forEach((stg, idx) => {
-        const preview = stg.img
-          ? el('img', { src: stg.img, style: { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)', flex: '0 0 auto' } })
+      levels.forEach((t, idx) => {
+        const img = images[idx] || '';
+        const preview = img
+          ? el('img', { src: img, style: { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)', flex: '0 0 auto' } })
           : el('span', { style: { fontSize: '26px', width: '48px', textAlign: 'center', flex: '0 0 auto' }, text: pet.emoji });
         listEl.appendChild(el('div', { class: 'rule-edit', style: { alignItems: 'flex-start' } }, [
           preview,
           el('div', { class: 'grow stack', style: { gap: '6px' } }, [
-            el('div', { class: 'row', style: { gap: '8px' } }, [
-              el('div', { class: 'field', style: { width: '96px' } }, [
-                el('label', { class: 'field__label', text: '達到等級' }),
-                el('input', {
-                  class: 'input', type: 'number', min: '1', value: stg.minLevel || 1,
-                  onchange: (e) => { stg.minLevel = Number(e.target.value) || 1; save(); },
-                }),
-              ]),
-              el('div', { class: 'field grow' }, [
-                el('label', { class: 'field__label', text: '階段名稱（選填）' }),
-                el('input', {
-                  class: 'input', value: stg.name || '', placeholder: '例如：V3 幼年體',
-                  onchange: (e) => { stg.name = e.target.value; save(); },
-                }),
-              ]),
-            ]),
-            el('div', { class: 'field' }, [
-              el('label', { class: 'field__label', text: '圖片網址或路徑' }),
-              el('div', { class: 'row', style: { gap: '6px' } }, [
-                el('input', {
-                  class: 'input grow', value: stg.img || '', placeholder: 'https://… 或 assets/img/pets/xxx.png',
-                  onchange: (e) => { stg.img = e.target.value.trim(); save(); paint(); },
-                }),
-                uploadButton(pet, stg, save, paint),
-              ]),
+            el('div', { style: { fontWeight: 800, fontSize: '13.5px' }, text: 'Lv.' + t.minLevel + (t.name ? '・' + t.name : '') }),
+            el('div', { class: 'row', style: { gap: '6px' } }, [
+              el('input', {
+                class: 'input grow', value: img, placeholder: 'https://… 或 assets/img/pets/xxx.png',
+                onchange: (e) => { images[idx] = e.target.value.trim(); save(); paint(); },
+              }),
+              uploadButton(pet, t, idx, images, save, paint),
+              pickButton(idx, images, save, paint),
             ]),
           ]),
-          el('button', { class: 'btn btn--danger btn--sm', text: '✕', onclick: () => { stages.splice(idx, 1); save(); paint(); } }),
         ]));
       });
-      listEl.appendChild(el('button', {
-        class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增階段',
-        onclick: () => {
-          const nextLv = stages.length ? Math.max.apply(null, stages.map((x) => x.minLevel || 1)) + 1 : 1;
-          stages.push({ minLevel: nextLv, name: '', img: '' });
-          save(); paint();
-        },
-      }));
     }
     paint();
 
@@ -1090,7 +1108,7 @@
       wide: true,
       body: el('div', { class: 'stack' }, [
         el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' } }, [
-          el('p', { class: 'card__sub', style: { margin: 0, flex: '1 1 260px' }, text: '貼外部圖片網址、填專案裡的相對路徑，或按「上傳」把圖片直接傳到你的 GitHub Repo。等級之間沒特別設定的，會沿用小於等於該等級裡最接近的一個階段；完全沒設定就顯示 emoji。' }),
+          el('p', { class: 'card__sub', style: { margin: 0, flex: '1 1 260px' }, text: '等級門檻是全部寵物共用的，要調整請到上面「寵物等級門檻」；這裡只設定這隻寵物在各階段要換上的圖片。' }),
           el('button', { class: 'btn btn--ghost btn--sm', text: '⚙️ GitHub 上傳設定', onclick: () => openGithubSettings() }),
         ]),
         listEl,
@@ -1099,7 +1117,7 @@
     });
   }
 
-  function uploadButton(pet, stg, save, paint) {
+  function uploadButton(pet, stageLevel, idx, images, save, paint) {
     const fileInput = el('input', {
       type: 'file', accept: 'image/*', class: 'hide',
       onchange: (e) => {
@@ -1113,18 +1131,81 @@
           return;
         }
         const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
-        const safeName = (pet.id + '-lv' + (stg.minLevel || 1)).replace(/[^a-z0-9-]/gi, '');
+        const safeName = (pet.id + '-lv' + (stageLevel.minLevel || 1)).replace(/[^a-z0-9-]/gi, '');
         const targetPath = (cfg.path || 'assets/img/pets').replace(/\/$/, '') + '/' + pet.id + '/' + safeName + '.' + ext;
         U.toast('上傳中…');
         S.githubUploadImage(file, targetPath)
-          .then((url) => { stg.img = url; save(); paint(); U.toast('已上傳並填入網址！'); })
+          .then((url) => { images[idx] = url; save(); paint(); U.toast('已上傳並填入網址！'); })
           .catch((err) => U.toast('上傳失敗：' + err.message, 'error'));
       },
     });
     return el('span', {}, [
       fileInput,
-      el('button', { class: 'btn btn--ghost btn--sm', text: '📤 上傳', title: '上傳圖片到 GitHub', onclick: () => fileInput.click() }),
+      el('button', { class: 'btn btn--ghost btn--sm', text: '📤 上傳', title: '上傳新圖片到 GitHub', onclick: () => fileInput.click() }),
     ]);
+  }
+
+  function pickButton(idx, images, save, paint) {
+    return el('button', {
+      class: 'btn btn--ghost btn--sm', text: '📂 選擇', title: '從 GitHub Repo 裡選一張已經有的圖片',
+      onclick: () => openGithubPicker((url) => { images[idx] = url; save(); paint(); }),
+    });
+  }
+
+  function openGithubPicker(onSelect) {
+    const cfg = S.getGithubConfig();
+    if (!cfg.owner || !cfg.repo || !cfg.token) {
+      U.toast('請先設定 GitHub 帳號、Repo 與 Token', 'warn');
+      return openGithubSettings();
+    }
+    let currentPath = (cfg.path || '').replace(/^\/+|\/+$/g, '');
+    const pathLabel = el('b', { text: '/' + currentPath });
+    const gridEl = el('div', {});
+
+    function load() {
+      gridEl.innerHTML = '';
+      gridEl.appendChild(el('div', { class: 'empty', style: { padding: '14px' }, text: '載入中…' }));
+      S.githubListFiles(currentPath).then((items) => {
+        pathLabel.textContent = '/' + currentPath;
+        const dirs = items.filter((i) => i.type === 'dir');
+        const files = items.filter((i) => i.type === 'file' && /\.(png|jpe?g|gif|webp|svg)$/i.test(i.name));
+        gridEl.innerHTML = '';
+        if (!dirs.length && !files.length) {
+          gridEl.appendChild(el('div', { class: 'empty', style: { padding: '14px' }, text: '這個資料夾是空的，或沒有圖片檔案。' }));
+        }
+        gridEl.appendChild(el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(96px,1fr))', gap: '10px' } },
+          dirs.map((d) => el('button', { class: 'rule-btn', onclick: () => { currentPath = d.path; load(); } }, [
+            el('div', { style: { fontSize: '30px' }, text: '📁' }),
+            el('div', { class: 'rule-btn__label truncate', title: d.name, text: d.name }),
+          ])).concat(files.map((f) => el('button', {
+            class: 'rule-btn', title: f.name,
+            onclick: () => { onSelect(f.download_url); handle.close(); },
+          }, [
+            el('img', { src: f.download_url, style: { width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: '10px' } }),
+            el('div', { class: 'rule-btn__label truncate', style: { fontSize: '11px' }, text: f.name }),
+          ])))
+        ));
+      }).catch((err) => {
+        gridEl.innerHTML = '';
+        gridEl.appendChild(el('div', { class: 'empty', style: { padding: '14px' }, text: '讀取失敗：' + err.message }));
+      });
+    }
+
+    const handle = U.modal({
+      title: '從 GitHub 選擇圖片',
+      wide: true,
+      body: el('div', { class: 'stack' }, [
+        el('div', { class: 'row', style: { gap: '10px' } }, [
+          el('button', {
+            class: 'btn btn--ghost btn--sm', text: '⬆ 上一層',
+            onclick: () => { if (!currentPath) return; currentPath = currentPath.split('/').slice(0, -1).join('/'); load(); },
+          }),
+          pathLabel,
+        ]),
+        gridEl,
+      ]),
+    });
+    load();
   }
 
   function openGithubSettings() {
