@@ -350,7 +350,8 @@
     ]);
 
     const cardSize = AVATAR_SIZES[(s.settings && s.settings.avatarCardSize) || 'md'];
-    const faceSize = Math.round(cardSize * 0.69);
+    const frameOn = !s.settings || s.settings.avatarFrame !== false;
+    const faceSize = Math.round(cardSize * (frameOn ? 0.69 : 0.92));
     const gridStyle = { '--avatar-size': cardSize + 'px', gridTemplateColumns: 'repeat(auto-fill, minmax(' + (cardSize + 30) + 'px,1fr))' };
     const showNo = !s.settings || s.settings.showStudentNo !== false;
     const badgeStat = (s.settings && s.settings.avatarBadgeStat) || 'points';
@@ -387,8 +388,11 @@
 
     return el('div', { class: 'page-batch' }, [
       pageHead('批次加點', multiMode ? '多選模式：點頭像切換選取，切到「小組」可以整組一起選取，再用下方工具列套用規則。' : '點一下學生頭像即可直接給他加點／扣點；切到「小組」或開啟下方「多選」可以一次處理多人。',
-        el('span', { class: 'pill pill--gold', text: '已選 ' + selected.size + ' 位' })),
-      card(null, null, [seg, quickChips, grid]),
+        el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, [
+          seg, quickChips,
+          el('span', { class: 'pill pill--gold', text: '已選 ' + selected.size + ' 位' }),
+        ])),
+      card(null, null, [grid]),
       dockBar(),
     ]);
   }
@@ -904,20 +908,52 @@
         kpi('🎀', '已解鎖造型', s.students.reduce((a, b) => a + (b.cosmetics || []).length, 0) + ' 件'),
       ]),
       el('div', { class: 'cols' }, [
-        card('每位學生的寵物', null, [
-          el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' } },
-            s.students.map((st) => {
-              const lv = M.levelFromXp(st.xp);
-              const pet = M.petById(st.petId);
-              return el('div', { class: 'rule-edit', style: { margin: 0 } }, [
-                M.petFace(pet, 28, lv.level),
-                el('div', { class: 'grow' }, [
-                  el('div', { style: { fontWeight: 800, fontSize: '13.5px' }, text: st.name }),
-                  el('div', { class: 'muted', style: { fontSize: '12px' }, text: (st.petName || pet.name) + ' Lv.' + lv.level }),
-                  el('div', { style: { marginTop: '4px' } }, [bar(lv.percent)]),
-                ]),
+        el('div', { class: 'stack' }, [
+          card('每位學生的寵物', null, [
+            el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' } },
+              s.students.map((st) => {
+                const lv = M.levelFromXp(st.xp);
+                const pet = M.petById(st.petId);
+                return el('div', { class: 'rule-edit', style: { margin: 0 } }, [
+                  M.petFace(pet, 28, lv.level),
+                  el('div', { class: 'grow' }, [
+                    el('div', { style: { fontWeight: 800, fontSize: '13.5px' }, text: st.name }),
+                    el('div', { class: 'muted', style: { fontSize: '12px' }, text: (st.petName || pet.name) + ' Lv.' + lv.level }),
+                    el('div', { style: { marginTop: '4px' } }, [bar(lv.percent)]),
+                  ]),
+                ]);
+              })),
+          ]),
+          card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
+            el('div', { class: 'stack' }, M.allPets().map((p) => {
+              const images = (s.petImages || {})[p.id] || [];
+              const withImg = images.filter(Boolean).length;
+              const totalStages = (s.petStageLevels || []).length;
+              const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
+              return el('div', { class: 'rule-edit' }, [
+                M.petFace(p, 32, 999),
+                el('input', {
+                  class: 'input grow', value: p.name, placeholder: '寵物名稱',
+                  onchange: (e) => {
+                    const nm = e.target.value.trim();
+                    if (!nm) return;
+                    if (isBuiltin) {
+                      S.commit((d) => { d.petNames = d.petNames || {}; d.petNames[p.id] = nm; });
+                    } else {
+                      S.commit((d) => { const cp = (d.customPets || []).find((x) => x.id === p.id); if (cp) cp.name = nm; });
+                    }
+                  },
+                }),
+                el('span', {
+                  class: 'pill' + (withImg ? '' : ' pill--gray'),
+                  text: totalStages + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
+                }),
+                el('button', { class: 'btn btn--ghost btn--sm', text: '管理圖片', onclick: () => openPetImageManager(p) }),
+                el('button', { class: 'btn btn--danger btn--sm', text: '🗑️', title: '刪除這種寵物', onclick: () => openDeletePet(p) }),
               ]);
             })),
+            el('button', { class: 'btn btn--green', style: { width: '100%', marginTop: '4px' }, text: '＋ 新增寵物', onclick: openAddPet }),
+          ]),
         ]),
         el('div', { class: 'stack' }, [
           card('寵物分布', null, [
@@ -983,36 +1019,6 @@
             }),
           ]),
         ]),
-      ]),
-      card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
-        el('div', { class: 'stack' }, M.allPets().map((p) => {
-          const images = (s.petImages || {})[p.id] || [];
-          const withImg = images.filter(Boolean).length;
-          const totalStages = (s.petStageLevels || []).length;
-          const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
-          return el('div', { class: 'rule-edit' }, [
-            M.petFace(p, 32, 999),
-            el('input', {
-              class: 'input grow', value: p.name, placeholder: '寵物名稱',
-              onchange: (e) => {
-                const nm = e.target.value.trim();
-                if (!nm) return;
-                if (isBuiltin) {
-                  S.commit((d) => { d.petNames = d.petNames || {}; d.petNames[p.id] = nm; });
-                } else {
-                  S.commit((d) => { const cp = (d.customPets || []).find((x) => x.id === p.id); if (cp) cp.name = nm; });
-                }
-              },
-            }),
-            el('span', {
-              class: 'pill' + (withImg ? '' : ' pill--gray'),
-              text: totalStages + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
-            }),
-            el('button', { class: 'btn btn--ghost btn--sm', text: '管理圖片', onclick: () => openPetImageManager(p) }),
-            el('button', { class: 'btn btn--danger btn--sm', text: '🗑️', title: '刪除這種寵物', onclick: () => openDeletePet(p) }),
-          ]);
-        })),
-        el('button', { class: 'btn btn--green', style: { width: '100%', marginTop: '4px' }, text: '＋ 新增寵物', onclick: openAddPet }),
       ]),
     ]);
   }
@@ -1665,6 +1671,10 @@
       el('div', { class: 'stack' }, [
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '學生頭像大小' }), sizeRow]),
         el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '頭像外框' }),
+          checkRow('avatarFrame', '顯示圓形外框（關閉後只放大圖片本身，外框不會跟著變大）', true),
+        ]),
+        el('div', { class: 'field' }, [
           el('label', { class: 'field__label', text: '學生排序方式' }),
           radioRow('studentOrder', [{ id: 'no', label: '依座號' }, { id: 'name', label: '依姓名' }], 'no'),
         ]),
@@ -2057,6 +2067,8 @@
     host.innerHTML = '';
     host.appendChild((PAGES[page] || pageOverview)());
     $$('.side__item').forEach((b) => b.classList.toggle('is-active', b.dataset.page === page));
+    const st = S.get().settings || {};
+    document.body.classList.toggle('no-avatar-frame', st.avatarFrame === false);
     renderTopbar();
     renderBatchBar();
   }

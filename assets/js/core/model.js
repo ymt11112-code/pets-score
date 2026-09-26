@@ -341,6 +341,7 @@
         showRank: true,
         allowStudentRename: true,
         avatarCardSize: 'md',
+        avatarFrame: true,
         studentOrder: 'no',
         showStudentNo: true,
         avatarBadgeStat: 'points',

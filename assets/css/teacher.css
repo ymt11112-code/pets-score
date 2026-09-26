@@ -109,6 +109,13 @@ table.tbl tbody tr.is-sel { background: #eef9f3; }
 .avatar-card.is-absent .avatar-card__label { color: var(--ink-mute); }
 .avatar-card__badge--absent { background: var(--red); }
 
+/* 顯示設定：隱藏頭像圓形外框（只留圖片本身，不放大外框） */
+body.no-avatar-frame .avatar-card__face,
+body.no-avatar-frame .avatar-card.is-on .avatar-card__face,
+body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
+  background: transparent; box-shadow: none;
+}
+
 /* ---------- 底部工具列（批次加點頁，貼齊內容區底部，簡明如 ClassDojo） ---------- */
 .dock {
   position: sticky; bottom: 0; z-index: 20; background: #fff;
