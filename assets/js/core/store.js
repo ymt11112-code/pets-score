@@ -103,7 +103,11 @@
     return fetch(url, { headers })
       .then((res) => res.json().then((json) => ({ ok: res.ok, status: res.status, json })).catch(() => ({ ok: res.ok, status: res.status, json: null })))
       .then(({ ok, status, json }) => {
-        if (!ok) throw new Error((json && json.message) || ('GitHub 回應錯誤（狀態碼 ' + status + '）'));
+        if (!ok) {
+          let msg = (json && json.message) || ('GitHub 回應錯誤（狀態碼 ' + status + '）');
+          if (status === 404) msg += '（請確認這個路徑真的存在、Repo 名稱有沒有打錯，以及 Token 是否已勾選這個 Repo 並開啟 Contents 權限）';
+          throw new Error(msg);
+        }
         if (!Array.isArray(json)) throw new Error('這不是一個資料夾');
         return json.map((item) => ({ name: item.name, path: item.path, type: item.type, download_url: item.download_url || '' }));
       });

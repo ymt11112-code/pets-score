@@ -894,7 +894,7 @@
       ]),
       el('div', { class: 'cols' }, [
         card('每位學生的寵物', null, [
-          el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: '12px' } },
+          el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' } },
             s.students.map((st) => {
               const lv = M.levelFromXp(st.xp);
               const pet = M.petById(st.petId);
@@ -934,44 +934,47 @@
           ]),
         ]),
       ]),
-      card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
-        el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
-          el('div', { class: 'rule-edit' }, [
-            el('div', { class: 'field', style: { width: '96px' } }, [
-              el('label', { class: 'field__label', text: '達到等級' }),
-              el('input', {
-                class: 'input', type: 'number', min: '1', value: t.minLevel,
-                onchange: (e) => S.commit((d) => { d.petStageLevels[idx].minLevel = Number(e.target.value) || 1; }),
+      el('div', { class: 'cols' }, [
+        card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
+          el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
+            el('div', { class: 'rule-edit' }, [
+              el('div', { class: 'field', style: { width: '96px' } }, [
+                el('label', { class: 'field__label', text: '達到等級' }),
+                el('input', {
+                  class: 'input', type: 'number', min: '1', value: t.minLevel,
+                  onchange: (e) => S.commit((d) => { d.petStageLevels[idx].minLevel = Number(e.target.value) || 1; }),
+                }),
+              ]),
+              el('div', { class: 'field grow' }, [
+                el('label', { class: 'field__label', text: '階段名稱' }),
+                el('input', {
+                  class: 'input', value: t.name || '', placeholder: '例如：成熟體',
+                  onchange: (e) => S.commit((d) => { d.petStageLevels[idx].name = e.target.value; }),
+                }),
+              ]),
+              el('button', {
+                class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段',
+                onclick: () => U.confirmDialog('刪除這個階段', '所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
+                  if (!ok) return;
+                  S.commit((d) => {
+                    d.petStageLevels.splice(idx, 1);
+                    Object.keys(d.petImages || {}).forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
+                  });
+                }),
               }),
-            ]),
-            el('div', { class: 'field grow' }, [
-              el('label', { class: 'field__label', text: '階段名稱' }),
-              el('input', {
-                class: 'input', value: t.name || '', placeholder: '例如：成熟體',
-                onchange: (e) => S.commit((d) => { d.petStageLevels[idx].name = e.target.value; }),
-              }),
-            ]),
-            el('button', {
-              class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段',
-              onclick: () => U.confirmDialog('刪除這個階段', '所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
-                if (!ok) return;
-                S.commit((d) => {
-                  d.petStageLevels.splice(idx, 1);
-                  Object.keys(d.petImages || {}).forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
-                });
-              }),
+            ])
+          )),
+          el('button', {
+            class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增階段',
+            onclick: () => S.commit((d) => {
+              d.petStageLevels = d.petStageLevels || [];
+              const lv = d.petStageLevels.length ? Math.max.apply(null, d.petStageLevels.map((x) => x.minLevel || 1)) + 5 : 1;
+              d.petStageLevels.push({ minLevel: lv, name: '' });
+              Object.keys(d.petImages || {}).forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
             }),
-          ])
-        )),
-        el('button', {
-          class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增階段',
-          onclick: () => S.commit((d) => {
-            d.petStageLevels = d.petStageLevels || [];
-            const lv = d.petStageLevels.length ? Math.max.apply(null, d.petStageLevels.map((x) => x.minLevel || 1)) + 5 : 1;
-            d.petStageLevels.push({ minLevel: lv, name: '' });
-            Object.keys(d.petImages || {}).forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
           }),
-        }),
+        ]),
+        null,
       ]),
       card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
         el('div', { class: 'stack' }, M.allPets().map((p) => {
@@ -1158,7 +1161,7 @@
       U.toast('請先設定 GitHub 帳號、Repo 與 Token', 'warn');
       return openGithubSettings();
     }
-    let currentPath = (cfg.path || '').replace(/^\/+|\/+$/g, '');
+    let currentPath = ''; // 直接從 Repo 最上層開始瀏覽，避免預設路徑還沒建立時一開始就顯示錯誤
     const pathLabel = el('b', { text: '/' + currentPath });
     const gridEl = el('div', {});
 
