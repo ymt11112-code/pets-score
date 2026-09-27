@@ -128,10 +128,10 @@
     if (!c) return;
     markCelebrated(st.id + ':' + c.id);
     U.modal({
-      title: '🏮 ' + c.name + ' 通關了！',
+      title: (c.rewardEmoji || '🏮') + ' ' + c.name + ' 通關了！',
       body: el('div', { class: 'stack' }, [
         el('p', { class: 'modal__text', text: c.clearStory }),
-        el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: '🎁 獎勵：' + c.rewardTitle }),
+        el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: (c.rewardEmoji || '🎁') + ' 獎勵：' + c.rewardTitle }),
       ]),
       actions: [{ label: '太棒了！', kind: 'primary' }],
       onClose: () => maybeCelebrateStoryline(),
@@ -144,7 +144,7 @@
         title: '🔒 ' + c.name,
         body: el('div', {}, [
           el('p', { class: 'modal__text', text: '這座燈塔還沒解鎖，完成前面的關卡後就能揭開它的故事。' }),
-          el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: '獎勵預覽：' + c.rewardTitle }),
+          el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: '獎勵預覽：' + (c.rewardEmoji ? c.rewardEmoji + ' ' : '') + c.rewardTitle }),
         ]),
         actions: [{ label: '關閉' }],
       });
@@ -156,7 +156,7 @@
       body: el('div', {}, [
         el('p', { class: 'modal__text', text: state === 'cleared' ? c.clearStory : c.intro }),
         state === 'cleared'
-          ? el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '通關時間：' + U.fmtDate(c.clearedAt) + '　·　獎勵：' + c.rewardTitle })
+          ? el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '通關時間：' + U.fmtDate(c.clearedAt) + '　·　獎勵：' + (c.rewardEmoji ? c.rewardEmoji + ' ' : '') + c.rewardTitle })
           : el('div', { style: { marginTop: '10px' } }, [
               progressBar(Math.round((stars / c.threshold) * 100), true),
               el('div', { class: 'row row--between', style: { marginTop: '6px', fontSize: '13px' } }, [
@@ -180,7 +180,7 @@
     const lighthouses = el('div', { class: 'lighthouse-row' }, story.chapters.map((c, i) => {
       const state = c.cleared ? 'cleared' : (i === idx ? 'current' : 'locked');
       return el('button', { class: 'lighthouse lighthouse--' + state, onclick: () => openChapterDetail(c, state) }, [
-        el('div', { class: 'lighthouse__icon', text: state === 'locked' ? '🔒' : '🗼' }),
+        el('div', { class: 'lighthouse__icon', text: state === 'locked' ? '🔒' : state === 'cleared' ? (c.rewardEmoji || '🗼') : '🗼' }),
         el('div', { class: 'lighthouse__name', text: c.name }),
         el('div', { class: 'lighthouse__label', text: state === 'cleared' ? '已點亮' : (state === 'current' ? '進行中' : '未解鎖') }),
       ]);
@@ -212,7 +212,7 @@
         el('span', { class: 'pill' + (c.taskDone ? '' : ' pill--gray'), text: (c.taskDone ? '✅ ' : '⏳ ') + c.taskTitle }),
         el('span', { class: 'muted', style: { fontSize: '12.5px' }, text: statusText }),
       ]),
-      el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '8px' }, text: '過關獎勵：' + c.rewardTitle }),
+      el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '8px' }, text: '過關獎勵：' + (c.rewardEmoji ? c.rewardEmoji + ' ' : '') + c.rewardTitle }),
     ]);
   }
 
