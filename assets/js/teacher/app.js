@@ -1049,6 +1049,15 @@
   function timerWidget() {
     const timeEl = el('div', { class: 'timer-stage__time', text: fmtTimer(timerState.left) });
     const fillEl = el('div', { class: 'timer-stage__fill', style: { width: (timerState.left / timerState.total * 100) + '%' } });
+    const stageEl = el('div', { class: 'timer-stage' }, [
+      timeEl,
+      el('div', { class: 'timer-stage__bar' }, [fillEl]),
+      el('div', { class: 'row', style: { gap: '10px', justifyContent: 'center' } }, [
+        el('button', { class: 'btn btn--primary', text: '▶ 開始', onclick: () => startTimer() }),
+        el('button', { class: 'btn btn--ghost', text: '⏸ 暫停', onclick: () => stopTimer() }),
+        el('button', { class: 'btn btn--ghost', text: '↻ 重設', onclick: () => setTimer(timerState.total) }),
+      ]),
+    ]);
 
     function paintTimer() {
       timeEl.textContent = fmtTimer(timerState.left);
@@ -1057,14 +1066,16 @@
     }
     function startTimer() {
       if (timerState.running) return;
+      stageEl.classList.remove('is-flash');
       timerState.running = true;
       timerState.handle = setInterval(() => {
         timerState.left = Math.max(0, timerState.left - 1);
         paintTimer();
         if (timerState.left === 0) {
           stopTimer();
+          stageEl.classList.add('is-flash');
           U.toast('⏰ 時間到！');
-          try { beep(); } catch (e) { /* 部分瀏覽器不允許自動播放 */ }
+          try { playAlarm(); } catch (e) { /* 部分瀏覽器不允許自動播放 */ }
         }
       }, 1000);
     }
@@ -1074,21 +1085,14 @@
     }
     function setTimer(sec) {
       stopTimer();
+      stageEl.classList.remove('is-flash');
       timerState.total = sec;
       timerState.left = sec;
       paintTimer();
     }
 
     return el('div', {}, [
-      el('div', { class: 'timer-stage' }, [
-        timeEl,
-        el('div', { class: 'timer-stage__bar' }, [fillEl]),
-        el('div', { class: 'row', style: { gap: '10px', justifyContent: 'center' } }, [
-          el('button', { class: 'btn btn--primary', text: '▶ 開始', onclick: startTimer }),
-          el('button', { class: 'btn btn--ghost', text: '⏸ 暫停', onclick: stopTimer }),
-          el('button', { class: 'btn btn--ghost', text: '↻ 重設', onclick: () => setTimer(timerState.total) }),
-        ]),
-      ]),
+      stageEl,
       el('div', { class: 'timer-presets', style: { marginTop: '14px' } },
         [1, 3, 5, 10, 15, 20].map((m) => el('button', { class: 'btn btn--ghost btn--sm', text: m + ' 分', onclick: () => setTimer(m * 60) }))),
     ]);
@@ -1108,6 +1112,10 @@
   }
 
   function beep() { playTone(880); }
+
+  function playAlarm() {
+    [0, 260, 520].forEach((delay) => setTimeout(() => { try { playTone(1046); } catch (e) { /* 忽略 */ } }, delay));
+  }
 
   /* ================= 寵物與徽章 ================= */
   function pagePets() {
@@ -1823,8 +1831,8 @@
         el('input', { class: 'input rule-edit__icon', value: t.icon, onchange: (e) => upd({ icon: e.target.value }) }),
         el('input', { class: 'input grow', value: t.title, onchange: (e) => upd({ title: e.target.value }) }),
         el('input', { class: 'input rule-edit__num', type: 'number', value: t.done, title: '已完成', onchange: (e) => upd({ done: Number(e.target.value) || 0 }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: t.target, title: '目標', onchange: (e) => upd({ target: Number(e.target.value) || 0 }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: t.xp, title: 'XP', onchange: (e) => upd({ xp: Number(e.target.value) || 0 }) }),
+        el('input', { class: 'input rule-edit__num', type: 'number', value: t.target, title: '全班目標', onchange: (e) => upd({ target: Number(e.target.value) || 0 }) }),
+        el('input', { class: 'input rule-edit__num', type: 'number', value: t.xp, title: '達成後的 XP（目前僅顯示於學生前台，尚未自動發放）', onchange: (e) => upd({ xp: Number(e.target.value) || 0 }) }),
         el('button', { class: 'btn btn--danger btn--sm', text: '✕', onclick: () => S.commit((d) => { d.dailyTasks = d.dailyTasks.filter((x) => x.id !== t.id); }) }),
       ]);
     }
@@ -1844,18 +1852,92 @@
             S.commit((d) => d.shop.push({ id: U.uid('sh'), name: '新獎勵', icon: '🎁', cost: 30, stock: 5, desc: '' }));
           } }),
         ]),
-        card('今日任務', '欄位依序為：圖示、名稱、已完成、目標、XP。', [
-          el('div', {}, s.dailyTasks.map(taskRow)),
-          el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增任務', onclick: () => {
-            S.commit((d) => d.dailyTasks.push({ id: U.uid('dt'), title: '新任務', icon: '📌', xp: 2, target: d.students.length, done: 0 }));
-          } }),
-        ]),
+        (() => {
+          const c = card('今日任務', '欄位依序為：圖示、名稱、已完成、全班目標、達成後的 XP（目前僅顯示於學生前台，尚未自動加總發放）。', [
+            el('div', {}, s.dailyTasks.map(taskRow)),
+            el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增任務', onclick: () => {
+              S.commit((d) => d.dailyTasks.push({ id: U.uid('dt'), title: '新任務', icon: '📌', xp: 2, target: d.students.length, done: 0 }));
+            } }),
+          ]);
+          c.classList.add('set-grid__full');
+          return c;
+        })(),
       ]),
     ]);
   }
 
   /* ================= 班級設定 ================= */
   function pageSettings() {
+    const s = S.get();
+
+    /* ---- 班級資訊與共同任務 ---- */
+    const ci = s.classInfo;
+    const info = (key, label, type) => el('div', { class: 'field' }, [
+      el('label', { class: 'field__label', text: label }),
+      el('input', {
+        class: 'input', type: type || 'text', value: ci[key] || '',
+        oninput: (e) => {
+          S.commit((d) => { d.classInfo[key] = e.target.value; }, { silent: true });
+          renderTopbar();
+          const t = $('.page-title');
+          if (t) t.textContent = S.get().classInfo.teacher + ' 的 ' + S.get().classInfo.className;
+        },
+      }),
+    ]);
+    const mission = s.classMission;
+    const mUpd = (patch) => S.commit((d) => Object.assign(d.classMission, patch), { silent: true });
+
+    const classInfoCard = card('🏫 班級資訊與共同任務', null, [
+      el('div', { class: 'stack' }, [
+        info('school', '學校'), info('className', '班級'), info('teacher', '老師'), info('term', '篇章名稱'),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '共同任務名稱' }),
+          el('input', { class: 'input', value: mission.title, onchange: (e) => mUpd({ title: e.target.value }) }),
+        ]),
+        el('div', { class: 'row', style: { gap: '10px' } }, [
+          el('div', { class: 'field grow' }, [
+            el('label', { class: 'field__label', text: '目前進度' }),
+            el('input', { class: 'input', type: 'number', value: mission.progress, onchange: (e) => mUpd({ progress: Number(e.target.value) || 0 }) }),
+          ]),
+          el('div', { class: 'field grow' }, [
+            el('label', { class: 'field__label', text: '目標點數' }),
+            el('input', { class: 'input', type: 'number', value: mission.target, onchange: (e) => mUpd({ target: Number(e.target.value) || 1 }) }),
+          ]),
+        ]),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '完成獎勵' }),
+          el('input', { class: 'input', value: mission.reward || '', onchange: (e) => mUpd({ reward: e.target.value }) }),
+        ]),
+        el('p', { class: 'card__sub', text: '以上欄位邊打邊存，不需另外按儲存。' }),
+      ]),
+    ]);
+
+    /* ---- 重設點數／重新開始 ---- */
+    const resetCard = card('🔄 重設點數 / 重新開始', '新學期可以清空點數，保留學生名單。', [
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
+        el('button', { class: 'btn btn--danger', text: '清空點數（保留名單）', onclick: () => {
+          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單與分組保留。', '清空').then((ok) => {
+            if (!ok) return;
+            S.resetAll(true); U.toast('已重設', 'warn'); render();
+          });
+        } }),
+        el('button', { class: 'btn btn--danger', text: '完全重設（回到示範資料）', onclick: () => {
+          U.confirmDialog('完全重設', '會回到內建的示範班級資料，此動作無法復原。', '重設').then((ok) => {
+            if (!ok) return;
+            S.resetAll(false); U.toast('已重設為示範資料', 'warn'); render();
+          });
+        } }),
+      ]),
+    ]);
+
+    return el('div', {}, [
+      pageHead('班級設定', '班級資訊與共同任務的故事線，還有重設選項都放在這裡。'),
+      el('div', { class: 'set-grid' }, [classInfoCard, resetCard]),
+    ]);
+  }
+
+  /* ================= 系統設定 ================= */
+  function pageSystemSettings() {
     const s = S.get();
 
     /* ---- 顯示設定 ---- */
@@ -1945,48 +2027,6 @@
       ]),
     ]);
 
-    /* ---- 班級資訊與共同任務（原本在規則設定頁） ---- */
-    const ci = s.classInfo;
-    const info = (key, label, type) => el('div', { class: 'field' }, [
-      el('label', { class: 'field__label', text: label }),
-      el('input', {
-        class: 'input', type: type || 'text', value: ci[key] || '',
-        oninput: (e) => {
-          S.commit((d) => { d.classInfo[key] = e.target.value; }, { silent: true });
-          renderTopbar();
-          const t = $('.page-title');
-          if (t) t.textContent = S.get().classInfo.teacher + ' 的 ' + S.get().classInfo.className;
-        },
-      }),
-    ]);
-    const mission = s.classMission;
-    const mUpd = (patch) => S.commit((d) => Object.assign(d.classMission, patch), { silent: true });
-
-    const classInfoCard = card('🏫 班級資訊與共同任務', null, [
-      el('div', { class: 'stack' }, [
-        info('school', '學校'), info('className', '班級'), info('teacher', '老師'), info('term', '篇章名稱'),
-        el('div', { class: 'field' }, [
-          el('label', { class: 'field__label', text: '共同任務名稱' }),
-          el('input', { class: 'input', value: mission.title, onchange: (e) => mUpd({ title: e.target.value }) }),
-        ]),
-        el('div', { class: 'row', style: { gap: '10px' } }, [
-          el('div', { class: 'field grow' }, [
-            el('label', { class: 'field__label', text: '目前進度' }),
-            el('input', { class: 'input', type: 'number', value: mission.progress, onchange: (e) => mUpd({ progress: Number(e.target.value) || 0 }) }),
-          ]),
-          el('div', { class: 'field grow' }, [
-            el('label', { class: 'field__label', text: '目標點數' }),
-            el('input', { class: 'input', type: 'number', value: mission.target, onchange: (e) => mUpd({ target: Number(e.target.value) || 1 }) }),
-          ]),
-        ]),
-        el('div', { class: 'field' }, [
-          el('label', { class: 'field__label', text: '完成獎勵' }),
-          el('input', { class: 'input', value: mission.reward || '', onchange: (e) => mUpd({ reward: e.target.value }) }),
-        ]),
-        el('p', { class: 'card__sub', text: '以上欄位邊打邊存，不需另外按儲存。' }),
-      ]),
-    ]);
-
     /* ---- 批次加點底部工具列的項目 ---- */
     const allTools = M.TOOLBAR_TOOLS.map((t) => ({ id: t.id, icon: t.icon, label: t.label }))
       .concat(s.rules.map((r) => ({ id: r.id, icon: r.icon, label: r.label })));
@@ -2041,27 +2081,9 @@
       })) : null,
     ]);
 
-    /* ---- 重設點數／重新開始（原本在資料與同步頁） ---- */
-    const resetCard = card('🔄 重設點數 / 重新開始', '新學期可以清空點數，保留學生名單。', [
-      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
-        el('button', { class: 'btn btn--danger', text: '清空點數（保留名單）', onclick: () => {
-          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單與分組保留。', '清空').then((ok) => {
-            if (!ok) return;
-            S.resetAll(true); U.toast('已重設', 'warn'); render();
-          });
-        } }),
-        el('button', { class: 'btn btn--danger', text: '完全重設（回到示範資料）', onclick: () => {
-          U.confirmDialog('完全重設', '會回到內建的示範班級資料，此動作無法復原。', '重設').then((ok) => {
-            if (!ok) return;
-            S.resetAll(false); U.toast('已重設為示範資料', 'warn'); render();
-          });
-        } }),
-      ]),
-    ]);
-
     return el('div', {}, [
-      pageHead('班級設定', '顯示樣式、班級資訊、工具列與重設選項都放在這裡，參考 ClassDojo 的「Options」選單整理。'),
-      el('div', { class: 'set-grid' }, [classInfoCard, displayCard, toolbarCard, resetCard]),
+      pageHead('系統設定', '顯示樣式與批次加點的底部工具列都放在這裡，參考 ClassDojo 的「Options」選單整理，改完立即生效。'),
+      el('div', { class: 'set-grid' }, [displayCard, toolbarCard]),
     ]);
   }
 
@@ -2275,27 +2297,22 @@
       return;
     }
     host.classList.add('is-in');
-    host.appendChild(el('span', { class: 'batchbar__count', text: '已選 ' + selected.size + ' 位' }));
-    host.appendChild(el('div', { class: 'batchbar__rules' }, S.get().rules.slice(0, 5).map((r) =>
-      el('button', {
-        class: 'batchbar__rule', title: r.label,
-        onclick: () => applyRule(Array.from(selected), r),
-      }, [
-        el('span', { text: r.icon }),
-        el('span', { text: r.label }),
-        el('span', { text: (r.points > 0 ? '+' : '') + r.points }),
-      ])
-    )));
-    host.appendChild(el('button', { class: 'btn btn--ghost btn--sm', text: '➕ 自訂', onclick: () => openCustomAward(Array.from(selected)) }));
-    host.appendChild(el('button', { class: 'btn btn--primary btn--sm', text: '更多…', onclick: () => go('batch') }));
-    host.appendChild(el('button', { class: 'btn btn--ghost btn--sm', text: '清除', onclick: () => { selected = new Set(); render(); } }));
+    const ids = Array.from(selected);
+    host.appendChild(el('button', {
+      class: 'batchbar__btn batchbar__btn--main',
+      onclick: () => openFeedbackModal(ids),
+    }, [el('span', { text: '⭐' }), el('span', { text: '加扣點（' + selected.size + '）' })]));
+    host.appendChild(el('button', { class: 'batchbar__btn', onclick: openDailyTasksQuick }, [el('span', { text: '📗' }), el('span', { text: '今日任務' })]));
+    host.appendChild(el('button', { class: 'batchbar__btn', onclick: () => openCustomAward(ids) }, [el('span', { text: '➕' }), el('span', { text: '自訂' })]));
+    host.appendChild(el('button', { class: 'batchbar__btn', onclick: () => go('batch') }, [el('span', { text: '✏️' }), el('span', { text: '編輯' })]));
+    host.appendChild(el('button', { class: 'batchbar__btn', onclick: () => { selected = new Set(); render(); } }, [el('span', { text: '清除' })]));
   }
 
   /* ---------- 路由 ---------- */
   const PAGES = {
     guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
     pets: pagePets, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
-    rules: pageRules, settings: pageSettings, sync: pageSync,
+    rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
   };
 
   function go(p) {

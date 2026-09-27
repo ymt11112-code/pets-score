@@ -191,18 +191,18 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 /* ---------- 浮動批次列 ---------- */
 .batchbar {
   position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 120%); z-index: 60;
-  background: var(--brand); color: #fff; border-radius: 18px; padding: 12px 16px;
-  box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 12px; transition: transform .24s;
-  max-width: calc(100vw - 32px); flex-wrap: wrap;
+  background: var(--brand); color: #fff; border-radius: 18px; padding: 10px 12px;
+  box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 8px; transition: transform .24s;
+  max-width: calc(100vw - 32px); flex-wrap: nowrap; overflow-x: auto;
 }
 .batchbar.is-in { transform: translate(-50%, 0); }
-.batchbar__count { font-weight: 800; }
-.batchbar__rules { display: flex; gap: 8px; flex-wrap: wrap; }
-.batchbar__rule {
+.batchbar__btn {
   display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, .14); color: #fff;
-  border-radius: 12px; padding: 7px 12px; font-weight: 700; font-size: 13.5px; white-space: nowrap;
+  border-radius: 12px; padding: 8px 13px; font-weight: 700; font-size: 13.5px; white-space: nowrap; transition: .14s;
 }
-.batchbar__rule:hover { background: var(--gold); color: #4a3405; }
+.batchbar__btn:hover { background: rgba(255, 255, 255, .26); }
+.batchbar__btn--main { background: var(--gold); color: #4a3405; }
+.batchbar__btn--main:hover { background: var(--gold); opacity: .88; }
 
 /* ---------- 小工具（抽籤／計時器） ---------- */
 .tool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
@@ -216,6 +216,8 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 .picker-stage.is-rolling .picker-stage__emoji { animation: pop-in .18s infinite alternate; }
 
 .timer-stage { background: var(--brand); color: #fff; border-radius: 18px; padding: 26px; text-align: center; }
+.timer-stage.is-flash { animation: timerFlash .5s ease-in-out 6; }
+@keyframes timerFlash { 0%, 100% { background: var(--brand); } 50% { background: var(--gold); } }
 .timer-stage__time { font-size: 62px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .timer-stage__time.is-warn { color: var(--gold); }
 .timer-stage__bar { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, .2); overflow: hidden; margin: 14px 0 16px; }
@@ -233,6 +235,7 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 
 /* ---------- 設定 ---------- */
 .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; align-items: start; }
+.set-grid__full { grid-column: 1 / -1; }
 .rule-edit { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1.5px solid var(--line); border-radius: 14px; margin-bottom: 10px; background: var(--bg-soft); }
 .rule-edit .input { padding: 8px 10px; }
 .rule-edit__icon { width: 54px; text-align: center; font-size: 20px; }

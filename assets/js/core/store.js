@@ -229,6 +229,12 @@
     ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
     });
+    /* 舊的自訂工具列存檔可能是在「自訂點數」「今日任務」這兩個按鈕出現前存的，這裡補進去避免消失 */
+    if (out.toolbar.length) {
+      ['util:custom', 'util:tasks'].forEach((id) => {
+        if (out.toolbar.indexOf(id) < 0) out.toolbar.push(id);
+      });
+    }
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     migratePetStages(out, s, base);
