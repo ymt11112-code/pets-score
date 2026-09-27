@@ -863,7 +863,8 @@
               el('thead', {}, [el('tr', {}, [
                 el('th', { text: '座號' }), el('th', { text: '姓名' }),
                 el('th', { text: '小組' }), el('th', { class: 'col-hide-sm', text: '寵物' }),
-                el('th', { text: '點數' }), el('th', { text: '操作' }),
+                el('th', { text: '點數' }), el('th', { text: 'XP' }), el('th', { text: '金幣' }),
+                el('th', { text: '寵物等級' }), el('th', { text: '操作' }),
               ])]),
               el('tbody', {}, s.students.map((st) => el('tr', {}, [
                 el('td', { text: U.pad2(st.no) }),
@@ -877,6 +878,9 @@
                   el('span', { text: st.petName || M.petById(st.petId).name }),
                 ])]),
                 el('td', { text: String(st.points) }),
+                el('td', { text: String(st.xp) }),
+                el('td', { text: String(st.coins) }),
+                el('td', { text: 'Lv.' + M.levelFromXp(st.xp).level }),
                 el('td', {}, [el('div', { class: 'row', style: { gap: '6px' } }, [
                   el('button', { class: 'btn btn--ghost btn--sm', text: '編輯', onclick: () => openStudentEdit(st) }),
                   el('button', {
