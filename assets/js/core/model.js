@@ -107,8 +107,8 @@
 
   /* 批次加點頁底部工具列：預設項目與順序（util: 開頭是內建工具，其餘是規則 id） */
   const DEFAULT_TOOLBAR = [
-    'util:attendance', 'ontime', 'util:multi', 'util:random', 'util:timer', 'homework',
-    'help', 'team', 'tidy', 'focus', 'cheer', 'mission', 'remind',
+    'util:attendance', 'ontime', 'util:multi', 'util:random', 'util:timer', 'util:custom',
+    'util:tasks', 'homework', 'help', 'team', 'tidy', 'focus', 'cheer', 'mission', 'remind',
   ];
 
   const TOOLBAR_TOOLS = [
@@ -116,6 +116,8 @@
     { id: 'util:multi',      icon: '☑️', label: '多選' },
     { id: 'util:random',     icon: '🎲', label: '隨機抽籤' },
     { id: 'util:timer',      icon: '⏱️', label: '計時器' },
+    { id: 'util:custom',     icon: '➕', label: '自訂點數' },
+    { id: 'util:tasks',      icon: '📗', label: '今日任務' },
   ];
 
   const GROUP_PRESET = [
@@ -345,10 +347,12 @@
         studentOrder: 'no',
         showStudentNo: true,
         avatarBadgeStat: 'points',
+        avatarBadgeStats: ['points'],
         notifyAward: true,
         notifyDeduct: true,
         soundAward: false,
         soundDeduct: false,
+        showBatchBar: true,
       },
     };
   }

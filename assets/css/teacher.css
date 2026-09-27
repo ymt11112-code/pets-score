@@ -80,7 +80,7 @@ table.tbl tbody tr.is-sel { background: #eef9f3; }
 /* ---------- 頭像式選取卡片（ClassDojo 風格） ---------- */
 .avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
 .avatar-card {
-  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px 10px;
   border-radius: 16px; border: 1.5px solid transparent; background: transparent; text-align: center; transition: .14s;
 }
 .avatar-card:hover { background: var(--bg-soft); }
@@ -101,8 +101,9 @@ table.tbl tbody tr.is-sel { background: #eef9f3; }
   background: var(--brand); color: #fff; font-size: 13px; font-weight: 900; display: grid; place-items: center;
   border: 2px solid #fff; box-shadow: var(--shadow-sm);
 }
-.avatar-card__label { font-size: 12px; font-weight: 700; color: var(--ink-soft); line-height: 1.3; }
-.avatar-card.is-on .avatar-card__label { color: var(--brand); font-weight: 800; }
+.avatar-card__label { font-size: 14px; font-weight: 800; color: var(--ink); line-height: 1.25; }
+.avatar-card.is-on .avatar-card__label { color: var(--brand); font-weight: 900; }
+.avatar-card__extra { font-size: 11px; font-weight: 700; color: var(--ink-mute); margin-top: -2px; }
 .avatar-card.is-absent { cursor: not-allowed; }
 .avatar-card.is-absent:hover { background: transparent; }
 .avatar-card.is-absent .avatar-card__face { background: #f4f4f4; box-shadow: inset 0 0 0 2px var(--line); filter: grayscale(1); opacity: .6; }
@@ -114,6 +115,26 @@ body.no-avatar-frame .avatar-card__face,
 body.no-avatar-frame .avatar-card.is-on .avatar-card__face,
 body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
   background: transparent; box-shadow: none;
+}
+
+/* ---------- 個人資料視窗（點單一學生頭像跳出） ---------- */
+.profile-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.profile-head__name { font-size: 19px; font-weight: 900; }
+.profile-head__stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.profile-head__bar { margin-top: 10px; max-width: 320px; }
+.profile-head__next { font-size: 12.5px; color: var(--ink-mute); margin-top: 4px; }
+.profile-layout { display: flex; gap: 18px; align-items: flex-start; }
+.profile-nav { display: flex; flex-direction: column; gap: 4px; width: 150px; flex: 0 0 150px; }
+.profile-nav__item {
+  display: flex; align-items: center; gap: 8px; text-align: left; padding: 10px 12px; border-radius: 12px;
+  font-weight: 700; font-size: 13.5px; color: var(--ink-soft); transition: .14s;
+}
+.profile-nav__item:hover { background: var(--bg-soft); }
+.profile-nav__item.is-active { background: var(--green-soft); color: var(--brand); }
+.profile-content { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 640px) {
+  .profile-layout { flex-direction: column; }
+  .profile-nav { flex-direction: row; overflow-x: auto; width: auto; flex: none; }
 }
 
 /* ---------- 底部工具列（批次加點頁，貼齊內容區底部，簡明如 ClassDojo） ---------- */
@@ -151,6 +172,12 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 .rule-btn__pts.is-minus { color: var(--red); }
 .rule-btn__label { font-size: 13px; font-weight: 700; margin-top: 3px; }
 .rule-btn__emoji { font-size: 19px; }
+/* 個人／多人加扣點視窗裡的規則格線：按鈕縮小一點，一排放 4 個，方便快速點選 */
+.rule-grid--dense { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.rule-grid--dense .rule-btn { padding: 10px 6px; }
+.rule-grid--dense .rule-btn__emoji { font-size: 16px; }
+.rule-grid--dense .rule-btn__pts { font-size: 14px; }
+.rule-grid--dense .rule-btn__label { font-size: 11px; margin-top: 2px; }
 
 .log-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
 .log-row:last-child { border-bottom: none; }
@@ -172,8 +199,8 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 .batchbar__count { font-weight: 800; }
 .batchbar__rules { display: flex; gap: 8px; flex-wrap: wrap; }
 .batchbar__rule {
-  background: rgba(255, 255, 255, .14); color: #fff; border-radius: 12px; padding: 7px 12px;
-  font-weight: 700; font-size: 13.5px;
+  display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, .14); color: #fff;
+  border-radius: 12px; padding: 7px 12px; font-weight: 700; font-size: 13.5px; white-space: nowrap;
 }
 .batchbar__rule:hover { background: var(--gold); color: #4a3405; }
 

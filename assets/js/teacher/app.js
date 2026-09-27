@@ -320,7 +320,7 @@
   }
 
   /* ================= 批次加點 ================= */
-  function avatarCard(face, label, badge, on, absent, onclick) {
+  function avatarCard(face, label, badge, on, absent, onclick, extra) {
     return el('button', { class: 'avatar-card' + (on ? ' is-on' : '') + (absent ? ' is-absent' : ''), onclick }, [
       el('div', { class: 'avatar-card__face' }, [
         face,
@@ -329,6 +329,7 @@
           : (badge != null ? el('span', { class: 'avatar-card__badge' + (absent ? ' avatar-card__badge--absent' : ''), text: String(badge) }) : null),
       ]),
       el('div', { class: 'avatar-card__label', text: label }),
+      extra ? el('div', { class: 'avatar-card__extra', text: extra }) : null,
     ]);
   }
 
@@ -354,13 +355,20 @@
     const faceSize = Math.round(cardSize * (frameOn ? 0.69 : 0.92));
     const gridStyle = { '--avatar-size': cardSize + 'px', gridTemplateColumns: 'repeat(auto-fill, minmax(' + (cardSize + 30) + 'px,1fr))' };
     const showNo = !s.settings || s.settings.showStudentNo !== false;
-    const badgeStat = (s.settings && s.settings.avatarBadgeStat) || 'points';
-    const statFor = (st) => {
-      if (badgeStat === 'coins') return st.coins;
-      if (badgeStat === 'level') return 'Lv.' + M.levelFromXp(st.xp).level;
-      if (badgeStat === 'none') return null;
-      return st.points;
+    const badgeStats = (s.settings && Array.isArray(s.settings.avatarBadgeStats) && s.settings.avatarBadgeStats.length)
+      ? s.settings.avatarBadgeStats
+      : [(s.settings && s.settings.avatarBadgeStat) || 'points'];
+    const statValue = (key, st) => {
+      if (key === 'coins') return st.coins;
+      if (key === 'level') return 'Lv.' + M.levelFromXp(st.xp).level;
+      if (key === 'points') return st.points;
+      return null;
     };
+    const statIcon = { points: '⭐', coins: '🪙', level: '🧪' };
+    const statFor = (st) => statValue(badgeStats[0], st);
+    const extraStatFor = (st) => badgeStats.slice(1)
+      .map((key) => statValue(key, st) != null ? statIcon[key] + statValue(key, st) : null)
+      .filter(Boolean).join(' · ') || null;
 
     const grid = batchTab === 'groups'
       ? el('div', { class: 'avatar-grid', style: gridStyle }, s.groups.map((g) => {
@@ -381,8 +389,9 @@
             () => {
               if (absent) return U.toast('這位同學今天請假中，如需調整請到「出席」', 'warn');
               if (multiMode) { on ? selected.delete(st.id) : selected.add(st.id); render(); }
-              else openFeedbackModal([st.id]);
-            }
+              else openStudentProfile(st.id);
+            },
+            absent ? null : extraStatFor(st)
           );
         }));
 
@@ -404,6 +413,8 @@
       if (id === 'util:multi') return { icon: tool.icon, label: multiMode ? '多選中' : tool.label, active: multiMode, onclick: () => { multiMode = !multiMode; selected = new Set(); render(); } };
       if (id === 'util:random') return { icon: tool.icon, label: tool.label, onclick: openRandomDraw };
       if (id === 'util:timer') return { icon: tool.icon, label: tool.label, onclick: openTimerModal };
+      if (id === 'util:custom') return { icon: tool.icon, label: tool.label, onclick: () => openCustomAward(Array.from(selected)) };
+      if (id === 'util:tasks') return { icon: tool.icon, label: tool.label, onclick: openDailyTasksQuick };
     }
     const r = s.rules.find((x) => x.id === id);
     if (!r) return null;
@@ -435,7 +446,7 @@
 
     const countEl = (multiMode && selected.size > 0)
       ? el('button', {
-          class: 'dock-btn is-active', text: '⭐ 加扣分（' + selected.size + '）',
+          class: 'dock-btn is-active', text: '⭐ 加扣點（' + selected.size + '）',
           title: '對已選的學生一次加分或扣分', onclick: () => openFeedbackModal(Array.from(selected)),
         })
       : el('span', { class: 'dock__count', text: '已選 ' + selected.size + ' 位' });
@@ -450,18 +461,17 @@
     ]);
   }
 
-  function openFeedbackModal(ids) {
-    if (!ids.length) return;
+  /* 加分／扣分分頁＋規則格線，openFeedbackModal（多人）跟 openStudentProfile（單人檔案）共用 */
+  function pointTabsWidget(ids, onApplied) {
     const s = S.get();
-    const first = ids.length === 1 ? S.student(ids[0]) : null;
     let tab = 'pos';
     const listWrap = el('div', {});
 
     function paintList() {
       listWrap.innerHTML = '';
       const rules = s.rules.filter((r) => (tab === 'pos' ? r.points >= 0 : r.points < 0));
-      listWrap.appendChild(el('div', { class: 'rule-grid' }, rules.length ? rules.map((r) =>
-        el('button', { class: 'rule-btn', onclick: () => { applyRule(ids, r); handle.close(); } }, [
+      listWrap.appendChild(el('div', { class: 'rule-grid rule-grid--dense' }, rules.length ? rules.map((r) =>
+        el('button', { class: 'rule-btn', onclick: () => { applyRule(ids, r); onApplied(); } }, [
           el('div', { class: 'rule-btn__emoji', text: r.icon }),
           el('div', { class: 'rule-btn__pts' + (r.points < 0 ? ' is-minus' : ''), text: (r.points > 0 ? '+' : '') + r.points }),
           el('div', { class: 'rule-btn__label', text: r.label }),
@@ -473,6 +483,14 @@
       el('button', { class: 'seg-toggle__btn is-active', text: '加分', onclick: (e) => { tab = 'pos'; $$('.seg-toggle__btn', tabs).forEach((b) => b.classList.remove('is-active')); e.target.classList.add('is-active'); paintList(); } }),
       el('button', { class: 'seg-toggle__btn', text: '扣分', onclick: (e) => { tab = 'neg'; $$('.seg-toggle__btn', tabs).forEach((b) => b.classList.remove('is-active')); e.target.classList.add('is-active'); paintList(); } }),
     ]);
+
+    paintList();
+    return el('div', {}, [tabs, el('div', { style: { height: '12px' } }), listWrap]);
+  }
+
+  function openFeedbackModal(ids) {
+    if (!ids.length) return;
+    const first = ids.length === 1 ? S.student(ids[0]) : null;
 
     const head = first
       ? el('div', { class: 'row', style: { gap: '12px', marginBottom: '16px' } }, [
@@ -487,14 +505,169 @@
     const handle = U.modal({
       title: first ? '給 ' + first.name + ' 加分／扣分' : '給 ' + ids.length + ' 位學生加分／扣分',
       body: el('div', {}, [
-        head, tabs, el('div', { style: { height: '12px' } }), listWrap,
+        head,
+        pointTabsWidget(ids, () => handle.close()),
         el('button', {
           class: 'btn btn--ghost', style: { width: '100%', marginTop: '14px' }, text: '➕ 自訂點數…',
           onclick: () => { handle.close(); openCustomAward(ids); },
         }),
       ]),
     });
-    paintList();
+  }
+
+  /* ================= 個人學生檔案（點單一學生頭像跳出） ================= */
+  function openStudentProfile(studentId) {
+    let tab = 'points';
+    const headEl = el('div', {});
+    const navEl = el('div', { class: 'profile-nav' });
+    const contentEl = el('div', { class: 'profile-content' });
+
+    const TABS = [
+      { id: 'points', icon: '⭐', label: '加扣點' },
+      { id: 'redeem', icon: '🎁', label: '兌換點數' },
+      { id: 'ledger', icon: '📜', label: '點數紀錄' },
+      { id: 'badges', icon: '🏅', label: '徽章紀錄' },
+      { id: 'edit', icon: '✏️', label: '個人化管理' },
+    ];
+
+    function paintHead() {
+      const st = S.student(studentId);
+      headEl.innerHTML = '';
+      if (!st) return;
+      const lv = M.levelFromXp(st.xp);
+      const pet = M.petById(st.petId);
+      headEl.appendChild(el('div', { class: 'profile-head' }, [
+        M.petFace(pet, 84, lv.level),
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'profile-head__name', text: U.pad2(st.no) + ' ' + st.name }),
+          el('div', { class: 'muted', style: { fontSize: '13px' }, text: (st.petName || pet.name) + ' · Lv.' + lv.level }),
+          el('div', { class: 'profile-head__stats' }, [
+            el('span', { class: 'pill pill--gold', text: '⭐ ' + st.points + ' 點' }),
+            el('span', { class: 'pill', text: '🪙 ' + st.coins + ' 金幣' }),
+            el('span', { class: 'pill pill--blue', text: '🧪 ' + st.xp + ' XP' }),
+          ]),
+          el('div', { class: 'profile-head__bar' }, [bar(lv.percent, true)]),
+          el('div', { class: 'profile-head__next', text: '再獲得 ' + (lv.need - lv.inLevel) + ' XP 升到 Lv.' + (lv.level + 1) }),
+        ]),
+      ]));
+    }
+
+    function paintNav() {
+      navEl.innerHTML = '';
+      TABS.forEach((t) => {
+        navEl.appendChild(el('button', {
+          class: 'profile-nav__item' + (tab === t.id ? ' is-active' : ''),
+          onclick: () => { tab = t.id; paintNav(); paintContent(); },
+        }, [el('span', { text: t.icon }), el('span', { text: t.label })]));
+      });
+    }
+
+    function refresh() { paintHead(); paintContent(); }
+
+    function paintContent() {
+      contentEl.innerHTML = '';
+      const st = S.student(studentId);
+      if (!st) { contentEl.appendChild(el('div', { class: 'empty', text: '找不到這位學生' })); return; }
+
+      if (tab === 'points') {
+        contentEl.appendChild(pointTabsWidget([studentId], refresh));
+        contentEl.appendChild(el('button', {
+          class: 'btn btn--ghost', style: { width: '100%', marginTop: '14px' }, text: '➕ 自訂點數…',
+          onclick: () => openCustomAward([studentId]),
+        }));
+      } else if (tab === 'redeem') {
+        const shop = S.get().shop;
+        contentEl.appendChild(shop.length ? el('div', {}, shop.map((item) => {
+          const afford = st.points >= item.cost && item.stock > 0;
+          return el('div', { class: 'log-row' }, [
+            el('span', { style: { fontSize: '20px' }, text: item.icon }),
+            el('div', { class: 'grow' }, [
+              el('div', { style: { fontWeight: 700 }, text: item.name }),
+              el('div', { class: 'log-row__meta', text: '⭐ ' + item.cost + ' 點・剩 ' + item.stock + ' 份' }),
+            ]),
+            el('button', {
+              class: 'btn btn--green btn--sm', disabled: afford ? null : 'disabled', text: '兌換',
+              onclick: () => {
+                const r = S.redeem(studentId, item.id);
+                U.toast(r.ok ? '已幫 ' + st.name + ' 兌換「' + item.name + '」，請到「兌換管理」標記已領取' : r.msg, r.ok ? 'ok' : 'warn');
+                refresh();
+              },
+            }),
+          ]);
+        })) : el('div', { class: 'empty', text: '商店還沒有任何獎勵' }));
+      } else if (tab === 'ledger') {
+        const rows = S.get().ledger.filter((e) => e.studentIds.indexOf(studentId) >= 0).slice(0, 30);
+        contentEl.appendChild(rows.length ? el('div', {}, rows.map((e) => el('div', { class: 'log-row' + (e.undone ? ' is-undone' : '') }, [
+          el('div', { class: 'grow' }, [
+            el('div', { class: 'log-row__name', text: e.label }),
+            el('div', { class: 'log-row__meta', text: U.fmtDateTime(e.ts) + (e.note ? ' · ' + e.note : '') }),
+          ]),
+          el('span', { class: 'log-row__pts' + (e.points < 0 ? ' is-minus' : ''), text: (e.points > 0 ? '+' : '') + e.points }),
+          e.undone
+            ? el('span', { class: 'pill pill--gray', text: '已撤銷' })
+            : el('div', { class: 'row', style: { gap: '4px' } }, [
+                el('button', { class: 'btn btn--ghost btn--sm', text: '編輯', onclick: () => openEditEntry(e) }),
+                el('button', { class: 'btn btn--danger btn--sm', text: '撤銷', onclick: () => { undo(e); refresh(); } }),
+              ]),
+        ]))) : el('div', { class: 'empty', text: '還沒有紀錄' }));
+      } else if (tab === 'badges') {
+        const earned = st.badges || [];
+        contentEl.appendChild(el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: '10px' } },
+          M.BADGES.map((b) => {
+            const got = earned.indexOf(b.id) >= 0;
+            return el('div', { class: 'rule-edit', style: { opacity: got ? 1 : .45 } }, [
+              el('span', { style: { fontSize: '22px' }, text: b.emoji }),
+              el('div', { class: 'grow' }, [
+                el('div', { style: { fontWeight: 700, fontSize: '13px' }, text: b.name }),
+                el('div', { class: 'log-row__meta', text: got ? '已解鎖' : b.desc }),
+              ]),
+            ]);
+          })));
+      } else if (tab === 'edit') {
+        const s = S.get();
+        const update = (patch) => { S.commit((d) => { Object.assign(d.students.find((x) => x.id === studentId), patch); }); paintHead(); };
+        contentEl.appendChild(el('div', { class: 'stack' }, [
+          el('p', { class: 'card__sub', text: '改完立即生效，不需要另外儲存。' }),
+          el('div', { class: 'row', style: { gap: '10px' } }, [
+            el('div', { class: 'field', style: { width: '90px' } }, [
+              el('label', { class: 'field__label', text: '座號' }),
+              el('input', { class: 'input', type: 'number', value: st.no, onchange: (e) => update({ no: Number(e.target.value) || st.no }) }),
+            ]),
+            el('div', { class: 'field grow' }, [
+              el('label', { class: 'field__label', text: '姓名' }),
+              el('input', { class: 'input', value: st.name, onchange: (e) => { const nm = e.target.value.trim(); if (nm) update({ name: nm }); } }),
+            ]),
+          ]),
+          el('div', { class: 'row', style: { gap: '10px' } }, [
+            el('div', { class: 'field grow' }, [
+              el('label', { class: 'field__label', text: '小組' }),
+              el('select', { class: 'select', onchange: (e) => update({ groupId: e.target.value }) },
+                s.groups.map((g) => el('option', { value: g.id, text: g.name, selected: g.id === st.groupId ? 'selected' : null }))),
+            ]),
+            el('div', { class: 'field grow' }, [
+              el('label', { class: 'field__label', text: '寵物' }),
+              el('select', { class: 'select', onchange: (e) => update({ petId: e.target.value }) },
+                M.allPets().map((p) => el('option', { value: p.id, text: p.emoji + ' ' + p.name, selected: p.id === st.petId ? 'selected' : null }))),
+            ]),
+          ]),
+          el('div', { class: 'field' }, [
+            el('label', { class: 'field__label', text: '寵物暱稱（選填）' }),
+            el('input', { class: 'input', value: st.petName || '', placeholder: '例如：小柴', onchange: (e) => update({ petName: e.target.value.trim().slice(0, 10) }) }),
+          ]),
+        ]));
+      }
+    }
+
+    paintHead();
+    paintNav();
+    paintContent();
+
+    U.modal({
+      title: '學生檔案',
+      wide: true,
+      body: el('div', {}, [headEl, el('div', { class: 'profile-layout' }, [navEl, contentEl])]),
+      actions: [{ label: '關閉' }],
+    });
   }
 
   function openRandomDraw() {
@@ -517,7 +690,7 @@
       if (++n > 16) {
         clearInterval(iv);
         stage.classList.remove('is-rolling');
-        setTimeout(() => { handle.close(); openFeedbackModal([r.id]); }, 450);
+        setTimeout(() => { handle.close(); openStudentProfile(r.id); }, 450);
       }
     }, 70);
   }
@@ -556,6 +729,50 @@
           el('button', { class: 'btn btn--ghost btn--sm', text: '全部請假', onclick: () => { S.setAllAttendance(s.students.map((x) => x.id), 'absent', day); paint(); } }),
         ]),
         grid,
+      ]),
+      actions: [{ label: '完成', kind: 'primary' }],
+    });
+  }
+
+  function openDailyTasksQuick() {
+    const listEl = el('div', { class: 'stack' });
+
+    function paint() {
+      listEl.innerHTML = '';
+      const tasks = S.get().dailyTasks;
+      if (!tasks.length) {
+        listEl.appendChild(el('div', { class: 'empty', text: '目前沒有設定今日任務，請到「規則設定」新增。' }));
+        return;
+      }
+      tasks.forEach((t) => {
+        const done = Math.min(t.target, Math.max(0, t.done || 0));
+        listEl.appendChild(el('div', { class: 'log-row' }, [
+          el('span', { style: { fontSize: '20px' }, text: t.icon }),
+          el('div', { class: 'grow' }, [
+            el('div', { style: { fontWeight: 700 }, text: t.title }),
+            el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・+' + t.xp + ' XP' }),
+          ]),
+          el('div', { class: 'qty' }, [
+            el('button', {
+              class: 'qty__btn qty__btn--minus', text: '−', title: '減 1',
+              onclick: () => { S.commit((d) => { const dt = d.dailyTasks.find((x) => x.id === t.id); dt.done = Math.max(0, (dt.done || 0) - 1); }); paint(); },
+            }),
+            el('button', {
+              class: 'qty__btn qty__btn--plus', text: '＋', title: '加 1',
+              onclick: () => { S.commit((d) => { const dt = d.dailyTasks.find((x) => x.id === t.id); dt.done = Math.min(dt.target, (dt.done || 0) + 1); }); paint(); },
+            }),
+          ]),
+        ]));
+      });
+    }
+    paint();
+
+    U.modal({
+      title: '今日任務進度',
+      wide: true,
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'card__sub', text: '快速調整全班今日任務的完成人次，改完立即生效；學生前台的進度也會一起更新。' }),
+        listEl,
       ]),
       actions: [{ label: '完成', kind: 'primary' }],
     });
@@ -676,7 +893,7 @@
     ]);
   }
 
-  function openStudentEdit(st) {
+  function openStudentEdit(st, onSaved) {
     const s = S.get();
     const name = el('input', { class: 'input', value: st ? st.name : '', placeholder: '學生姓名' });
     const no = el('input', { class: 'input', type: 'number', value: st ? st.no : s.students.length + 1 });
@@ -719,6 +936,7 @@
               d.students.sort((a, b) => a.no - b.no);
             });
             U.toast('已儲存');
+            if (onSaved) onSaved();
           },
         },
       ],
@@ -1658,6 +1876,27 @@
       ]);
     }
 
+    /* 多選標籤：可以同時勾選好幾個選項；選「不顯示」會清空其他選項，反之亦然 */
+    function multiCheckRow(key, options, defaultArr) {
+      const current = (s.settings && Array.isArray(s.settings[key]) && s.settings[key].length) ? s.settings[key] : defaultArr;
+      return el('div', { class: 'tag-toggle' }, options.map((o) => {
+        const active = current.indexOf(o.id) >= 0;
+        return el('button', {
+          class: active ? 'is-on' : '',
+          text: o.label,
+          onclick: () => {
+            let next;
+            if (o.id === 'none') {
+              next = active ? [] : ['none'];
+            } else {
+              next = active ? current.filter((x) => x !== o.id) : current.filter((x) => x !== 'none').concat([o.id]);
+            }
+            setUpd(key, next);
+          },
+        });
+      }));
+    }
+
     const sizeRow = el('div', { class: 'tag-toggle' }, Object.keys(AVATAR_SIZES).map((id) => {
       const active = ((s.settings && s.settings.avatarCardSize) || 'md') === id;
       return el('button', {
@@ -1679,11 +1918,11 @@
           radioRow('studentOrder', [{ id: 'no', label: '依座號' }, { id: 'name', label: '依姓名' }], 'no'),
         ]),
         el('div', { class: 'field' }, [
-          el('label', { class: 'field__label', text: '頭像徽章顯示內容' }),
-          radioRow('avatarBadgeStat', [
+          el('label', { class: 'field__label', text: '頭像徽章顯示內容（可複選，第一個會顯示在圓形徽章上，其餘顯示在名字下方）' }),
+          multiCheckRow('avatarBadgeStats', [
             { id: 'points', label: '課堂點數' }, { id: 'coins', label: '金幣' },
             { id: 'level', label: '寵物等級' }, { id: 'none', label: '不顯示' },
-          ], 'points'),
+          ], ['points']),
         ]),
         el('div', { class: 'field' }, [
           el('label', { class: 'field__label', text: '學生名稱顯示' }),
@@ -1698,6 +1937,10 @@
           el('label', { class: 'field__label', text: '加點音效' }),
           checkRow('soundAward', '加點時播放音效', false),
           checkRow('soundDeduct', '扣點時播放音效', false),
+        ]),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '浮動加點選單' }),
+          checkRow('showBatchBar', '在批次加點頁選了學生後，切到其他頁面時，畫面下方顯示浮動的快速加點選單', true),
         ]),
       ]),
     ]);
@@ -2026,15 +2269,22 @@
   function renderBatchBar() {
     const host = $('#batchbar');
     host.innerHTML = '';
-    if (!selected.size || page === 'batch') {
+    const showSetting = S.get().settings ? S.get().settings.showBatchBar !== false : true;
+    if (!selected.size || page === 'batch' || !showSetting) {
       host.classList.remove('is-in');
       return;
     }
     host.classList.add('is-in');
     host.appendChild(el('span', { class: 'batchbar__count', text: '已選 ' + selected.size + ' 位' }));
     host.appendChild(el('div', { class: 'batchbar__rules' }, S.get().rules.slice(0, 5).map((r) =>
-      el('button', { class: 'batchbar__rule', text: r.icon + ' ' + (r.points > 0 ? '+' : '') + r.points, title: r.label,
-        onclick: () => applyRule(Array.from(selected), r) })
+      el('button', {
+        class: 'batchbar__rule', title: r.label,
+        onclick: () => applyRule(Array.from(selected), r),
+      }, [
+        el('span', { text: r.icon }),
+        el('span', { text: r.label }),
+        el('span', { text: (r.points > 0 ? '+' : '') + r.points }),
+      ])
     )));
     host.appendChild(el('button', { class: 'btn btn--ghost btn--sm', text: '➕ 自訂', onclick: () => openCustomAward(Array.from(selected)) }));
     host.appendChild(el('button', { class: 'btn btn--primary btn--sm', text: '更多…', onclick: () => go('batch') }));
