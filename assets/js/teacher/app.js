@@ -41,6 +41,40 @@
     ]);
   }
 
+  /* 可收合的卡片：長頁面（規則設定／學生與小組／系統設定）用這個取代 card()，
+     搭配 sectionJumpBar() 可以直接跳到某一段並自動展開，避免一直往下滾。 */
+  let collapsedSections = {};
+  function sectionCard(id, title, sub, children) {
+    const isCollapsed = !!collapsedSections[id];
+    return el('div', { class: 'card section-card' + (isCollapsed ? ' is-collapsed' : ''), id: 'sec-' + id }, [
+      el('button', {
+        class: 'section-card__head', type: 'button',
+        onclick: () => { collapsedSections[id] = !collapsedSections[id]; render(); },
+      }, [
+        el('div', {}, [
+          el('h3', { class: 'card__title', text: title }),
+          sub ? el('p', { class: 'card__sub', text: sub }) : null,
+        ]),
+        el('span', { class: 'section-card__chevron', text: '▾' }),
+      ]),
+      isCollapsed ? null : el('div', { class: 'section-card__body' }, Array.isArray(children) ? children : [children]),
+    ]);
+  }
+
+  function sectionJumpBar(sections) {
+    return el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, sections.map((sec) =>
+      el('button', {
+        class: 'btn btn--ghost btn--sm', text: sec.label,
+        onclick: () => {
+          collapsedSections[sec.id] = false;
+          render();
+          const node = document.getElementById('sec-' + sec.id);
+          if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+      })
+    ));
+  }
+
   function bar(percent, green) {
     return el('div', { class: 'bar' + (green ? ' bar--green' : '') }, [
       el('div', { class: 'bar__fill', style: { width: U.clamp(percent, 0, 100) + '%' } }),
@@ -815,12 +849,15 @@
     const s = S.get();
     return el('div', {}, [
       pageHead('學生與小組', '管理班級名單與分組，可批次匯入姓名。',
-        el('div', { class: 'row', style: { gap: '8px' } }, [
-          el('button', { class: 'btn btn--ghost', text: '📋 批次匯入名單', onclick: openImportRoster }),
-          el('button', { class: 'btn btn--green', text: '＋ 新增學生', onclick: () => openStudentEdit(null) }),
+        el('div', { class: 'stack', style: { gap: '10px', alignItems: 'flex-end' } }, [
+          el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, [
+            el('button', { class: 'btn btn--ghost', text: '📋 批次匯入名單', onclick: openImportRoster }),
+            el('button', { class: 'btn btn--green', text: '＋ 新增學生', onclick: () => openStudentEdit(null) }),
+          ]),
+          sectionJumpBar([{ id: 'roster', label: '👥 班級名單' }, { id: 'groups', label: '🚩 冒險小隊' }]),
         ])),
-      el('div', { class: 'cols' }, [
-        card('班級名單', s.students.length + ' 位學生', [
+      el('div', { class: 'stack', style: { gap: '18px' } }, [
+        sectionCard('roster', '班級名單', s.students.length + ' 位學生', [
           el('div', { class: 'tbl-wrap' }, [
             el('table', { class: 'tbl' }, [
               el('thead', {}, [el('tr', {}, [
@@ -856,7 +893,7 @@
             ]),
           ]),
         ]),
-        card('冒險小隊', '小隊點數會即時累積。', [
+        sectionCard('groups', '冒險小隊', '小隊點數會即時累積。', [
           el('div', { class: 'stack' }, s.groups.map((g) => {
             const members = s.students.filter((x) => x.groupId === g.id);
             return el('div', { class: 'rule-edit' }, [
@@ -1838,30 +1875,31 @@
     }
 
     return el('div', {}, [
-      pageHead('規則設定', '自訂加分規則、兌換商店與每日任務，改完立即生效。'),
-      el('div', { class: 'set-grid' }, [
-        card('加分規則', '欄位依序為：圖示、名稱、點數、XP、金幣。', [
+      pageHead('規則設定', '自訂加分規則、兌換商店與每日任務，改完立即生效。',
+        sectionJumpBar([
+          { id: 'tasks', label: '📗 今日任務' },
+          { id: 'rules', label: '⭐ 加分規則' },
+          { id: 'shop', label: '🎁 兌換商店' },
+        ])),
+      el('div', { class: 'stack', style: { gap: '18px' } }, [
+        sectionCard('tasks', '今日任務', '欄位依序為：圖示、名稱、已完成、全班目標、達成後的 XP（目前僅顯示於學生前台，尚未自動加總發放）。', [
+          el('div', {}, s.dailyTasks.map(taskRow)),
+          el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增任務', onclick: () => {
+            S.commit((d) => d.dailyTasks.push({ id: U.uid('dt'), title: '新任務', icon: '📌', xp: 2, target: d.students.length, done: 0 }));
+          } }),
+        ]),
+        sectionCard('rules', '加分規則', '欄位依序為：圖示、名稱、點數、XP、金幣。', [
           el('div', {}, s.rules.map(ruleRow)),
           el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增規則', onclick: () => {
             S.commit((d) => d.rules.push({ id: U.uid('r'), label: '新規則', icon: '⭐', points: 1, xp: 2, coins: 1, kind: 'add' }));
           } }),
         ]),
-        card('兌換商店', '學生用課堂點數兌換。', [
+        sectionCard('shop', '兌換商店', '學生用課堂點數兌換。', [
           el('div', {}, s.shop.map(shopRow)),
           el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增商品', onclick: () => {
             S.commit((d) => d.shop.push({ id: U.uid('sh'), name: '新獎勵', icon: '🎁', cost: 30, stock: 5, desc: '' }));
           } }),
         ]),
-        (() => {
-          const c = card('今日任務', '欄位依序為：圖示、名稱、已完成、全班目標、達成後的 XP（目前僅顯示於學生前台，尚未自動加總發放）。', [
-            el('div', {}, s.dailyTasks.map(taskRow)),
-            el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增任務', onclick: () => {
-              S.commit((d) => d.dailyTasks.push({ id: U.uid('dt'), title: '新任務', icon: '📌', xp: 2, target: d.students.length, done: 0 }));
-            } }),
-          ]);
-          c.classList.add('set-grid__full');
-          return c;
-        })(),
       ]),
     ]);
   }
@@ -1988,7 +2026,7 @@
       });
     }));
 
-    const displayCard = card('🎨 顯示設定', '調整批次加點頁的顯示方式，改完立即生效（參考 ClassDojo 的 Display 設定整理）。', [
+    const displayCard = sectionCard('display', '🎨 顯示設定', '調整批次加點頁的顯示方式，改完立即生效（參考 ClassDojo 的 Display 設定整理）。', [
       el('div', { class: 'stack' }, [
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '學生頭像大小' }), sizeRow]),
         el('div', { class: 'field' }, [
@@ -2057,7 +2095,7 @@
       });
     }
 
-    const toolbarCard = card('⭐ 批次加點的底部工具列', '前 6 個項目會排在第一排，其餘收在「更多」裡；可以隱藏、加入或調整順序。', [
+    const toolbarCard = sectionCard('toolbar', '⭐ 批次加點的底部工具列', '前 6 個項目會排在第一排，其餘收在「更多」裡；可以隱藏、加入或調整順序。', [
       el('div', { class: 'stack' }, order.map((id, idx) => {
         const tool = allTools.find((t) => t.id === id);
         if (!tool) return null;
@@ -2082,8 +2120,9 @@
     ]);
 
     return el('div', {}, [
-      pageHead('系統設定', '顯示樣式與批次加點的底部工具列都放在這裡，參考 ClassDojo 的「Options」選單整理，改完立即生效。'),
-      el('div', { class: 'set-grid' }, [displayCard, toolbarCard]),
+      pageHead('系統設定', '顯示樣式與批次加點的底部工具列都放在這裡，參考 ClassDojo 的「Options」選單整理，改完立即生效。',
+        sectionJumpBar([{ id: 'display', label: '🎨 顯示設定' }, { id: 'toolbar', label: '⭐ 底部工具列' }])),
+      el('div', { class: 'stack', style: { gap: '18px' } }, [displayCard, toolbarCard]),
     ]);
   }
 
