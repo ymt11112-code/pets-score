@@ -239,7 +239,120 @@
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     migratePetStages(out, s, base);
     out.petNames = Object.assign({}, base.petNames, s.petNames || {});
+    migrateStoryline(out, s, base);
     return out;
+  }
+
+  /* 星野主線：定義值（名稱／門檻／任務文字…）先套用預設，再用舊資料裡「已經存在」的欄位覆蓋回去，
+     這樣舊帳號第一次載入會自動補上這個功能，之後教師編輯過的文字或已經達成的進度也不會被蓋掉。 */
+  function migrateStoryline(out, s, base) {
+    const raw = (s && s.storyline) || {};
+    const rawChapters = Array.isArray(raw.chapters) ? raw.chapters : [];
+    out.storyline = {
+      active: !!raw.active,
+      activatedAt: raw.activatedAt || 0,
+      title: raw.title || base.storyline.title,
+      chapters: base.storyline.chapters.map((defCh) => {
+        const existing = rawChapters.find((c) => c && c.id === defCh.id);
+        return existing ? Object.assign({}, defCh, existing) : Object.assign({}, defCh);
+      }),
+    };
+  }
+
+  /* 本篇章星光＝啟用後（ts >= activatedAt）、尚未撤銷、點數為正的加點紀錄總和。
+     這是每次即時從點數紀錄重新算出來的，不是另外存一個累加數字：
+     補登、編輯、撤銷、重新整理或重新同步都會自動算對，不會重複計算或算錯。 */
+  function storylineStars(s) {
+    const st = s.storyline;
+    if (!st || !st.active) return 0;
+    return s.ledger.reduce((sum, e) => {
+      if (e.undone || (e.points || 0) <= 0) return sum;
+      if (e.ts < st.activatedAt) return sum;
+      return sum + e.points * e.studentIds.length;
+    }, 0);
+  }
+
+  function storylineWeeklyGain(s) {
+    const st = s.storyline;
+    if (!st || !st.active) return 0;
+    const from = Math.max(st.activatedAt, weekStartTs());
+    return s.ledger.reduce((sum, e) => {
+      if (e.undone || (e.points || 0) <= 0) return sum;
+      if (e.ts < from) return sum;
+      return sum + e.points * e.studentIds.length;
+    }, 0);
+  }
+
+  /* 目前正在進行的關卡索引；全部過關則回傳 chapters.length */
+  function storylineCurrentIndex(s) {
+    const chapters = (s.storyline && s.storyline.chapters) || [];
+    for (let i = 0; i < chapters.length; i++) {
+      if (!chapters[i].cleared) return i;
+    }
+    return chapters.length;
+  }
+
+  /* 每次 commit 都會呼叫一次：檢查目前這關是不是「星光達標」且「共同任務已確認」，
+     兩個條件同時成立才算過關並發獎（只會由 false 變 true，不會自動復原，
+     避免事後修正點數紀錄時被誤判為「退關」）。 */
+  function checkStorylineProgress(s) {
+    const st = s.storyline;
+    if (!st || !st.active) return;
+    const idx = storylineCurrentIndex(s);
+    const c = st.chapters[idx];
+    if (!c || c.cleared) return;
+    const stars = storylineStars(s);
+    if (stars >= c.threshold && c.taskDone) {
+      c.cleared = true;
+      c.clearedAt = Date.now();
+      c.rewardGranted = true;
+      c.rewardGrantedAt = Date.now();
+    }
+  }
+
+  /* ---------- 星野主線：教師管理動作 ---------- */
+  function activateStoryline(activatedAt) {
+    commit((s) => {
+      s.storyline = s.storyline || M.seedStoryline();
+      s.storyline.active = true;
+      s.storyline.activatedAt = activatedAt || Date.now();
+    });
+  }
+
+  function updateChapterConfig(chapterId, patch) {
+    commit((s) => {
+      const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
+      if (!c) return;
+      const p = patch || {};
+      ['name', 'week', 'threshold', 'taskTitle', 'rewardTitle', 'intro', 'clearStory'].forEach((k) => {
+        if (p[k] == null) return;
+        c[k] = (k === 'week' || k === 'threshold') ? (Number(p[k]) || 0) : p[k];
+      });
+    }, { silent: true });
+  }
+
+  function setChapterTaskDone(chapterId, done, note) {
+    commit((s) => {
+      const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
+      if (!c || c.cleared) return; // 已通關的關卡要用 revertChapterClear 明確撤回，不能直接改任務狀態
+      c.taskDone = !!done;
+      c.taskDoneAt = done ? Date.now() : 0;
+      if (note != null) c.taskNote = note;
+    });
+  }
+
+  /* 明確撤回「已通關」：同時收回獎勵標記與任務完成狀態，避免留下「已發獎但任務未完成」這種不一致狀態 */
+  function revertChapterClear(chapterId) {
+    commit((s) => {
+      const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
+      if (!c || !c.cleared) return;
+      c.cleared = false;
+      c.clearedAt = 0;
+      c.rewardGranted = false;
+      c.rewardGrantedAt = 0;
+      c.taskDone = false;
+      c.taskDoneAt = 0;
+    });
   }
 
   /* 寵物造型圖片以前是「每隻寵物各自存一份等級門檻＋圖片」，現在改成「全班共用一份等級門檻，
@@ -312,6 +425,7 @@
   function commit(mutator, opts) {
     const o = opts || {};
     mutator(state);
+    if (state.storyline) checkStorylineProgress(state);
     state.updatedAt = Date.now();
     persistLocal();
     if (o.sync !== false) scheduleRemoteSave();
@@ -713,5 +827,7 @@
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
     connectSheet, useLocal, pullRemote, pushRemote, sheetCall,
+    storylineStars, storylineWeeklyGain, storylineCurrentIndex,
+    activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear,
   };
 })(window);

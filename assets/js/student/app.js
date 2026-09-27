@@ -97,6 +97,125 @@
     });
   }
 
+  /* ---------- 星野主線 ---------- */
+  const LS_CELEBRATED = 'classpet.storyline.celebrated';
+  /* 先用記憶體裡的 Set 擋重複（保證同一次瀏覽一定不會重播），localStorage 只是「換分頁/重新整理後還記得」的加分項，
+     失敗（無痕模式、file:// 開啟、儲存空間被限制…）也不該讓通關動畫在同一次瀏覽裡一直跳出來。 */
+  let celebratedMemory = new Set();
+  function getCelebratedSet() {
+    const set = new Set(celebratedMemory);
+    try { (JSON.parse(localStorage.getItem(LS_CELEBRATED) || '[]')).forEach((k) => set.add(k)); }
+    catch (e) { /* 忽略，退回只在這次瀏覽記住 */ }
+    return set;
+  }
+  function markCelebrated(key) {
+    celebratedMemory.add(key);
+    try {
+      const stored = new Set(JSON.parse(localStorage.getItem(LS_CELEBRATED) || '[]'));
+      stored.add(key);
+      localStorage.setItem(LS_CELEBRATED, JSON.stringify(Array.from(stored)));
+    } catch (e) { /* 忽略，這只是動畫要不要重播，不影響獎勵是否已發放 */ }
+  }
+
+  /* 通關動畫只播一次：領獎與過關判定都在資料層完成（冪等），這裡只是記錄「這台裝置這位同學看過了沒」 */
+  function maybeCelebrateStoryline() {
+    const st = me();
+    if (!st) return;
+    const story = S.get().storyline;
+    if (!story || !story.active) return;
+    const celebrated = getCelebratedSet();
+    const c = story.chapters.find((ch) => ch.cleared && ch.rewardGranted && !celebrated.has(st.id + ':' + ch.id));
+    if (!c) return;
+    markCelebrated(st.id + ':' + c.id);
+    U.modal({
+      title: '🏮 ' + c.name + ' 通關了！',
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'modal__text', text: c.clearStory }),
+        el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: '🎁 獎勵：' + c.rewardTitle }),
+      ]),
+      actions: [{ label: '太棒了！', kind: 'primary' }],
+      onClose: () => maybeCelebrateStoryline(),
+    });
+  }
+
+  function openChapterDetail(c, state) {
+    if (state === 'locked') {
+      U.modal({
+        title: '🔒 ' + c.name,
+        body: el('div', {}, [
+          el('p', { class: 'modal__text', text: '這座燈塔還沒解鎖，完成前面的關卡後就能揭開它的故事。' }),
+          el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: '獎勵預覽：' + c.rewardTitle }),
+        ]),
+        actions: [{ label: '關閉' }],
+      });
+      return;
+    }
+    const stars = S.storylineStars(S.get());
+    U.modal({
+      title: (state === 'cleared' ? '✅ ' : '🚀 ') + '第 ' + c.order + ' 關・' + c.name,
+      body: el('div', {}, [
+        el('p', { class: 'modal__text', text: state === 'cleared' ? c.clearStory : c.intro }),
+        state === 'cleared'
+          ? el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '通關時間：' + U.fmtDate(c.clearedAt) + '　·　獎勵：' + c.rewardTitle })
+          : el('div', { style: { marginTop: '10px' } }, [
+              progressBar(Math.round((stars / c.threshold) * 100), true),
+              el('div', { class: 'row row--between', style: { marginTop: '6px', fontSize: '13px' } }, [
+                el('span', { text: '共同任務：' + c.taskTitle }),
+                el('b', { text: c.taskDone ? '已完成' : '未完成' }),
+              ]),
+            ]),
+      ]),
+      actions: [{ label: '關閉' }],
+    });
+  }
+
+  function storylineSection(s) {
+    const story = s.storyline;
+    if (!story || !story.active) return null;
+    const stars = S.storylineStars(s);
+    const idx = S.storylineCurrentIndex(s);
+    const allCleared = idx >= story.chapters.length;
+    const cur = story.chapters[Math.min(idx, story.chapters.length - 1)];
+
+    const lighthouses = el('div', { class: 'lighthouse-row' }, story.chapters.map((c, i) => {
+      const state = c.cleared ? 'cleared' : (i === idx ? 'current' : 'locked');
+      return el('button', { class: 'lighthouse lighthouse--' + state, onclick: () => openChapterDetail(c, state) }, [
+        el('div', { class: 'lighthouse__icon', text: state === 'locked' ? '🔒' : '🗼' }),
+        el('div', { class: 'lighthouse__name', text: c.name }),
+        el('div', { class: 'lighthouse__label', text: state === 'cleared' ? '已點亮' : (state === 'current' ? '進行中' : '未解鎖') }),
+      ]);
+    }));
+
+    return el('section', { class: 'sect sect--soft' }, [
+      el('div', { class: 'wrap wrap--wide' }, [
+        sectionHead('星野主線', story.title, allCleared ? '五座燈塔全部點亮，故事完結！' : ('第 ' + cur.order + ' 關・' + cur.name + '（建議第 ' + cur.week + ' 週完成）')),
+        lighthouses,
+        allCleared ? null : chapterProgressCard(cur, stars),
+      ]),
+    ]);
+  }
+
+  function chapterProgressCard(c, stars) {
+    const left = Math.max(0, c.threshold - stars);
+    let statusText;
+    if (stars >= c.threshold && !c.taskDone) statusText = '⭐ 星光已集滿，等待老師確認共同任務';
+    else if (stars < c.threshold) statusText = '還差 ' + left + ' 顆星光';
+    else statusText = '條件都符合，即將點亮燈塔！';
+    return el('div', { class: 'card', style: { marginTop: '16px' } }, [
+      el('p', { class: 'card__sub', text: c.intro }),
+      el('div', { style: { marginTop: '10px' } }, [progressBar(Math.round((stars / c.threshold) * 100), true)]),
+      el('div', { class: 'row row--between', style: { marginTop: '8px', fontSize: '13px' } }, [
+        el('span', { text: '本篇章星光 ' + stars.toLocaleString() }),
+        el('b', { text: stars.toLocaleString() + ' / ' + c.threshold.toLocaleString() }),
+      ]),
+      el('div', { class: 'row row--between', style: { marginTop: '10px', flexWrap: 'wrap', gap: '8px' } }, [
+        el('span', { class: 'pill' + (c.taskDone ? '' : ' pill--gray'), text: (c.taskDone ? '✅ ' : '⏳ ') + c.taskTitle }),
+        el('span', { class: 'muted', style: { fontSize: '12.5px' }, text: statusText }),
+      ]),
+      el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '8px' }, text: '過關獎勵：' + c.rewardTitle }),
+    ]);
+  }
+
   /* ================= 視圖：探險地圖 ================= */
   function viewMap() {
     const s = S.get();
@@ -104,7 +223,12 @@
     const lv = st ? M.levelFromXp(st.xp) : null;
     const pet = st ? M.petById(st.petId) : M.petById(M.PETS[5].id);
     const mission = s.classMission;
-    const missionLeft = Math.max(0, mission.target - mission.progress);
+    const story = s.storyline;
+    const storyActive = !!(story && story.active);
+    const storyIdx = storyActive ? S.storylineCurrentIndex(s) : -1;
+    const storyChapter = storyActive && storyIdx < story.chapters.length ? story.chapters[storyIdx] : null;
+    const storyStars = storyActive ? S.storylineStars(s) : 0;
+    const missionLeft = storyChapter ? Math.max(0, storyChapter.threshold - storyStars) : Math.max(0, mission.target - mission.progress);
     const day = Math.max(1, Math.round((Date.now() - s.classInfo.startedAt) / 86400000));
 
     const deco = el('div', { class: 'hero__deco' });
@@ -142,7 +266,18 @@
         ]),
         el('div', { class: 'hero__bottom' }, [
           el('div', { class: 'wrap wrap--wide' }, [
-          el('div', { class: 'hero-mission' }, [
+          el('div', { class: 'hero-mission' }, storyChapter ? [
+            el('div', { class: 'hero-mission__label', text: '🌟 星野主線・第 ' + storyChapter.order + ' 關 ' + storyChapter.name }),
+            el('div', { class: 'hero-mission__title', text: storyChapter.taskTitle }),
+            progressBar(Math.round((storyStars / storyChapter.threshold) * 100)),
+            el('div', { class: 'row row--between', style: { marginTop: '8px', fontSize: '13px' } }, [
+              el('span', { text: '本篇章星光 ' + storyStars }),
+              el('b', { text: storyStars + ' / ' + storyChapter.threshold }),
+            ]),
+          ] : storyActive ? [
+            el('div', { class: 'hero-mission__label', text: '🌟 星野主線' }),
+            el('div', { class: 'hero-mission__title', text: '五座燈塔全部點亮了！' }),
+          ] : [
             el('div', { class: 'hero-mission__label', text: mission.icon + ' 本週共同任務' }),
             el('div', { class: 'hero-mission__title', text: mission.title }),
             progressBar(Math.round((mission.progress / mission.target) * 100)),
@@ -154,10 +289,12 @@
           ]),
         ]),
         el('div', { class: 'hero-pet' }, [
-          el('div', { class: 'hero-pet__bubble', text: '再 ' + missionLeft + ' 點就能打開森林寶箱！' }),
+          el('div', { class: 'hero-pet__bubble', text: storyChapter ? ('再 ' + missionLeft + ' 顆星光就能點亮下一座燈塔！') : ('再 ' + missionLeft + ' 點就能打開森林寶箱！') }),
           el('div', { class: 'hero-pet__face' }, [M.petFace(pet, 130, st ? lv.level : 1)]),
         ]),
       ]),
+
+      storylineSection(s),
 
       el('section', { class: 'sect' }, [
         el('div', { class: 'wrap wrap--wide' }, [
@@ -633,6 +770,7 @@
     host.appendChild((VIEWS[view] || viewMap)());
     renderWho();
     $$('#nav .nav__item').forEach((b) => b.classList.toggle('is-active', b.dataset.view === view));
+    try { maybeCelebrateStoryline(); } catch (e) { /* 動畫失敗不該擋住正常畫面 */ }
   }
 
   function bindSync() {

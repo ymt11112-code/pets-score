@@ -155,6 +155,8 @@
         noteCard('🏆', (s.classInfo.badgeCount || 0) + ' 枚', '班級徽章已解鎖'),
       ]),
 
+      storylineOverviewCard(),
+
       el('div', { class: 'cols' }, [
         card('學生與寵物成長', '課堂點數與寵物經驗分開顯示，方便追蹤真實進步。', [studentTable()],
           el('span', { class: 'pill', text: filteredStudents().length + ' 位學生' })),
@@ -166,6 +168,40 @@
         ]),
       ]),
     ]);
+  }
+
+  /* 班級總覽的星野主線摘要卡：沒啟用就顯示一個引導入口，啟用後顯示目前進度 */
+  function storylineOverviewCard() {
+    const s = S.get();
+    const story = s.storyline;
+    if (!story || !story.active) {
+      return card('🌟 星野守護隊：動物夥伴的遠征', '把日常加分變成全班一起闖關的冒險故事，尚未啟用。', [
+        el('button', { class: 'btn btn--green', text: '前往設定並啟用 →', onclick: () => go('storyline') }),
+      ]);
+    }
+    const idx = S.storylineCurrentIndex(s);
+    const stars = S.storylineStars(s);
+    const weekly = S.storylineWeeklyGain(s);
+    const allCleared = idx >= story.chapters.length;
+    const c = story.chapters[idx] || story.chapters[story.chapters.length - 1];
+    const left = Math.max(0, c.threshold - stars);
+    let statusText;
+    if (allCleared) statusText = '🎉 五座燈塔全部點亮，故事完結！';
+    else if (stars >= c.threshold && !c.taskDone) statusText = '⭐ 星光已集滿，等待完成共同任務';
+    else if (stars >= c.threshold) statusText = '✅ 條件都符合，正在確認通關';
+    else statusText = '還差 ' + left + ' 顆星光';
+
+    return card('🌟 ' + story.title,
+      allCleared ? null : '目前關卡：第 ' + c.order + ' 關・' + c.name + '（建議第 ' + c.week + ' 週完成）',
+      [
+        el('div', { class: 'kpi-grid', style: { marginBottom: '4px' } }, [
+          kpi('✨', '本篇章星光', stars.toLocaleString(), allCleared ? '五關全數完成' : '門檻 ' + c.threshold.toLocaleString()),
+          kpi('📈', '本週新增星光', weekly, '平均每週約 ' + weekly + ' 顆'),
+          kpi('🚩', '共同任務', allCleared ? '—' : (c.taskDone ? '已確認完成' : '尚未完成'), allCleared ? '' : c.taskTitle),
+          kpi('🏁', '目前狀態', allCleared ? '已完結' : ('第 ' + (idx + 1) + ' / ' + story.chapters.length + ' 關'), statusText),
+        ]),
+      ],
+      el('button', { class: 'btn btn--ghost btn--sm', text: '管理星野主線 →', onclick: () => go('storyline') }));
   }
 
   function kpi(icon, label, value, note) {
@@ -1549,6 +1585,160 @@
     });
   }
 
+  /* ================= 星野主線 ================= */
+  function pageStoryline() {
+    const s = S.get();
+    const story = s.storyline;
+    const stars = S.storylineStars(s);
+    const idx = S.storylineCurrentIndex(s);
+
+    const activateDate = el('input', { class: 'input', type: 'date', value: U.todayKey() });
+    const overviewCard = sectionCard('overview', '總覽', story.active ? '故事已啟用，正依目前的加分紀錄計算本篇章星光。' : '啟用後，篇章星光會從你選擇的日期開始重新計算，不影響班級既有的總星星。', [
+      story.active
+        ? el('div', { class: 'kpi-grid' }, [
+            kpi('📅', '啟用日', U.fmtDate(story.activatedAt)),
+            kpi('✨', '本篇章星光', stars.toLocaleString()),
+            kpi('📈', '本週新增星光', S.storylineWeeklyGain(s)),
+            kpi('🏁', '目前關卡', idx >= story.chapters.length ? '已全部完結' : ('第 ' + (idx + 1) + ' 關')),
+          ])
+        : el('div', { class: 'row', style: { gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' } }, [
+            el('div', { class: 'field', style: { width: '200px' } }, [
+              el('label', { class: 'field__label', text: '啟用日（篇章星光從這天開始算）' }),
+              activateDate,
+            ]),
+            el('button', {
+              class: 'btn btn--green', text: '🌟 啟用星野主線', onclick: () => {
+                const ts = activateDate.value ? new Date(activateDate.value + 'T00:00:00').getTime() : Date.now();
+                U.confirmDialog('啟用星野主線', '啟用後，「' + U.fmtDate(ts) + '」之後產生的正數加分才會計入本篇章星光；班級既有的總星星不會被改動。', '啟用').then((ok) => {
+                  if (!ok) return;
+                  S.activateStoryline(ts);
+                  U.toast('已啟用星野主線！');
+                  render();
+                });
+              },
+            }),
+          ]),
+    ]);
+
+    const chaptersCard = sectionCard('chapters', '五關設定與任務確認', '門檻採本篇章累積星光，過關後不歸零；修改門檻或文字不會清除既有進度。', [
+      el('div', { class: 'stack', style: { gap: '14px' } }, story.chapters.map((c, i) => chapterEditor(c, i, s))),
+    ]);
+
+    const clearedChapters = story.chapters.filter((c) => c.cleared);
+    const historyCard = sectionCard('history', '通關與獎勵紀錄', null, [
+      clearedChapters.length
+        ? el('div', {}, clearedChapters.map((c) => el('div', { class: 'log-row' }, [
+            el('span', { style: { fontSize: '20px' }, text: '🏆' }),
+            el('div', { class: 'grow' }, [
+              el('div', { style: { fontWeight: 700 }, text: '第 ' + c.order + ' 關・' + c.name },),
+              el('div', { class: 'log-row__meta', text: '通關時間：' + U.fmtDate(c.clearedAt) + '　·　獎勵：' + c.rewardTitle + (c.rewardGranted ? '（已發放）' : '') }),
+            ]),
+            el('button', {
+              class: 'btn btn--danger btn--sm', text: '撤銷通關',
+              onclick: () => U.confirmDialog(
+                '撤銷「' + c.name + '」的通關',
+                '這會收回這一關的通關與獎勵標記，共同任務也會恢復成「尚未完成」，學生前台會立刻恢復未過關的畫面。請確認這是你要的結果。',
+                '撤銷通關'
+              ).then((ok) => { if (!ok) return; S.revertChapterClear(c.id); U.toast('已撤銷「' + c.name + '」的通關', 'warn'); render(); }),
+            }),
+          ])))
+        : el('div', { class: 'empty', text: '目前還沒有任何關卡通關。' }),
+    ]);
+
+    return el('div', {}, [
+      pageHead('星野主線', '《星野守護隊：動物夥伴的遠征》——把日常加分變成全班一起闖關的冒險故事。',
+        sectionJumpBar([
+          { id: 'overview', label: '📊 總覽' },
+          { id: 'chapters', label: '🗺️ 五關設定' },
+          { id: 'history', label: '🏆 通關紀錄' },
+        ])),
+      el('div', { class: 'stack', style: { gap: '18px' } }, [overviewCard, chaptersCard, historyCard]),
+    ]);
+  }
+
+  function chapterStatus(c, idx, curIdx) {
+    if (c.cleared || idx < curIdx) return { text: '✅ 已通關', cls: '' };
+    if (idx > curIdx) return { text: '🔒 尚未解鎖', cls: 'pill--gray' };
+    return { text: '🚀 進行中', cls: 'pill--gold' };
+  }
+
+  function chapterEditor(c, idx, s) {
+    const curIdx = S.storylineCurrentIndex(s);
+    const stars = S.storylineStars(s);
+    const status = chapterStatus(c, idx, curIdx);
+    const upd = (patch) => S.updateChapterConfig(c.id, patch);
+    const isCurrent = idx === curIdx && !c.cleared;
+
+    const noteInput = el('input', {
+      class: 'input grow', value: c.taskNote || '', placeholder: '備註（選填，例如完成方式或日期細節）',
+      onchange: (e) => S.setChapterTaskDone(c.id, c.taskDone, e.target.value.trim()),
+    });
+
+    return el('div', { class: 'card card--flat chapter-block' + (c.cleared ? ' is-cleared' : '') }, [
+      el('div', { class: 'row row--between', style: { flexWrap: 'wrap', gap: '10px', marginBottom: '12px' } }, [
+        el('div', { class: 'row', style: { gap: '10px', alignItems: 'center' } }, [
+          el('span', { style: { fontSize: '22px' }, text: '🗼' }),
+          el('b', { style: { fontSize: '16px' }, text: '第 ' + c.order + ' 關・' + c.name }),
+        ]),
+        el('span', { class: 'pill ' + status.cls, text: status.text }),
+      ]),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
+        el('div', { class: 'field', style: { width: '160px' } }, [
+          el('label', { class: 'field__label', text: '關卡名稱' }),
+          el('input', { class: 'input', value: c.name, onchange: (e) => upd({ name: e.target.value }) }),
+        ]),
+        el('div', { class: 'field', style: { width: '110px' } }, [
+          el('label', { class: 'field__label', text: '建議週次' }),
+          el('input', { class: 'input', type: 'number', value: c.week, onchange: (e) => upd({ week: e.target.value }) }),
+        ]),
+        el('div', { class: 'field', style: { width: '140px' } }, [
+          el('label', { class: 'field__label', text: '累積星光門檻' }),
+          el('input', { class: 'input', type: 'number', value: c.threshold, onchange: (e) => upd({ threshold: e.target.value }) }),
+        ]),
+        el('div', { class: 'field grow', style: { minWidth: '200px' } }, [
+          el('label', { class: 'field__label', text: '通關獎勵說明' }),
+          el('input', { class: 'input', value: c.rewardTitle, onchange: (e) => upd({ rewardTitle: e.target.value }) }),
+        ]),
+      ]),
+      el('div', { class: 'field', style: { marginTop: '10px' } }, [
+        el('label', { class: 'field__label', text: '額外共同任務' }),
+        el('input', { class: 'input', value: c.taskTitle, onchange: (e) => upd({ taskTitle: e.target.value }) }),
+      ]),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', marginTop: '10px' } }, [
+        el('div', { class: 'field grow', style: { minWidth: '220px' } }, [
+          el('label', { class: 'field__label', text: '開場劇情' }),
+          el('textarea', { class: 'textarea', style: { minHeight: '56px' }, onchange: (e) => upd({ intro: e.target.value }) }, [c.intro]),
+        ]),
+        el('div', { class: 'field grow', style: { minWidth: '220px' } }, [
+          el('label', { class: 'field__label', text: '過關劇情' }),
+          el('textarea', { class: 'textarea', style: { minHeight: '56px' }, onchange: (e) => upd({ clearStory: e.target.value }) }, [c.clearStory]),
+        ]),
+      ]),
+      el('div', { class: 'row row--between', style: { flexWrap: 'wrap', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed var(--line)' } }, [
+        el('div', {}, [
+          el('div', { style: { fontSize: '13px', color: 'var(--ink-mute)' }, text: '星光進度：' + stars.toLocaleString() + ' / ' + Number(c.threshold).toLocaleString() + (stars >= c.threshold ? '（已達標）' : '') }),
+        ]),
+        c.cleared
+          ? el('button', {
+              class: 'btn btn--danger btn--sm', text: '撤銷通關',
+              onclick: () => U.confirmDialog('撤銷「' + c.name + '」的通關', '這會收回通關與獎勵標記，共同任務也會恢復成「尚未完成」。', '撤銷通關')
+                .then((ok) => { if (!ok) return; S.revertChapterClear(c.id); U.toast('已撤銷通關', 'warn'); render(); }),
+            })
+          : el('label', { class: 'row', style: { gap: '8px', cursor: 'pointer' } }, [
+              el('input', {
+                class: 'checkbox', type: 'checkbox', checked: c.taskDone ? 'checked' : null,
+                onchange: (e) => { S.setChapterTaskDone(c.id, e.target.checked, noteInput.value.trim()); render(); },
+              }),
+              el('span', { style: { fontSize: '13.5px' }, text: '共同任務已完成' + (c.taskDone && c.taskDoneAt ? '（' + U.fmtDate(c.taskDoneAt) + '）' : '') }),
+              noteInput,
+            ]),
+      ]),
+      !c.cleared && isCurrent && stars >= c.threshold && !c.taskDone
+        ? el('p', { class: 'card__sub', style: { marginTop: '8px', color: 'var(--gold)' }, text: '⭐ 星光已集滿，只差確認共同任務就能通關！' })
+        : null,
+    ]);
+  }
+
   /* ================= 點數紀錄 ================= */
   let ledgerTab = 'points';
   let ledgerFilter = { studentId: '', ruleId: '', range: 'week', showUndone: true, customFrom: '', customTo: '' };
@@ -1958,7 +2148,10 @@
     const resetCard = card('🔄 重設點數 / 重新開始', '新學期可以清空點數，保留學生名單。', [
       el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
         el('button', { class: 'btn btn--danger', text: '清空點數（保留名單）', onclick: () => {
-          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單與分組保留。', '清空').then((ok) => {
+          const storyWarn = S.get().storyline && S.get().storyline.active
+            ? '「星野主線」的啟用狀態與五關進度也會一起被清空，之後要重新啟用才能繼續累積篇章星光。'
+            : '';
+          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單與分組保留。' + storyWarn, '清空').then((ok) => {
             if (!ok) return;
             S.resetAll(true); U.toast('已重設', 'warn'); render();
           });
@@ -2356,6 +2549,7 @@
     guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
     pets: pagePets, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
+    storyline: pageStoryline,
   };
 
   function go(p) {
