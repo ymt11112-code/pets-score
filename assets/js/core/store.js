@@ -253,8 +253,15 @@
 
   /* 身分路線：舊存檔沒有 petPaths/petPathImages 就用預設補上；已經存在的路線名稱、已經上傳的圖片都保留，
      只補上「新增的寵物」或「新增的路線」還沒建立過的空陣列，避免程式讀到 undefined。 */
+  const OLD_DEFAULT_PATH_NAMES = ['路線一', '路線二', '路線三']; // 這功能剛推出時用過的佔位名稱，之後統一升級成正式名稱一次
   function migratePetPaths(out, s, base) {
     out.petPaths = Array.isArray(s.petPaths) && s.petPaths.length ? s.petPaths : base.petPaths;
+    /* 還停在最早期佔位名稱、老師還沒自己改過的路線，順便升級成新的正式名稱（只比對還沒被改過的） */
+    out.petPaths = out.petPaths.map((p) => {
+      if (OLD_DEFAULT_PATH_NAMES.indexOf(p.name) < 0) return p;
+      const upgraded = base.petPaths.find((bp) => bp.id === p.id);
+      return upgraded ? Object.assign({}, p, { name: upgraded.name }) : p;
+    });
     const raw = (s && s.petPathImages) || {};
     const pathIds = out.petPaths.map((p) => p.id);
     const stageLen = (out.petStageLevels || base.petStageLevels).length;
