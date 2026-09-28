@@ -8,8 +8,8 @@
      圖像先用 emoji 佔位；之後換成圖片只要把 img 欄位填上路徑，
      介面會自動改用 <img>（見 petFace()）。 */
   const PETS = [
-    { id: 'cat',     name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。' },
-    { id: 'corgi',   name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。' },
+    { id: '02cat',   name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。' },
+    { id: '01dog',   name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。' },
     { id: 'bunny',   name: '彩虹獨角兔',   emoji: '🐰', img: '', trait: '奇幻系', desc: '耳朵能聽見每個願望，蹦蹦跳跳把色彩帶給全班。' },
     { id: 'fox',     name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。' },
     { id: 'panda',   name: '功夫熊貓',     emoji: '🐼', img: '', trait: '堅毅系', desc: '動作慢但招招紮實，是隊伍裡最可靠的後盾。' },
@@ -61,8 +61,8 @@
   /* 老師提供的正式版本：路線 A 偏溫暖／奇幻、路線 B 偏冒險／行動、路線 C 偏酷帥／專業。
      dragon/alpaca/capy/bear 目前沒有在班級名單裡用到，先保留原本想好的版本，之後有需要再換。 */
   const DEFAULT_PET_PATH_NAMES = {
-    corgi:   { path1: '奶泡療癒師：照顧隊友',     path2: '山野搜救員：尋找迷路夥伴',   path3: '曙光騎士：守護隊伍' },
-    cat:     { path1: '莓露精靈：花朵與露珠魔法', path2: '莓光探險家：地圖與尋寶',     path3: '歐蕾競速員：接力與速度' },
+    '01dog': { path1: '奶泡療癒師：照顧隊友',     path2: '山野搜救員：尋找迷路夥伴',   path3: '曙光騎士：守護隊伍' },
+    '02cat': { path1: '莓露精靈：花朵與露珠魔法', path2: '莓光探險家：地圖與尋寶',     path3: '歐蕾競速員：接力與速度' },
     fox:     { path1: '雲端信使：傳遞心願',       path2: '雪原追蹤員：辨認足跡',       path3: '極光幻術師：操縱雲霧' },
     bunny:   { path1: '願望彩繪師：描繪夢想',     path2: '彩虹跳躍者：闖關與移動',     path3: '光譜魔導士：運用色彩能量' },
     hamster: { path1: '花生收藏家：整理珍寶',     path2: '秘境探險家：望遠鏡與地圖',   path3: '遺跡解謎師：機關與線索' },
@@ -80,13 +80,18 @@
   /* 老師已經整理好、可直接內建的寵物真實照片（V1–V10，共用圖＋各路線專屬圖）。
      檔名 shared-vN／path{1,2,3}-vN 對應 petStageLevels 陣列索引 N-1。
      還沒整理照片的寵物不在這裡，畫面會照舊退回 emoji。 */
-  function petImageAssetSet(dir) {
-    const num = (n) => String(n);
-    const arr = (prefix) => Array.from({ length: 10 }, (_, i) => `assets/img/pets/${dir}/${prefix}-v${num(i + 1)}.png`);
-    return { shared: arr('shared'), path1: arr('path1'), path2: arr('path2'), path3: arr('path3') };
+  function petImageAssetSet(dir, parts) {
+    const list = parts || ['shared', 'path1', 'path2', 'path3'];
+    const arr = (prefix) => Array.from({ length: 10 }, (_, i) => `assets/img/pets/${dir}/${prefix}-v${i + 1}.png`);
+    const result = {};
+    list.forEach((p) => { result[p] = arr(p); });
+    return result;
   }
   const DEFAULT_PET_IMAGE_ASSETS = {
-    corgi: petImageAssetSet('corgi'),
+    '01dog': petImageAssetSet('01dog'),
+    /* 02cat 目前只有共用造型跟路線一（莓露精靈）整理好照片，路線二、三還沒有圖，
+       畫面會自動退回共用造型，之後老師補齊照片再回來加 path2／path3 即可。 */
+    '02cat': petImageAssetSet('02cat', ['shared', 'path1']),
   };
 
 

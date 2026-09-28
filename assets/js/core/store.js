@@ -218,7 +218,29 @@
     saveTimer = setTimeout(() => pushRemote(true).catch(() => {}), 900);
   }
 
+  /* 內建寵物的識別碼後來從英文品種名（corgi／cat）統一改成跟老師的編號對齊（01dog／02cat），
+     這裡把舊存檔裡用舊代號存的圖片、名稱、學生已選的寵物都搬到新代號底下，畫面顯示的名稱、
+     圖片、等級、金幣都完全不受影響，老師不會感覺到任何東西被重置。 */
+  const PET_ID_RENAMES = { corgi: '01dog', cat: '02cat' };
+  function migratePetIdRenames(s) {
+    if (!s || typeof s !== 'object') return;
+    Object.keys(PET_ID_RENAMES).forEach((oldId) => {
+      const newId = PET_ID_RENAMES[oldId];
+      ['petImages', 'petPathImages', 'petPathNames'].forEach((key) => {
+        const dict = s[key];
+        if (dict && typeof dict === 'object' && Object.prototype.hasOwnProperty.call(dict, oldId)) {
+          if (!Object.prototype.hasOwnProperty.call(dict, newId)) dict[newId] = dict[oldId];
+          delete dict[oldId];
+        }
+      });
+      if (Array.isArray(s.students)) {
+        s.students.forEach((st) => { if (st && st.petId === oldId) st.petId = newId; });
+      }
+    });
+  }
+
   function migrate(s) {
+    migratePetIdRenames(s);
     const base = M.seedState();
     const out = Object.assign({}, base, s);
     out.classInfo = Object.assign({}, base.classInfo, s.classInfo || {});
