@@ -253,7 +253,7 @@
     });
 
     return el('div', {}, [
-      el('section', { class: 'hero', style: heroBgChapter && heroBgChapter.bg ? { '--hero-img': "url('" + heroBgChapter.bg + "')" } : null }, [
+      el('section', { class: 'hero', style: heroBgChapter && heroBgChapter.bg ? { backgroundImage: "url('" + heroBgChapter.bg + "')" } : null }, [
         el('div', { class: 'hero__path' }),
         deco,
         el('div', { class: 'wrap wrap--wide hero__inner' }, [
