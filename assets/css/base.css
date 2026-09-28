@@ -82,6 +82,17 @@ img { max-width: 100%; display: block; }
 .nav__item.is-active { background: rgba(255, 255, 255, .17); color: #fff; }
 .topbar__right { display: flex; align-items: center; gap: 12px; }
 
+.msg-btn {
+  position: relative; width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255, 255, 255, .12); font-size: 18px; display: grid; place-items: center;
+}
+.msg-btn:hover { background: rgba(255, 255, 255, .2); }
+.msg-btn__badge {
+  position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 999px; background: #ff5a4e; color: #fff; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--brand-deep, #0a3b36);
+}
+
 .who {
   display: flex; align-items: center; gap: 10px;
   background: rgba(255, 255, 255, .12); border-radius: 999px; padding: 6px 16px 6px 6px;

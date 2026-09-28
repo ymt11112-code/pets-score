@@ -925,11 +925,45 @@
       : '點一下切換身分';
   }
 
+  function renderMsgBadge() {
+    const st = me();
+    const badge = $('#msgBadge');
+    if (!badge) return;
+    const n = st ? S.unreadMessageCount(st.id) : 0;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.hidden = !n;
+  }
+
+  /* 訊息中心：列出這個學生看得到的所有訊息（新的在前面），打開時全部標記已讀 */
+  function openMessageCenter() {
+    const st = me();
+    if (!st) { U.toast('選擇身分後，才能看訊息。', 'warn'); return openIdentityPicker(); }
+    const list = S.studentMessages(st.id);
+    S.markMessagesRead(st.id);
+    renderMsgBadge();
+    U.modal({
+      title: '🔔 訊息',
+      wide: true,
+      body: list.length
+        ? el('div', { class: 'stack' }, list.map((m) => el('div', { class: 'log-row' }, [
+            el('span', { style: { fontSize: '22px' }, text: m.icon || '📣' }),
+            el('div', { class: 'grow' }, [
+              el('div', { style: { fontWeight: 800 }, text: m.title }),
+              el('div', { class: 'muted', style: { fontSize: '13px', marginTop: '2px' }, text: m.body }),
+              el('div', { class: 'log-row__meta', style: { marginTop: '4px' }, text: U.fmtDateTime(m.ts) }),
+            ]),
+          ])))
+        : el('div', { class: 'empty', style: { padding: '20px' }, text: '目前還沒有任何訊息。' }),
+      actions: [{ label: '關閉' }],
+    });
+  }
+
   function render() {
     const host = $('#view');
     host.innerHTML = '';
     host.appendChild((VIEWS[view] || viewMap)());
     renderWho();
+    renderMsgBadge();
     $$('#nav .nav__item').forEach((b) => b.classList.toggle('is-active', b.dataset.view === view));
     try { maybeCelebrateStoryline(); } catch (e) { /* 動畫失敗不該擋住正常畫面 */ }
     try { maybeShowPathChoice(); } catch (e) { /* 同上 */ }
@@ -975,6 +1009,7 @@
       if (VIEWS[h] && h !== view) { view = h; render(); }
     });
     $('#whoBtn').addEventListener('click', openIdentityPicker);
+    $('#msgBtn').addEventListener('click', openMessageCenter);
     S.subscribe(render);
     bindSync();
     render();

@@ -749,7 +749,7 @@
                 const unlocked = (st.unlockedPaths || []).indexOf(p.id) >= 0;
                 const pet = M.petById(st.petId);
                 return unlocked
-                  ? el('span', { class: 'pill pill--green', text: '✅ ' + M.petPathName(pet, p.id) })
+                  ? el('span', { class: 'pill', text: '✅ ' + M.petPathName(pet, p.id) })
                   : el('button', {
                       class: 'btn btn--ghost btn--sm', text: '🎁 贈送「' + M.petPathName(pet, p.id) + '」',
                       onclick: () => { S.giftPetPath(studentId, p.id); U.toast('已贈送「' + M.petPathName(pet, p.id) + '」路線給 ' + st.name); paintContent(); },
@@ -1929,11 +1929,24 @@
             : null,
         ]),
         c.cleared
-          ? el('button', {
-              class: 'btn btn--danger btn--sm', text: '撤銷通關',
-              onclick: () => U.confirmDialog('撤銷「' + c.name + '」的通關', '這會收回通關與獎勵標記，共同任務也會恢復成「尚未完成」。', '撤銷通關')
-                .then((ok) => { if (!ok) return; S.revertChapterClear(c.id); U.toast('已撤銷通關', 'warn'); render(); }),
-            })
+          ? el('div', { class: 'stack', style: { gap: '6px', alignItems: 'flex-end' } }, [
+              c.pathGifted
+                ? el('span', { class: 'pill', text: '🌟 已發放身分路線獎勵' })
+                : el('button', {
+                    class: 'btn btn--primary btn--sm', text: '🌟 發放身分路線獎勵',
+                    onclick: () => {
+                      const r = S.grantChapterPathReward(c.id);
+                      if (!r.ok) return U.toast(r.msg, 'warn');
+                      U.toast(r.grantedCount ? '已發放給 ' + r.grantedCount + ' 位同學！' : '這一關參與的同學都已經解鎖過所有路線了', 'ok');
+                      render();
+                    },
+                  }),
+              el('button', {
+                class: 'btn btn--danger btn--sm', text: '撤銷通關',
+                onclick: () => U.confirmDialog('撤銷「' + c.name + '」的通關', '這會收回通關與獎勵標記，共同任務也會恢復成「尚未完成」。' + (c.pathGifted ? '（已經發放過的身分路線獎勵不會收回）' : ''), '撤銷通關')
+                  .then((ok) => { if (!ok) return; S.revertChapterClear(c.id); U.toast('已撤銷通關', 'warn'); render(); }),
+              }),
+            ])
           : el('label', { class: 'row', style: { gap: '8px', cursor: 'pointer' } }, [
               el('input', {
                 class: 'checkbox', type: 'checkbox', checked: c.taskDone ? 'checked' : null,

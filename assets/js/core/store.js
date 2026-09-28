@@ -248,7 +248,7 @@
     out.students = (s.students || base.students).map((st) =>
       Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [], avatarStageIdx: null }, st)
     );
-    ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds'].forEach((k) => {
+    ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds', 'messages'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
     });
     /* 舊的自訂工具列存檔可能是在「自訂點數」「今日任務」這兩個按鈕出現前存的，這裡補進去避免消失 */
@@ -484,10 +484,24 @@
       c.clearedAt = Date.now();
       c.rewardGranted = true;
       c.rewardGrantedAt = Date.now();
-      // 過關禮物：這一關有參與守護行動的學生，每人免費送一條還沒解鎖過的身分路線
-      // （已經三條都解鎖過的人就沒有可以送的，跳過即可）
+    }
+  }
+
+  /* 過關禮物「免費解鎖一條身分路線」不會自動發放，要老師在星野主線後台按過一次才會發放，
+     這樣老師可以先確認參與名單、掌握發放的時機。只能對「已經通關」的關卡發放，
+     而且每一關只能發放一次（pathGifted 擋重複），發放對象是這一關有參與守護行動的學生，
+     每人送一條「還沒解鎖過」的路線（三條都解鎖過的人就沒有可以送的，跳過）；
+     發放後會各自收到一則系統訊息，學生從頂端的🔔訊息按鈕可以看到。 */
+  function grantChapterPathReward(chapterId) {
+    let result = { ok: false, msg: '找不到這一關' };
+    commit((s) => {
+      const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
+      if (!c) return;
+      if (!c.cleared) { result = { ok: false, msg: '這一關還沒通關，不能發放' }; return; }
+      if (c.pathGifted) { result = { ok: false, msg: '這一關已經發放過了' }; return; }
       const paths = s.petPaths || [];
-      storylineChapterParticipantIds(s, c.id).forEach((sid) => {
+      const granted = [];
+      storylineChapterParticipantIds(s, chapterId).forEach((sid) => {
         const t = s.students.find((x) => x.id === sid);
         if (!t) return;
         t.unlockedPaths = t.unlockedPaths || [];
@@ -495,9 +509,23 @@
         if (nextPath) {
           t.unlockedPaths.push(nextPath.id);
           if (!t.petPathId) t.petPathId = nextPath.id;
+          granted.push(sid);
         }
       });
-    }
+      c.pathGifted = true;
+      c.pathGiftedAt = Date.now();
+      if (granted.length) {
+        s.messages = s.messages || [];
+        s.messages.unshift({
+          id: U.uid('msg'), ts: Date.now(), studentIds: granted, icon: '🌟',
+          title: '解鎖了新的身分路線！',
+          body: '恭喜通過「' + c.name + '」，獲得一條還沒解鎖過的身分路線，到「我的寵物」看看吧！',
+          readBy: [],
+        });
+      }
+      result = { ok: true, grantedCount: granted.length };
+    });
+    return result;
   }
 
   /* ---------- 星野主線：教師管理動作 ---------- */
@@ -962,6 +990,41 @@
     });
   }
 
+  /* ---------- 訊息中心 ---------- */
+  /* 給某些學生（或全班，studentIds 留空陣列）發一則系統訊息；目前用在星野主線發放路線獎勵，
+     之後也可以用同一套機制發其他公告。readBy 記錄「誰已經看過」，每個學生看到的已讀狀態互不影響。 */
+  function sendMessage(studentIds, title, body, icon) {
+    commit((s) => {
+      s.messages = s.messages || [];
+      s.messages.unshift({
+        id: U.uid('msg'), ts: Date.now(),
+        studentIds: Array.isArray(studentIds) ? studentIds.slice() : [],
+        icon: icon || '📣', title: title || '', body: body || '', readBy: [],
+      });
+    });
+  }
+
+  /* 某個學生看得到的訊息：發給全班的（studentIds 空陣列）或指名給他的，新的在前面 */
+  function studentMessages(studentId) {
+    return (state.messages || []).filter((m) => !m.studentIds.length || m.studentIds.indexOf(studentId) >= 0);
+  }
+
+  function unreadMessageCount(studentId) {
+    return studentMessages(studentId).filter((m) => (m.readBy || []).indexOf(studentId) < 0).length;
+  }
+
+  /* 學生打開訊息中心時呼叫：把他看得到的訊息全部標記已讀 */
+  function markMessagesRead(studentId) {
+    commit((s) => {
+      (s.messages || []).forEach((m) => {
+        const relevant = !m.studentIds.length || m.studentIds.indexOf(studentId) >= 0;
+        if (!relevant) return;
+        m.readBy = m.readBy || [];
+        if (m.readBy.indexOf(studentId) < 0) m.readBy.push(studentId);
+      });
+    }, { silent: true });
+  }
+
   /* 「造型收藏」讓學生自由穿回任何一個已經達到過的造型階段，純粹是外觀選擇，
      不會動到等級、XP、星光或畫面上顯示的階段名稱——那些一律照真實等級計算。
      avatarStageIdx 存的是 petStageLevels 的陣列索引；空著（null）就是照目前等級自動顯示。 */
@@ -1100,12 +1163,13 @@
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
     award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage,
+    sendMessage, studentMessages, unreadMessageCount, markMessagesRead,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
     connectSheet, useLocal, pullRemote, pushRemote, sheetCall,
     storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress,
     storylineChapterParticipantIds, storylineChapterParticipantStats,
-    activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear,
+    activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear, grantChapterPathReward,
   };
 })(window);

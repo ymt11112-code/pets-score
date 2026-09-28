@@ -459,6 +459,7 @@
       shop: U.deepClone(DEFAULT_SHOP),
       toolbar: U.deepClone(DEFAULT_TOOLBAR),
       attendance: {},
+      messages: [],
       petStageLevels: DEFAULT_PET_STAGES.map((s) => ({ minLevel: s.minLevel, name: s.name })),
       petImages: PETS.reduce((acc, p) => {
         const preset = DEFAULT_PET_IMAGE_ASSETS[p.id];
