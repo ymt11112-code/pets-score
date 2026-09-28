@@ -224,7 +224,7 @@
     out.classInfo = Object.assign({}, base.classInfo, s.classInfo || {});
     out.settings = Object.assign({}, base.settings, s.settings || {});
     out.students = (s.students || base.students).map((st) =>
-      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0 }, st)
+      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [] }, st)
     );
     ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
@@ -245,9 +245,30 @@
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     migratePetStages(out, s, base);
+    migratePetPaths(out, s, base);
     out.petNames = Object.assign({}, base.petNames, s.petNames || {});
     migrateStoryline(out, s, base);
     return out;
+  }
+
+  /* 身分路線：舊存檔沒有 petPaths/petPathImages 就用預設補上；已經存在的路線名稱、已經上傳的圖片都保留，
+     只補上「新增的寵物」或「新增的路線」還沒建立過的空陣列，避免程式讀到 undefined。 */
+  function migratePetPaths(out, s, base) {
+    out.petPaths = Array.isArray(s.petPaths) && s.petPaths.length ? s.petPaths : base.petPaths;
+    const raw = (s && s.petPathImages) || {};
+    const pathIds = out.petPaths.map((p) => p.id);
+    const stageLen = (out.petStageLevels || base.petStageLevels).length;
+    const result = {};
+    const petIds = Object.keys(Object.assign({}, base.petImages, out.petImages || {}));
+    petIds.forEach((petId) => {
+      const rawForPet = raw[petId] || {};
+      result[petId] = {};
+      pathIds.forEach((pid) => {
+        const existing = rawForPet[pid];
+        result[petId][pid] = Array.isArray(existing) && existing.length === stageLen ? existing : new Array(stageLen).fill('');
+      });
+    });
+    out.petPathImages = result;
   }
 
   /* 星野主線：定義值（名稱／門檻／任務文字…）先套用預設，再用舊資料裡「已經存在」的欄位覆蓋回去，
@@ -787,6 +808,20 @@
     });
   }
 
+  /* 選擇／切換身分路線：第一次選某條路線會把它加進 unlockedPaths（等於「解鎖」），
+     之後同一個學生想換回已經解鎖過的路線，或想解鎖新的路線，都呼叫這個函式就好，
+     只改變「目前顯示走哪一條」，完全不動等級、XP、星光。 */
+  function choosePetPath(studentId, pathId) {
+    commit((s) => {
+      const t = s.students.find((x) => x.id === studentId);
+      if (!t) return;
+      if (!(s.petPaths || []).some((p) => p.id === pathId)) return;
+      t.petPathId = pathId;
+      t.unlockedPaths = t.unlockedPaths || [];
+      if (t.unlockedPaths.indexOf(pathId) < 0) t.unlockedPaths.push(pathId);
+    });
+  }
+
   function redeem(studentId, itemId) {
     const item = state.shop.find((i) => i.id === itemId);
     const st = student(studentId);
@@ -886,7 +921,7 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
-    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, redeem,
+    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, redeem,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,

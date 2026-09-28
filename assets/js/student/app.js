@@ -26,7 +26,7 @@
     const stage = M.stageOf(level);
     const cos = showCos && st.equipped ? M.COSMETICS.find((c) => c.id === st.equipped) : null;
     return el('span', { class: 'mate__avatar', style: { width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.55) + 'px' } }, [
-      M.petFace(pet, Math.round(size * 0.62), level),
+      M.petFace(pet, Math.round(size * 0.62), level, st.petPathId),
       cos ? el('span', { class: 'mate__cos', text: cos.emoji }) : null,
       el('span', { class: 'pet-avatar__badge', text: stage.badge, style: { right: '-4px', bottom: '-4px' } }),
     ]);
@@ -73,7 +73,7 @@
           class: 'picker-btn', 'data-k': U.pad2(st.no) + st.name,
           onclick: () => { setMe(st.id); dlg.close(); },
         }, [
-          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 32, M.levelFromXp(st.xp).level)]),
+          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 32, M.levelFromXp(st.xp).level, st.petPathId)]),
           el('div', { class: 'picker-btn__name', text: st.name }),
           el('div', { class: 'picker-btn__no', text: U.pad2(st.no) + ' 號' }),
         ])
@@ -290,7 +290,7 @@
             el('p', { class: 'hero-card__desc', text: '每一次專注、合作與勇敢，都會讓班級的探險地圖再前進一步。' }),
             st
               ? el('div', { class: 'hero-card__pet' }, [
-                  el('span', { style: { fontSize: '30px' } }, [M.petFace(pet, 34, lv.level)]),
+                  el('span', { style: { fontSize: '30px' } }, [M.petFace(pet, 34, lv.level, st.petPathId)]),
                   el('div', { class: 'grow' }, [
                     el('div', { style: { fontWeight: 800 }, text: (st.petName || pet.name) + ' Lv.' + lv.level }),
                     el('div', { class: 'muted', style: { fontSize: '13px' }, text: '再獲得 ' + (lv.need - lv.inLevel) + ' XP 升到 Lv.' + (lv.level + 1) }),
@@ -331,7 +331,7 @@
         ]),
         el('div', { class: 'hero-pet' }, [
           el('div', { class: 'hero-pet__bubble', text: storyChapter ? ('再 ' + missionLeft + ' 顆星光就能點亮下一座燈塔！') : ('再 ' + missionLeft + ' 點就能打開森林寶箱！') }),
-          el('div', { class: 'hero-pet__face' }, [M.petFace(pet, 168, st ? lv.level : 1)]),
+          el('div', { class: 'hero-pet__face' }, [M.petFace(pet, 168, st ? lv.level : 1, st ? st.petPathId : null)]),
           st ? el('div', { class: 'hero-pet__label', text: (st.petName || pet.name) + ' Lv.' + lv.level }) : null,
         ]),
       ]),
@@ -424,11 +424,83 @@
       el('div', { style: { marginTop: '14px' } }, [progressBar(Math.round((pts / target) * 100), true)]),
       el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '6px' }, text: '距離下一個小隊寶箱還差 ' + Math.max(0, target - pts) + ' 點' }),
       el('div', { class: 'row', style: { marginTop: '12px', flexWrap: 'wrap', gap: '6px' } },
-        members.slice(0, 8).map((m) => el('span', { title: m.name }, [M.petFace(M.petById(m.petId), 28, M.levelFromXp(m.xp).level)]))),
+        members.slice(0, 8).map((m) => el('span', { title: m.name }, [M.petFace(M.petById(m.petId), 28, M.levelFromXp(m.xp).level, m.petPathId)]))),
     ]);
   }
 
   /* ================= 視圖：我的寵物 ================= */
+  /* 身分路線卡：V4 之前顯示預告，V4 之後可以選擇／切換／解鎖新路線；切換不影響等級、XP、星光 */
+  function petPathCard(st, lv, pet) {
+    const paths = S.get().petPaths || [];
+    const branchLevel = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].minLevel;
+    const branchName = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].name;
+    if (lv.level < branchLevel) {
+      return el('div', { class: 'card' }, [
+        el('h3', { class: 'card__title', text: '🌟 身分路線' }),
+        el('p', { class: 'card__sub', text: '升到 Lv.' + branchLevel + '（' + branchName + '）就能選擇一條專屬的成長路線，外型會從這裡開始分岔！' }),
+        el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', marginTop: '10px' } }, paths.map((p) => el('span', { class: 'pill pill--gray', text: p.name }))),
+      ]);
+    }
+    return el('div', { class: 'card' }, [
+      el('div', { class: 'card__head' }, [
+        el('div', {}, [
+          el('h3', { class: 'card__title', text: '🌟 身分路線' }),
+          el('p', { class: 'card__sub', text: '選一條路線讓寵物開始專屬進化；已經解鎖過的路線可以隨時切換，不會影響等級或星光。' }),
+        ]),
+      ]),
+      el('div', { class: 'cos-grid' }, paths.map((p) => {
+        const unlocked = (st.unlockedPaths || []).indexOf(p.id) >= 0;
+        const active = st.petPathId === p.id;
+        return el('button', {
+          class: 'cos' + (unlocked ? ' is-owned' : '') + (active ? ' is-equipped' : ''),
+          onclick: () => {
+            S.choosePetPath(st.id, p.id);
+            U.toast(unlocked ? '已切換成「' + p.name + '」' : '🎉 解鎖了「' + p.name + '」路線！');
+          },
+        }, [
+          active ? el('span', { class: 'cos__tag', text: '使用中' }) : null,
+          el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 56, lv.level, p.id)]),
+          el('div', { class: 'cos__name', text: p.name }),
+          el('div', { class: 'cos__meta', text: unlocked ? '已解鎖' : '尚未解鎖，點一下開啟' }),
+        ]);
+      })),
+    ]);
+  }
+
+  /* 第一次升到 V4 時，跳出一次性的選擇路線視窗；用跟通關動畫同一套「這次瀏覽記過了沒」機制擋重複跳出 */
+  function maybeShowPathChoice() {
+    const st = me();
+    if (!st) return;
+    const lv = M.levelFromXp(st.xp);
+    const branchLevel = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].minLevel;
+    if (lv.level < branchLevel) return;
+    if ((st.unlockedPaths || []).length > 0) return;
+    const key = 'pathprompt:' + st.id;
+    if (getCelebratedSet().has(key)) return;
+    markCelebrated(key);
+    const pet = M.petById(st.petId);
+    const paths = S.get().petPaths || [];
+    const dlg = U.modal({
+      title: '🌟 選擇專屬身分路線！',
+      wide: true,
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'modal__text', text: (st.petName || pet.name) + ' 長大到「' + M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].name + '」了！選一條路線，接下來的造型都會走這條路，之後也能在「我的寵物」隨時切換或解鎖其他路線。' }),
+        el('div', { class: 'cos-grid' }, paths.map((p) => el('button', {
+          class: 'cos',
+          onclick: () => {
+            S.choosePetPath(st.id, p.id);
+            U.toast('🎉 選擇了「' + p.name + '」路線！');
+            dlg.close();
+          },
+        }, [
+          el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 56, lv.level, p.id)]),
+          el('div', { class: 'cos__name', text: p.name }),
+        ]))),
+      ]),
+      actions: [{ label: '稍後再選' }],
+    });
+  }
+
   function viewPet() {
     const st = me();
     if (!st) return needIdentity('選擇身分後，就能照顧你的寵物。');
@@ -447,7 +519,7 @@
           el('div', { class: 'pet-stage' }, [
             el('div', { class: 'pet-stage__glow' }),
             el('div', { class: 'pet-stage__face' }, [
-              M.petFace(pet, 140, lv.level),
+              M.petFace(pet, 140, lv.level, st.petPathId),
               cos ? el('span', { class: 'pet-stage__cos', text: cos.emoji }) : null,
             ]),
             el('div', { class: 'pet-stage__name', text: (st.petName || pet.name) + ' Lv.' + lv.level }),
@@ -485,6 +557,8 @@
                 ]);
               })),
             ]),
+
+            petPathCard(st, lv, pet),
 
             el('div', { class: 'card' }, [
               el('div', { class: 'card__head' }, [
@@ -826,6 +900,7 @@
     renderWho();
     $$('#nav .nav__item').forEach((b) => b.classList.toggle('is-active', b.dataset.view === view));
     try { maybeCelebrateStoryline(); } catch (e) { /* 動畫失敗不該擋住正常畫面 */ }
+    try { maybeShowPathChoice(); } catch (e) { /* 同上 */ }
   }
 
   function bindSync() {

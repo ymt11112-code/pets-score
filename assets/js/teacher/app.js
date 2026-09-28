@@ -84,7 +84,7 @@
   function petCell(st, size) {
     const pet = M.petById(st.petId);
     return el('span', { class: 'pet-avatar', style: { width: (size || 46) + 'px', height: (size || 46) + 'px' } }, [
-      M.petFace(pet, Math.round((size || 46) * 0.62), M.levelFromXp(st.xp).level),
+      M.petFace(pet, Math.round((size || 46) * 0.62), M.levelFromXp(st.xp).level, st.petPathId),
     ]);
   }
 
@@ -472,7 +472,7 @@
           const absent = S.isAbsent(st.id);
           const on = selected.has(st.id);
           return avatarCard(
-            M.petFace(M.petById(st.petId), faceSize, M.levelFromXp(st.xp).level),
+            M.petFace(M.petById(st.petId), faceSize, M.levelFromXp(st.xp).level, st.petPathId),
             (showNo ? U.pad2(st.no) + ' ' : '') + st.name, absent ? '請假' : statFor(st), on, absent,
             () => {
               if (absent) return U.toast('這位同學今天請假中，如需調整請到「出席」', 'warn');
@@ -625,7 +625,7 @@
       const lv = M.levelFromXp(st.xp);
       const pet = M.petById(st.petId);
       headEl.appendChild(el('div', { class: 'profile-head' }, [
-        M.petFace(pet, 84, lv.level),
+        M.petFace(pet, 84, lv.level, st.petPathId),
         el('div', { class: 'grow' }, [
           el('div', { class: 'profile-head__name', text: U.pad2(st.no) + ' ' + st.name }),
           el('div', { class: 'muted', style: { fontSize: '13px' }, text: (st.petName || pet.name) + ' · Lv.' + lv.level }),
@@ -798,7 +798,7 @@
         const absent = S.isAbsent(st.id, day);
         grid.appendChild(el('button', { class: 'avatar-card' + (absent ? ' is-absent' : ' is-on'), onclick: () => { S.setAttendance(st.id, absent ? '' : 'absent', day); paint(); } }, [
           el('div', { class: 'avatar-card__face' }, [
-            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level),
+            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level, st.petPathId),
             el('span', { class: absent ? 'avatar-card__badge avatar-card__badge--absent' : 'avatar-card__check', text: absent ? '假' : '✓' }),
           ]),
           el('div', { class: 'avatar-card__label', text: U.pad2(st.no) + ' ' + st.name }),
@@ -928,7 +928,7 @@
                   onchange: (e) => S.commit((d) => { d.students.find((x) => x.id === st.id).groupId = e.target.value; }),
                 }, s.groups.map((g) => el('option', { value: g.id, text: g.name, selected: g.id === st.groupId ? 'selected' : null })))]),
                 el('td', { class: 'col-hide-sm' }, [el('div', { class: 'row', style: { gap: '8px' } }, [
-                  M.petFace(M.petById(st.petId), 24, M.levelFromXp(st.xp).level),
+                  M.petFace(M.petById(st.petId), 24, M.levelFromXp(st.xp).level, st.petPathId),
                   el('span', { text: st.petName || M.petById(st.petId).name }),
                 ])]),
                 el('td', { text: String(st.points) }),
@@ -1339,6 +1339,16 @@
               }),
             }),
           ]),
+          card('🌟 身分路線名稱（全部寵物共用）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((s.petStageLevels || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條；圖片在上面「管理圖片」裡設定。', [
+            el('div', { class: 'stack' }, (s.petPaths || []).map((p, idx) =>
+              el('div', { class: 'rule-edit' }, [
+                el('input', {
+                  class: 'input grow', value: p.name, placeholder: '路線名稱',
+                  onchange: (e) => { const nm = e.target.value.trim(); if (nm) S.commit((d) => { d.petPaths[idx].name = nm; }); },
+                }),
+              ])
+            )),
+          ]),
         ]),
       ]),
     ]);
@@ -1401,45 +1411,97 @@
     });
   }
 
+  function petImageRow(pet, t, idx, images, save, paint) {
+    const img = images[idx] || '';
+    const preview = img
+      ? el('img', { src: img, style: { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)', flex: '0 0 auto' } })
+      : el('span', { style: { fontSize: '26px', width: '48px', textAlign: 'center', flex: '0 0 auto' }, text: pet.emoji });
+    return el('div', { class: 'rule-edit', style: { alignItems: 'flex-start' } }, [
+      preview,
+      el('div', { class: 'grow stack', style: { gap: '6px' } }, [
+        el('div', { style: { fontWeight: 800, fontSize: '13.5px' }, text: 'Lv.' + t.minLevel + (t.name ? '・' + t.name : '') }),
+        el('div', { class: 'row', style: { gap: '6px' } }, [
+          el('input', {
+            class: 'input grow', value: img, placeholder: 'https://… 或 assets/img/pets/xxx.png',
+            onchange: (e) => { images[idx] = e.target.value.trim(); save(); paint(); },
+          }),
+          uploadButton(pet, t, idx, images, save, paint),
+          pickButton(idx, images, save, paint),
+        ]),
+      ]),
+    ]);
+  }
+
   function openPetImageManager(pet) {
     const levels = S.get().petStageLevels || [];
+    const branchIdx = M.PATH_BRANCH_STAGE_INDEX; // V4 開始分路線
     let images = ((S.get().petImages || {})[pet.id] || []).slice();
     while (images.length < levels.length) images.push('');
 
-    function save() {
+    function saveShared() {
       S.commit((d) => { d.petImages = d.petImages || {}; d.petImages[pet.id] = images.slice(); });
     }
 
-    const listEl = el('div', { class: 'stack' });
+    const paths = S.get().petPaths || [];
+    let activePathId = (paths[0] || {}).id;
+    const pathImagesMap = {};
+    paths.forEach((p) => {
+      const arr = (((S.get().petPathImages || {})[pet.id] || {})[p.id] || []).slice();
+      while (arr.length < levels.length) arr.push('');
+      pathImagesMap[p.id] = arr;
+    });
 
-    function paint() {
-      listEl.innerHTML = '';
+    const sharedListEl = el('div', { class: 'stack' });
+    const pathTabsEl = el('div', { class: 'tag-toggle' });
+    const pathListEl = el('div', { class: 'stack' });
+
+    function paintShared() {
+      sharedListEl.innerHTML = '';
       if (!levels.length) {
-        listEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '還沒有設定任何等級門檻，請先到上面「寵物等級門檻」新增。' }));
+        sharedListEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '還沒有設定任何等級門檻，請先到上面「寵物等級門檻」新增。' }));
         return;
       }
       levels.forEach((t, idx) => {
-        const img = images[idx] || '';
-        const preview = img
-          ? el('img', { src: img, style: { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)', flex: '0 0 auto' } })
-          : el('span', { style: { fontSize: '26px', width: '48px', textAlign: 'center', flex: '0 0 auto' }, text: pet.emoji });
-        listEl.appendChild(el('div', { class: 'rule-edit', style: { alignItems: 'flex-start' } }, [
-          preview,
-          el('div', { class: 'grow stack', style: { gap: '6px' } }, [
-            el('div', { style: { fontWeight: 800, fontSize: '13.5px' }, text: 'Lv.' + t.minLevel + (t.name ? '・' + t.name : '') }),
-            el('div', { class: 'row', style: { gap: '6px' } }, [
-              el('input', {
-                class: 'input grow', value: img, placeholder: 'https://… 或 assets/img/pets/xxx.png',
-                onchange: (e) => { images[idx] = e.target.value.trim(); save(); paint(); },
-              }),
-              uploadButton(pet, t, idx, images, save, paint),
-              pickButton(idx, images, save, paint),
-            ]),
-          ]),
-        ]));
+        if (idx >= branchIdx) return;
+        sharedListEl.appendChild(petImageRow(pet, t, idx, images, saveShared, paintShared));
       });
     }
-    paint();
+
+    function paintPathTabs() {
+      pathTabsEl.innerHTML = '';
+      paths.forEach((p) => {
+        pathTabsEl.appendChild(el('button', {
+          class: p.id === activePathId ? 'is-on' : '',
+          text: p.name,
+          onclick: () => { activePathId = p.id; paintPathTabs(); paintPathRows(); },
+        }));
+      });
+    }
+
+    function paintPathRows() {
+      pathListEl.innerHTML = '';
+      if (levels.length <= branchIdx) {
+        pathListEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '目前的等級門檻還沒有 V4 以上的階段，請先到上面「寵物等級門檻」新增。' }));
+        return;
+      }
+      const pathId = activePathId; // 鎖定這次畫面對應的路線，避免上傳圖片途中切分頁造成寫錯路線
+      const arr = pathImagesMap[pathId];
+      function savePath() {
+        S.commit((d) => {
+          d.petPathImages = d.petPathImages || {};
+          d.petPathImages[pet.id] = d.petPathImages[pet.id] || {};
+          d.petPathImages[pet.id][pathId] = arr.slice();
+        });
+      }
+      levels.forEach((t, idx) => {
+        if (idx < branchIdx) return;
+        pathListEl.appendChild(petImageRow(pet, t, idx, arr, savePath, paintPathRows));
+      });
+    }
+
+    paintShared();
+    paintPathTabs();
+    paintPathRows();
 
     U.modal({
       title: '管理「' + pet.name + '」的造型圖片',
@@ -1449,7 +1511,11 @@
           el('p', { class: 'card__sub', style: { margin: 0, flex: '1 1 260px' }, text: '等級門檻是全部寵物共用的，要調整請到上面「寵物等級門檻」；這裡只設定這隻寵物在各階段要換上的圖片。' }),
           el('button', { class: 'btn btn--ghost btn--sm', text: '⚙️ GitHub 上傳設定', onclick: () => openGithubSettings() }),
         ]),
-        listEl,
+        el('p', { class: 'field__label', text: 'V1–V' + branchIdx + '（共用，不分路線）' }),
+        sharedListEl,
+        el('p', { class: 'field__label', style: { marginTop: '6px' }, text: 'V' + (branchIdx + 1) + '–V' + levels.length + '（依身分路線分開設定，先選路線再設定圖片）' }),
+        pathTabsEl,
+        pathListEl,
       ]),
       actions: [{ label: '完成', kind: 'primary' }],
     });
@@ -1876,7 +1942,7 @@
           },
         }, [
           el('div', { class: 'avatar-card__face' }, [
-            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level),
+            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level, st.petPathId),
             has ? el('span', { class: 'avatar-card__check', text: '✓' }) : null,
           ]),
           el('div', { class: 'avatar-card__label', text: U.pad2(st.no) + ' ' + st.name }),
@@ -2158,7 +2224,7 @@
     function list(items, valueFn, metaFn) {
       return el('div', {}, items.map((x, i) => el('div', { class: 'lead-row' + (i < 3 ? ' lead-row--' + (i + 1) : '') }, [
         el('span', { class: 'lead-row__medal', text: medal(i) }),
-        x.emoji ? el('span', { style: { fontSize: '22px' }, text: x.emoji }) : M.petFace(M.petById(x.petId), 22, M.levelFromXp(x.xp).level),
+        x.emoji ? el('span', { style: { fontSize: '22px' }, text: x.emoji }) : M.petFace(M.petById(x.petId), 22, M.levelFromXp(x.xp).level, x.petPathId),
         el('div', { class: 'grow' }, [
           el('div', { style: { fontWeight: 800 }, text: x.name }),
           el('div', { class: 'log-row__meta', text: metaFn ? metaFn(x) : '' }),

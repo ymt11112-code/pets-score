@@ -45,6 +45,14 @@
     { minLevel: 50, name: '神獸體' },
   ];
 
+  /* 升到 V4（成長體）之後，學生要選一條「身分路線」，V4–V10 的造型各走各的；
+     名稱先用通用佔位字串，老師可以在後台改成自己想要的主題名稱。 */
+  const DEFAULT_PET_PATHS = [
+    { id: 'path1', name: '路線一' },
+    { id: 'path2', name: '路線二' },
+    { id: 'path3', name: '路線三' },
+  ];
+
 
   /* 造型（金幣解鎖 / 等級解鎖） */
   const COSMETICS = [
@@ -256,22 +264,28 @@
     return list.find((p) => p.id === id) || list[0] || PETS[0];
   }
 
-  /* 依等級挑選老師在後台設定的造型圖片。
-     等級門檻是全班共用的一份清單（state.petStageLevels），每隻寵物只存自己在各階段的圖片
-     （state.petImages[petId]，跟 petStageLevels 用陣列位置對應，不是各自存一份等級）。
-     找不到就退回 pet.img（單張固定圖），再退回 emoji。 */
-  function stageImageFor(pet, level) {
+  /* 進化到第幾階（陣列索引，從 0 開始）之後開始分路線：索引 3 = V4「成長體」。
+     V1–V3（索引 0–2）全班共用同一張圖，不分路線；V4–V10 每條路線各自一張圖。 */
+  const PATH_BRANCH_STAGE_INDEX = 3;
+
+  /* 依等級挑選老師在後台設定的造型圖片，可另外指定「身分路線」（V4 之後才有意義）。
+     等級門檻是全班共用的一份清單（state.petStageLevels），每隻寵物的共用圖存在 state.petImages[petId]，
+     V4 之後的路線專屬圖存在 state.petPathImages[petId][pathId]，兩者都跟 petStageLevels 用陣列位置對應。
+     找不到路線圖就退回共用圖，再退回 pet.img（單張固定圖），再退回 emoji。 */
+  function stageImageFor(pet, level, pathId) {
     let levels = null;
     let images = null;
+    let pathImages = null;
     try {
       const S = global.PetStore;
       if (S && S.get) {
         const s = S.get() || {};
         levels = s.petStageLevels;
         images = (s.petImages || {})[pet.id];
+        pathImages = pathId && s.petPathImages && s.petPathImages[pet.id] ? s.petPathImages[pet.id][pathId] : null;
       }
     } catch (e) { /* store 還沒準備好 */ }
-    if (!levels || !levels.length || !images || !images.length) return pet.img || '';
+    if (!levels || !levels.length) return pet.img || '';
 
     const lv = level == null ? -Infinity : level;
     let bestIdx = -1;
@@ -279,17 +293,28 @@
       const min = t.minLevel || 1;
       if (min <= lv && (bestIdx < 0 || min > (levels[bestIdx].minLevel || 1))) bestIdx = i;
     });
-    // 從符合等級的那一階開始往前找最近一個「有設定圖片」的階段
-    for (let i = bestIdx; i >= 0; i--) { if (images[i]) return images[i]; }
-    // 等級還沒到第一個門檻時，先用最早設定好的那張圖當起始造型
-    for (let i = 0; i < images.length; i++) { if (images[i]) return images[i]; }
+    if (bestIdx < 0) bestIdx = 0;
+
+    // V4 以上且有指定路線：優先在該路線內，從符合等級的那一階往回找最近一張圖
+    if (pathImages && pathImages.length) {
+      for (let i = Math.min(bestIdx, pathImages.length - 1); i >= PATH_BRANCH_STAGE_INDEX; i--) {
+        if (pathImages[i]) return pathImages[i];
+      }
+    }
+    if (images && images.length) {
+      // 從符合等級的那一階開始往前找最近一個「有設定圖片」的共用階段
+      for (let i = bestIdx; i >= 0; i--) { if (images[i]) return images[i]; }
+      // 等級還沒到第一個門檻時，先用最早設定好的那張圖當起始造型
+      for (let i = 0; i < images.length; i++) { if (images[i]) return images[i]; }
+    }
     return pet.img || '';
   }
 
-  /* 寵物外觀：依目前等級選對應造型圖片，沒有設定就用 emoji。level 可省略（例如陳列用途）。 */
-  function petFace(pet, size, level) {
+  /* 寵物外觀：依目前等級（與已選的身分路線）選對應造型圖片，沒有設定就用 emoji。
+     level、pathId 都可省略（例如陳列用途，或 V4 之前還沒選路線時）。 */
+  function petFace(pet, size, level, pathId) {
     const p = typeof pet === 'string' ? petById(pet) : pet || PETS[0];
-    const img = stageImageFor(p, level);
+    const img = stageImageFor(p, level, pathId);
     if (img) {
       // 用 contain 而不是 cover：完整顯示老師上傳的圖片，不裁切；外層的圓形泡泡（.pet-avatar／
       // .avatar-card__face 等）本來就比這裡的 size 大一些並置中對齊，所以圖片不會貼到圓形邊緣。
@@ -332,6 +357,8 @@
         totalPoints: 20 + ((i * 7) % 45),
         lastActiveAt: now - (i % 3) * 86400000,
         active: true,
+        petPathId: '',
+        unlockedPaths: [],
       };
     });
 
@@ -381,6 +408,12 @@
         acc[p.id] = new Array(DEFAULT_PET_STAGES.length).fill('');
         return acc;
       }, {}),
+      petPaths: U.deepClone(DEFAULT_PET_PATHS),
+      petPathImages: PETS.reduce((acc, p) => {
+        acc[p.id] = {};
+        DEFAULT_PET_PATHS.forEach((path) => { acc[p.id][path.id] = new Array(DEFAULT_PET_STAGES.length).fill(''); });
+        return acc;
+      }, {}),
       petNames: {},
       customPets: [],
       deletedPetIds: [],
@@ -424,7 +457,7 @@
 
   global.PetModel = {
     PETS, STAGES, COSMETICS, FOODS, BADGES, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
-    DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES,
+    DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, PATH_BRANCH_STAGE_INDEX,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
     xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, seedState,
   };
