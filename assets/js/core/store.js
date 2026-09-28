@@ -290,22 +290,44 @@
     }, 0);
   }
 
+  /* 每一關「守護行動」的計算起點：第一關從啟用日算起，之後每一關從「前一關通關的時間」算起，
+     這樣同一個規則被好幾關重複用到時，不會把前一關已經算過的次數/人數也算進這一關。 */
+  function storylineChapterWindowStart(s, chapterId) {
+    const st = s.storyline;
+    const chapters = (st && st.chapters) || [];
+    const idx = chapters.findIndex((c) => c.id === chapterId);
+    if (!st || idx <= 0) return st ? st.activatedAt : 0;
+    const prev = chapters[idx - 1];
+    return (prev && prev.cleared && prev.clearedAt) ? Math.max(st.activatedAt, prev.clearedAt) : st.activatedAt;
+  }
+
+  function storylineChapterActionEntries(s, chapterId) {
+    const st = s.storyline;
+    const c = st && (st.chapters || []).find((x) => x.id === chapterId);
+    if (!st || !st.active || !c || !(c.actionRuleIds || []).length) return [];
+    const ids = c.actionRuleIds;
+    const from = storylineChapterWindowStart(s, chapterId);
+    const to = (c.cleared && c.clearedAt) ? c.clearedAt : Infinity; // 已通關的關卡，進度會停在通關那一刻，不會被後面關卡的同一個規則繼續加進來
+    return s.ledger.filter((e) => !e.undone && e.ts >= from && e.ts <= to && ids.indexOf(e.ruleId) >= 0);
+  }
+
   /* 某一關「守護行動」的即時進度：符合 actionRuleIds 的加點次數，以及有出現過的不同學生數。
      跟 storylineStars 一樣是每次即時算，不是另外存累加數字，補登/撤銷都會自動對。 */
   function storylineChapterActionProgress(s, chapterId) {
-    const st = s.storyline;
-    const c = st && (st.chapters || []).find((x) => x.id === chapterId);
-    if (!st || !st.active || !c || !(c.actionRuleIds || []).length) return { count: 0, participants: 0 };
-    const ids = c.actionRuleIds;
     const seen = new Set();
     let count = 0;
-    s.ledger.forEach((e) => {
-      if (e.undone || e.ts < st.activatedAt) return;
-      if (ids.indexOf(e.ruleId) < 0) return;
+    storylineChapterActionEntries(s, chapterId).forEach((e) => {
       count += e.studentIds.length;
       e.studentIds.forEach((id) => seen.add(id));
     });
     return { count, participants: seen.size };
+  }
+
+  /* 這一關「已經參與過」的學生 id 集合，給教師端的全班參與狀況畫面用 */
+  function storylineChapterParticipantIds(s, chapterId) {
+    const seen = new Set();
+    storylineChapterActionEntries(s, chapterId).forEach((e) => e.studentIds.forEach((id) => seen.add(id)));
+    return seen;
   }
 
   /* 目前正在進行的關卡索引；全部過關則回傳 chapters.length */
@@ -852,7 +874,7 @@
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
     connectSheet, useLocal, pullRemote, pushRemote, sheetCall,
-    storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress,
+    storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress, storylineChapterParticipantIds,
     activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear,
   };
 })(window);

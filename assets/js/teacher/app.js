@@ -1810,6 +1810,9 @@
               c.actionTarget > 0 ? '行動次數 ' + actionProgress.count + ' / ' + c.actionTarget + (actionProgress.count >= c.actionTarget ? '（已達標）' : '') : '',
               c.participantTarget > 0 ? '參與人數 ' + actionProgress.participants + ' / ' + c.participantTarget + (actionProgress.participants >= c.participantTarget ? '（已達標）' : '') : '',
             ].filter(Boolean).join('　') }) : null,
+          (c.actionRuleIds || []).length
+            ? el('button', { class: 'btn btn--ghost btn--sm', style: { marginTop: '6px' }, text: '👥 全班參與狀況', onclick: () => openChapterParticipants(c) })
+            : null,
         ]),
         c.cleared
           ? el('button', {
@@ -1830,6 +1833,65 @@
         ? el('p', { class: 'card__sub', style: { marginTop: '8px', color: 'var(--gold)' }, text: '⭐ 星光已集滿，只差確認共同任務就能通關！' })
         : null,
     ]);
+  }
+
+  /* 全班參與狀況：座號頭像打勾表示這一關已經有對應的守護行動紀錄；點頭像直接用目前選的規則幫他加分 */
+  function openChapterParticipants(c) {
+    const s = S.get();
+    const ruleIds = c.actionRuleIds || [];
+    if (!ruleIds.length) return U.toast('這一關還沒設定對應的守護行動規則', 'warn');
+    let activeRuleId = ruleIds[0];
+    const grid = el('div', { class: 'avatar-grid' });
+    const ruleTabs = el('div', { class: 'tag-toggle' });
+
+    function paintRuleTabs() {
+      ruleTabs.innerHTML = '';
+      ruleIds.forEach((rid) => {
+        const r = S.rule(rid);
+        ruleTabs.appendChild(el('button', {
+          class: rid === activeRuleId ? 'is-on' : '',
+          text: r ? r.icon + ' ' + r.label : rid,
+          onclick: () => { activeRuleId = rid; paintRuleTabs(); },
+        }));
+      });
+    }
+
+    function paint() {
+      const done = S.storylineChapterParticipantIds(S.get(), c.id);
+      grid.innerHTML = '';
+      sortStudents(s.students, s).forEach((st) => {
+        const has = done.has(st.id);
+        grid.appendChild(el('button', {
+          class: 'avatar-card' + (has ? ' is-on' : ''),
+          title: has ? '已經有這一關的紀錄，點一下可以再加一次' : '點一下用「' + (S.rule(activeRuleId) || {}).label + '」幫他加分',
+          onclick: () => {
+            const rule = S.rule(activeRuleId);
+            if (!rule) return;
+            applyRule([st.id], rule);
+            paint();
+          },
+        }, [
+          el('div', { class: 'avatar-card__face' }, [
+            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level),
+            has ? el('span', { class: 'avatar-card__check', text: '✓' }) : null,
+          ]),
+          el('div', { class: 'avatar-card__label', text: U.pad2(st.no) + ' ' + st.name }),
+        ]));
+      });
+    }
+
+    paintRuleTabs();
+    paint();
+    U.modal({
+      title: c.name + '・全班參與狀況',
+      wide: true,
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'card__sub', text: '打勾代表這位同學在這一關已經有對應的加分紀錄。點頭像會直接用下面選的規則幫他加分（可以重複點）。' }),
+        ruleIds.length > 1 ? el('div', { class: 'stack', style: { gap: '6px' } }, [el('p', { class: 'field__label', text: '要用哪個規則加分：' }), ruleTabs]) : null,
+        grid,
+      ]),
+      actions: [{ label: '完成', kind: 'primary' }],
+    });
   }
 
   /* ================= 點數紀錄 ================= */
