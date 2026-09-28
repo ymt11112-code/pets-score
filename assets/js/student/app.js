@@ -252,10 +252,11 @@
       deco.appendChild(el('span', { text: e, style: { left: left + '%', top: top + '%' } }));
     });
 
+    const usePhotoHero = !!(heroBgChapter && heroBgChapter.bg);
     return el('div', {}, [
-      el('section', { class: 'hero', style: heroBgChapter && heroBgChapter.bg ? { backgroundImage: "url('" + heroBgChapter.bg + "')" } : null }, [
-        el('div', { class: 'hero__path' }),
-        deco,
+      el('section', { class: 'hero' + (usePhotoHero ? ' hero--photo' : ''), style: usePhotoHero ? { backgroundImage: "url('" + heroBgChapter.bg + "')" } : null }, [
+        usePhotoHero ? null : el('div', { class: 'hero__path' }),
+        usePhotoHero ? null : deco,
         el('div', { class: 'wrap wrap--wide hero__inner' }, [
           el('div', { class: 'hero-card' }, [
             el('div', { class: 'hero-card__eyebrow', text: '第 ' + day + ' 天 · ' + s.classInfo.term }),
