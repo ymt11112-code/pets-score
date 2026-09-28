@@ -89,9 +89,7 @@
   }
   const DEFAULT_PET_IMAGE_ASSETS = {
     '01dog': petImageAssetSet('01dog'),
-    /* 02cat 目前只有共用造型跟路線一（莓露精靈）整理好照片，路線二、三還沒有圖，
-       畫面會自動退回共用造型，之後老師補齊照片再回來加 path2／path3 即可。 */
-    '02cat': petImageAssetSet('02cat', ['shared', 'path1']),
+    '02cat': petImageAssetSet('02cat'),
   };
 
 
