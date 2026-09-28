@@ -742,6 +742,20 @@
             el('label', { class: 'field__label', text: '寵物暱稱（選填）' }),
             el('input', { class: 'input', value: st.petName || '', placeholder: '例如：小柴', onchange: (e) => update({ petName: e.target.value.trim().slice(0, 10) }) }),
           ]),
+          el('div', { class: 'field' }, [
+            el('label', { class: 'field__label', text: '身分路線（學生平常要花金幣解鎖，這裡可以直接免費贈送）' }),
+            el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap' } },
+              (s.petPaths || []).map((p) => {
+                const unlocked = (st.unlockedPaths || []).indexOf(p.id) >= 0;
+                const pet = M.petById(st.petId);
+                return unlocked
+                  ? el('span', { class: 'pill pill--green', text: '✅ ' + M.petPathName(pet, p.id) })
+                  : el('button', {
+                      class: 'btn btn--ghost btn--sm', text: '🎁 贈送「' + M.petPathName(pet, p.id) + '」',
+                      onclick: () => { S.giftPetPath(studentId, p.id); U.toast('已贈送「' + M.petPathName(pet, p.id) + '」路線給 ' + st.name); paintContent(); },
+                    });
+              })),
+          ]),
         ]));
       }
     }
@@ -1351,6 +1365,16 @@
                 }),
               ])
             )),
+            el('div', { class: 'field', style: { maxWidth: '260px', marginTop: '14px' } }, [
+              el('label', { class: 'field__label', text: '解鎖第 2、3 條路線要花多少金幣（升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + ' 第一次選路線一律免費）' }),
+              el('input', {
+                class: 'input', type: 'number', min: '0', value: String((s.settings || {}).pathUnlockCost != null ? s.settings.pathUnlockCost : 50),
+                onchange: (e) => {
+                  const n = Math.max(0, Math.round(Number(e.target.value) || 0));
+                  S.commit((d) => { d.settings = d.settings || {}; d.settings.pathUnlockCost = n; }, { silent: true });
+                },
+              }),
+            ]),
           ]),
         ]),
       ]),

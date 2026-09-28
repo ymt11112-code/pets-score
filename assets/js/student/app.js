@@ -486,9 +486,12 @@
     ]);
   }
 
-  /* 身分路線卡：V4 之前顯示預告，V4 之後可以選擇／切換／解鎖新路線；切換不影響等級、XP、星光 */
+  /* 身分路線卡：V4 之前顯示預告，V4 之後可以選擇／切換／解鎖新路線；已解鎖的路線隨時免費切換，
+     不影響等級、XP、星光；還沒解鎖的路線要花金幣購買（金額看老師設定），或等老師贈送、或從星野主線關卡獎勵拿到。 */
   function petPathCard(st, lv, pet) {
-    const paths = S.get().petPaths || [];
+    const s = S.get();
+    const paths = s.petPaths || [];
+    const cost = Math.max(0, (s.settings || {}).pathUnlockCost || 0);
     const branchLevel = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].minLevel;
     const branchName = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].name;
     if (lv.level < branchLevel) {
@@ -502,7 +505,7 @@
       el('div', { class: 'card__head' }, [
         el('div', {}, [
           el('h3', { class: 'card__title', text: '🌟 身分路線' }),
-          el('p', { class: 'card__sub', text: '選一條路線讓寵物開始專屬進化；已經解鎖過的路線可以隨時切換，不會影響等級或星光。' }),
+          el('p', { class: 'card__sub', text: '已經解鎖過的路線可以隨時免費切換；還沒解鎖的要花 🪙' + cost + ' 金幣購買，或等老師贈送、完成星野主線任務。' }),
         ]),
       ]),
       el('div', { class: 'cos-grid' }, paths.map((p) => {
@@ -511,14 +514,15 @@
         return el('button', {
           class: 'cos' + (unlocked ? ' is-owned' : '') + (active ? ' is-equipped' : ''),
           onclick: () => {
-            S.choosePetPath(st.id, p.id);
-            U.toast(unlocked ? '已切換成「' + M.petPathName(pet, p.id) + '」' : '🎉 解鎖了「' + M.petPathName(pet, p.id) + '」路線！');
+            const r = S.choosePetPath(st.id, p.id);
+            if (!r.ok) return U.toast(r.msg, 'warn');
+            U.toast(r.unlocked ? '🎉 花費 ' + cost + ' 金幣解鎖了「' + M.petPathName(pet, p.id) + '」路線！' : '已切換成「' + M.petPathName(pet, p.id) + '」');
           },
         }, [
           active ? el('span', { class: 'cos__tag', text: '使用中' }) : null,
           el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 76, lv.level, p.id)]),
           el('div', { class: 'cos__name', text: M.petPathName(pet, p.id) }),
-          el('div', { class: 'cos__meta', text: unlocked ? '已解鎖' : '尚未解鎖，點一下開啟' }),
+          el('div', { class: 'cos__meta', text: unlocked ? '已解鎖' : '🪙 ' + cost + ' 金幣解鎖' }),
         ]);
       })),
     ]);
@@ -545,7 +549,8 @@
         el('div', { class: 'cos-grid' }, paths.map((p) => el('button', {
           class: 'cos',
           onclick: () => {
-            S.choosePetPath(st.id, p.id);
+            const r = S.choosePetPath(st.id, p.id);
+            if (!r.ok) return U.toast(r.msg, 'warn');
             U.toast('🎉 選擇了「' + M.petPathName(pet, p.id) + '」路線！');
             dlg.close();
           },

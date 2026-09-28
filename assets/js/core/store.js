@@ -484,6 +484,19 @@
       c.clearedAt = Date.now();
       c.rewardGranted = true;
       c.rewardGrantedAt = Date.now();
+      // 過關禮物：這一關有參與守護行動的學生，每人免費送一條還沒解鎖過的身分路線
+      // （已經三條都解鎖過的人就沒有可以送的，跳過即可）
+      const paths = s.petPaths || [];
+      storylineChapterParticipantIds(s, c.id).forEach((sid) => {
+        const t = s.students.find((x) => x.id === sid);
+        if (!t) return;
+        t.unlockedPaths = t.unlockedPaths || [];
+        const nextPath = paths.find((p) => t.unlockedPaths.indexOf(p.id) < 0);
+        if (nextPath) {
+          t.unlockedPaths.push(nextPath.id);
+          if (!t.petPathId) t.petPathId = nextPath.id;
+        }
+      });
     }
   }
 
@@ -900,17 +913,52 @@
     });
   }
 
-  /* 選擇／切換身分路線：第一次選某條路線會把它加進 unlockedPaths（等於「解鎖」），
-     之後同一個學生想換回已經解鎖過的路線，或想解鎖新的路線，都呼叫這個函式就好，
-     只改變「目前顯示走哪一條」，完全不動等級、XP、星光。 */
+  /* 選擇／切換身分路線：已經解鎖過的路線可以隨時免費切換過去，完全不動等級、XP、星光。
+     還沒解鎖過的路線第一次要花金幣解鎖（金額看 settings.pathUnlockCost，老師可調整），
+     金幣不夠就解鎖失敗；老師也可以用 giftPetPath 直接免費贈送，或透過星野主線關卡獎勵取得。 */
   function choosePetPath(studentId, pathId) {
+    const t = student(studentId);
+    if (!t) return { ok: false, msg: '找不到學生' };
+    if (!(state.petPaths || []).some((p) => p.id === pathId)) return { ok: false, msg: '找不到這條路線' };
+    const already = (t.unlockedPaths || []).indexOf(pathId) >= 0;
+    if (already) {
+      commit((s) => {
+        const x = s.students.find((y) => y.id === studentId);
+        if (x) x.petPathId = pathId;
+      });
+      return { ok: true, unlocked: false };
+    }
+    const isFirstEver = (t.unlockedPaths || []).length === 0; // V4 第一次選路線是免費的起點，不用花錢
+    const cost = isFirstEver ? 0 : Math.max(0, (state.settings || {}).pathUnlockCost || 0);
+    if ((t.coins || 0) < cost) return { ok: false, msg: '還差 ' + (cost - (t.coins || 0)) + ' 金幣', needCoins: cost - (t.coins || 0) };
+    commit((s) => {
+      const x = s.students.find((y) => y.id === studentId);
+      if (!x) return;
+      x.coins -= cost;
+      x.petPathId = pathId;
+      x.unlockedPaths = x.unlockedPaths || [];
+      if (x.unlockedPaths.indexOf(pathId) < 0) x.unlockedPaths.push(pathId);
+      if (cost > 0) {
+        s.ledger.unshift({
+          id: U.uid('lg'), ts: Date.now(), studentIds: [studentId], ruleId: 'pathUnlock',
+          label: '解鎖身分路線 ' + M.petPathName(M.petById(x.petId), pathId), points: 0, xp: 0, coins: -cost,
+          note: '', by: x.name, undone: false,
+        });
+      }
+    });
+    return { ok: true, unlocked: true };
+  }
+
+  /* 老師直接免費贈送一條路線給某個學生（例如口頭鼓勵、活動獎勵），不扣金幣，
+     只加進 unlockedPaths，不強制切換成目前顯示的路線，讓學生自己決定要不要換上。 */
+  function giftPetPath(studentId, pathId) {
     commit((s) => {
       const t = s.students.find((x) => x.id === studentId);
       if (!t) return;
       if (!(s.petPaths || []).some((p) => p.id === pathId)) return;
-      t.petPathId = pathId;
       t.unlockedPaths = t.unlockedPaths || [];
       if (t.unlockedPaths.indexOf(pathId) < 0) t.unlockedPaths.push(pathId);
+      if (!t.petPathId) t.petPathId = pathId;
     });
   }
 
@@ -1050,7 +1098,7 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
-    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, renamePetPath, redeem,
+    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,

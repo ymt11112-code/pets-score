@@ -512,6 +512,7 @@
         soundAward: false,
         soundDeduct: false,
         showBatchBar: true,
+        pathUnlockCost: 50,
       },
     };
   }
