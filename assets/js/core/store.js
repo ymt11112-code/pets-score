@@ -235,6 +235,13 @@
         if (out.toolbar.indexOf(id) < 0) out.toolbar.push(id);
       });
     }
+    /* 舊存檔可能是在「守護行動」四個快捷規則出現前存的，這裡補進去避免星野主線的關卡設定找不到對應規則 */
+    ['warmth', 'initiative', 'courage', 'revise'].forEach((id) => {
+      if (!out.rules.some((r) => r.id === id)) {
+        const def = base.rules.find((r) => r.id === id);
+        if (def) out.rules.push(Object.assign({}, def));
+      }
+    });
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     migratePetStages(out, s, base);

@@ -117,6 +117,24 @@
     if (ups.length) {
       U.toast('🎉 ' + ups.map((u) => u.name + ' Lv.' + u.level).join('、') + ' 升級了！');
     }
+    notifyStorylineActionProgress(ruleObj);
+  }
+
+  /* 如果剛才用的規則正好是目前關卡在追蹤的守護行動，順便提醒老師最新的行動次數／參與人數，
+     不用特地切到星野主線頁才看得到（這兩個數字本來就是即時算的，這裡只是多跳一則提示）。 */
+  function notifyStorylineActionProgress(ruleObj) {
+    const s = S.get();
+    const story = s.storyline;
+    if (!story || !story.active) return;
+    const idx = S.storylineCurrentIndex(s);
+    const c = story.chapters[idx];
+    if (!c || (c.actionRuleIds || []).indexOf(ruleObj.id) < 0) return;
+    if (!(c.actionTarget > 0 || c.participantTarget > 0)) return;
+    const prog = S.storylineChapterActionProgress(s, c.id);
+    const parts = [];
+    if (c.actionTarget > 0) parts.push('行動 ' + prog.count + '／' + c.actionTarget + ' 次');
+    if (c.participantTarget > 0) parts.push('參與夥伴 ' + prog.participants + '／' + c.participantTarget + ' 人');
+    U.toast('🌟 ' + c.name + '：' + parts.join('　'));
   }
 
   /* ================= 班級總覽 ================= */
