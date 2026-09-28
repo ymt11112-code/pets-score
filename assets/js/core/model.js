@@ -8,18 +8,20 @@
      圖像先用 emoji 佔位；之後換成圖片只要把 img 欄位填上路徑，
      介面會自動改用 <img>（見 petFace()）。 */
   const PETS = [
-    { id: 'cat',     name: '奶茶貓',   emoji: '🐱', img: '', trait: '陪伴系', desc: '安靜的時候最可靠，喜歡看同學專心上課。' },
-    { id: 'corgi',   name: '活力柯基', emoji: '🐶', img: '', trait: '活力系', desc: '永遠停不下來，最愛小組合作任務。' },
-    { id: 'bunny',   name: '雲朵兔',   emoji: '🐰', img: '', trait: '關懷系', desc: '耳朵很靈，聽得見每一句鼓勵的話。' },
-    { id: 'fox',     name: '橘子狐',   emoji: '🦊', img: '', trait: '智慧系', desc: '喜歡解謎，作業準時交會特別開心。' },
-    { id: 'panda',   name: '麻糬熊貓', emoji: '🐼', img: '', trait: '合作系', desc: '慢慢來但很穩，是小隊裡的和事佬。' },
-    { id: 'otter',   name: '栗子水獺', emoji: '🦦', img: '', trait: '探索系', desc: '好奇心滿點，總是第一個舉手發問。' },
-    { id: 'hamster', name: '花生鼠',   emoji: '🐹', img: '', trait: '整潔系', desc: '最在意桌面整不整齊的小傢伙。' },
-    { id: 'penguin', name: '冰塊企鵝', emoji: '🐧', img: '', trait: '堅持系', desc: '一步一步走，連續紀錄的守護者。' },
-    { id: 'dragon',  name: '抹茶小龍', emoji: '🐲', img: '', trait: '勇氣系', desc: '遇到難題不退縮，會噴出鼓勵的火花。' },
-    { id: 'alpaca',  name: '棉花羊駝', emoji: '🦙', img: '', trait: '溫柔系', desc: '毛茸茸的擁抱，專治上台前的緊張。' },
-    { id: 'capy',    name: '悠哉水豚', emoji: '🦫', img: '', trait: '穩定系', desc: '從不慌張，教大家好好呼吸。' },
-    { id: 'bear',    name: '蜂蜜小熊', emoji: '🐻', img: '', trait: '力量系', desc: '搬桌椅、整理公共區域的第一名。' },
+    { id: 'cat',     name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。' },
+    { id: 'corgi',   name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。' },
+    { id: 'bunny',   name: '彩虹獨角兔',   emoji: '🐰', img: '', trait: '奇幻系', desc: '耳朵能聽見每個願望，蹦蹦跳跳把色彩帶給全班。' },
+    { id: 'fox',     name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。' },
+    { id: 'panda',   name: '功夫熊貓',     emoji: '🐼', img: '', trait: '堅毅系', desc: '動作慢但招招紮實，是隊伍裡最可靠的後盾。' },
+    { id: 'otter',   name: '焦糖水獺',     emoji: '🦦', img: '', trait: '探索系', desc: '毛色像融化的焦糖，喜歡在溪流間尋找新鮮事。' },
+    { id: 'hamster', name: '花生倉鼠',     emoji: '🐹', img: '', trait: '整潔系', desc: '小小的頰囊塞滿寶貝，最愛把教室角落都整理好。' },
+    { id: 'penguin', name: '極光企鵝',     emoji: '🐧', img: '', trait: '堅持系', desc: '揹著小小提燈，一步一步在黑夜裡帶路前進。' },
+    { id: 'dragon',  name: '抹茶小龍',     emoji: '🐲', img: '', trait: '勇氣系', desc: '遇到難題不退縮，會噴出鼓勵的火花。' },
+    { id: 'alpaca',  name: '棉花羊駝',     emoji: '🦙', img: '', trait: '溫柔系', desc: '毛茸茸的擁抱，專治上台前的緊張。' },
+    { id: 'capy',    name: '悠哉水豚',     emoji: '🦫', img: '', trait: '穩定系', desc: '從不慌張，教大家好好呼吸。' },
+    { id: 'bear',    name: '蜂蜜小熊',     emoji: '🐻', img: '', trait: '力量系', desc: '搬桌椅、整理公共區域的第一名。' },
+    { id: 'koala',   name: '薄荷無尾熊',   emoji: '🐨', img: '', trait: '療癒系', desc: '身上帶著淡淡薄荷香，總能在同學緊張時輕輕安撫。' },
+    { id: 'owl',     name: '星眠貓頭鷹',   emoji: '🦉', img: '', trait: '沉靜系', desc: '喜歡在安靜的角落閱讀，最懂得傾聽每個小小心事。' },
   ];
 
   /* 寵物成長階段 */
@@ -56,19 +58,35 @@
   /* 每隻寵物預設的「職業型態」三選一，對應 path1/path2/path3：
      path1 偏溫柔療癒、path2 偏勇氣冒險、path3 偏踏實探索，呼應各自的特質；老師可以在
      「管理圖片」裡隨時改成自己想要的職業名稱，這裡只是先幫忙想好的預設版本，不用從零開始想。 */
+  /* 老師提供的正式版本：路線 A 偏溫暖／奇幻、路線 B 偏冒險／行動、路線 C 偏酷帥／專業。
+     dragon/alpaca/capy/bear 目前沒有在班級名單裡用到，先保留原本想好的版本，之後有需要再換。 */
   const DEFAULT_PET_PATH_NAMES = {
-    cat:     { path1: '靜心陪讀員', path2: '溫柔守夜騎士', path3: '好奇觀察家' },
-    corgi:   { path1: '奶泡療癒師', path2: '曙光騎士',     path3: '山野搜救員' },
-    bunny:   { path1: '傾聽療癒師', path2: '暖心大使',     path3: '雲端信使' },
-    fox:     { path1: '謎題破解者', path2: '星圖導航員',   path3: '智囊軍師' },
-    panda:   { path1: '和平調解員', path2: '圓桌騎士',     path3: '團隊後盾' },
-    otter:   { path1: '深潭探勘員', path2: '溪谷嚮導',     path3: '好奇偵察兵' },
-    hamster: { path1: '秩序管理員', path2: '巢穴建築師',   path3: '收納達人' },
-    penguin: { path1: '恆心守衛',   path2: '破冰先鋒',     path3: '極地行者' },
+    corgi:   { path1: '奶泡療癒師：照顧隊友',     path2: '山野搜救員：尋找迷路夥伴',   path3: '曙光騎士：守護隊伍' },
+    cat:     { path1: '莓露精靈：花朵與露珠魔法', path2: '莓光探險家：地圖與尋寶',     path3: '歐蕾競速員：接力與速度' },
+    fox:     { path1: '雲端信使：傳遞心願',       path2: '雪原追蹤員：辨認足跡',       path3: '極光幻術師：操縱雲霧' },
+    bunny:   { path1: '願望彩繪師：描繪夢想',     path2: '彩虹跳躍者：闖關與移動',     path3: '光譜魔導士：運用色彩能量' },
+    hamster: { path1: '花生收藏家：整理珍寶',     path2: '秘境探險家：望遠鏡與地圖',   path3: '遺跡解謎師：機關與線索' },
+    koala:   { path1: '森林香草師：調配香草',     path2: '風暴觀測員：追蹤天氣',       path3: '皇家氣象官：指揮風雨' },
+    penguin: { path1: '雪夜提燈員：照亮道路',     path2: '冰原滑行手：快速穿越冰地',   path3: '極光領航員：引導遠征' },
+    otter:   { path1: '河畔照護員：照顧水岸生物', path2: '河流尋寶員：探索溪流',       path3: '潮汐守衛：操控水流護盾' },
+    owl:     { path1: '睡前故事師：蒐集故事',     path2: '夜空觀星員：尋找星座',       path3: '星圖解謎師：破解古老地圖' },
+    panda:   { path1: '竹林料理師：補充隊伍體力', path2: '功夫修行者：練習招式',       path3: '竹影守護者：保護燈塔' },
     dragon:  { path1: '烈焰勇者',   path2: '破浪騎士',     path3: '逆風先鋒' },
     alpaca:  { path1: '擁抱治療師', path2: '安撫使者',     path3: '雲朵牧羊人' },
     capy:    { path1: '呼吸教練',   path2: '溫泉守護者',   path3: '沉穩軍師' },
     bear:    { path1: '蜂蜜工匠',   path2: '森林守衛',     path3: '力量搬運工' },
+  };
+
+  /* 老師已經整理好、可直接內建的寵物真實照片（V1–V10，共用圖＋各路線專屬圖）。
+     檔名 shared-vN／path{1,2,3}-vN 對應 petStageLevels 陣列索引 N-1。
+     還沒整理照片的寵物不在這裡，畫面會照舊退回 emoji。 */
+  function petImageAssetSet(dir) {
+    const num = (n) => String(n);
+    const arr = (prefix) => Array.from({ length: 10 }, (_, i) => `assets/img/pets/${dir}/${prefix}-v${num(i + 1)}.png`);
+    return { shared: arr('shared'), path1: arr('path1'), path2: arr('path2'), path3: arr('path3') };
+  }
+  const DEFAULT_PET_IMAGE_ASSETS = {
+    corgi: petImageAssetSet('corgi'),
   };
 
 
@@ -439,13 +457,17 @@
       attendance: {},
       petStageLevels: DEFAULT_PET_STAGES.map((s) => ({ minLevel: s.minLevel, name: s.name })),
       petImages: PETS.reduce((acc, p) => {
-        acc[p.id] = new Array(DEFAULT_PET_STAGES.length).fill('');
+        const preset = DEFAULT_PET_IMAGE_ASSETS[p.id];
+        acc[p.id] = preset ? preset.shared.slice() : new Array(DEFAULT_PET_STAGES.length).fill('');
         return acc;
       }, {}),
       petPaths: U.deepClone(DEFAULT_PET_PATHS),
       petPathImages: PETS.reduce((acc, p) => {
         acc[p.id] = {};
-        DEFAULT_PET_PATHS.forEach((path) => { acc[p.id][path.id] = new Array(DEFAULT_PET_STAGES.length).fill(''); });
+        const preset = DEFAULT_PET_IMAGE_ASSETS[p.id];
+        DEFAULT_PET_PATHS.forEach((path) => {
+          acc[p.id][path.id] = (preset && preset[path.id]) ? preset[path.id].slice() : new Array(DEFAULT_PET_STAGES.length).fill('');
+        });
         return acc;
       }, {}),
       petPathNames: U.deepClone(DEFAULT_PET_PATH_NAMES),
@@ -493,6 +515,7 @@
   global.PetModel = {
     PETS, STAGES, COSMETICS, FOODS, BADGES, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
+    DEFAULT_PET_IMAGE_ASSETS,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
     xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, petPathName, seedState,
   };

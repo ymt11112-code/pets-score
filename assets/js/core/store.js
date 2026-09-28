@@ -246,6 +246,7 @@
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     migratePetStages(out, s, base);
     migratePetPaths(out, s, base);
+    migratePetImageAssets(out);
     out.petNames = Object.assign({}, base.petNames, s.petNames || {});
     migrateStoryline(out, s, base);
     return out;
@@ -254,6 +255,9 @@
   /* 身分路線：舊存檔沒有 petPaths/petPathImages 就用預設補上；已經存在的路線名稱、已經上傳的圖片都保留，
      只補上「新增的寵物」或「新增的路線」還沒建立過的空陣列，避免程式讀到 undefined。 */
   const OLD_DEFAULT_PATH_NAMES = ['路線一', '路線二', '路線三']; // 這功能剛推出時用過的佔位名稱，之後統一升級成正式名稱一次
+  /* 職業名稱表定案前的存檔（updatedAt 早於這個時間點）都強制套用最新表一次；這個時間點固定寫死在程式碼裡，
+     不會隨每次載入變動，所以只會在「第一次讀到這個新版程式碼」時生效一次，之後老師自己改的名稱就穩定了。 */
+  const PET_PATH_NAMES_FORCE_UPGRADE_BEFORE = new Date('2026-09-28T00:00:00+08:00').getTime();
   function migratePetPaths(out, s, base) {
     out.petPaths = Array.isArray(s.petPaths) && s.petPaths.length ? s.petPaths : base.petPaths;
     /* 還停在最早期佔位名稱、老師還沒自己改過的路線，順便升級成新的正式名稱（只比對還沒被改過的） */
@@ -280,6 +284,33 @@
     /* 內建寵物如果還沒設定過專屬職業名稱，補上預先想好的版本；老師已經自己改過的（不管改哪一條）完全不動 */
     Object.keys(M.DEFAULT_PET_PATH_NAMES || {}).forEach((petId) => {
       if (!out.petPathNames[petId]) out.petPathNames[petId] = Object.assign({}, M.DEFAULT_PET_PATH_NAMES[petId]);
+    });
+    /* 職業名稱表這幾天改版好幾次，版本號沒跟上的帳號（多半是我自己剛才自動補上、老師還來不及看到就被我改版的）
+       強制升級成最新版一次；升級後把版本號寫回去，之後老師自己改過的名稱就不會再被蓋掉了。 */
+    if ((s.updatedAt || 0) < PET_PATH_NAMES_FORCE_UPGRADE_BEFORE) {
+      Object.keys(M.DEFAULT_PET_PATH_NAMES || {}).forEach((petId) => {
+        out.petPathNames[petId] = Object.assign({}, M.DEFAULT_PET_PATH_NAMES[petId]);
+      });
+    }
+  }
+
+  /* 老師已經整理好的寵物真實照片（目前只有柯基）：舊存檔裡對應的欄位如果還是空字串（老師還沒自己
+     上傳過圖片），自動補上；老師已經透過「管理圖片」自己上傳過的欄位完全不動，不會被蓋掉。 */
+  function migratePetImageAssets(out) {
+    const assets = (M && M.DEFAULT_PET_IMAGE_ASSETS) || {};
+    Object.keys(assets).forEach((petId) => {
+      const preset = assets[petId];
+      if (Array.isArray(out.petImages[petId]) && Array.isArray(preset.shared)) {
+        out.petImages[petId] = out.petImages[petId].map((v, i) => v || preset.shared[i] || '');
+      }
+      if (out.petPathImages[petId]) {
+        Object.keys(out.petPathImages[petId]).forEach((pid) => {
+          const defArr = preset[pid];
+          if (Array.isArray(defArr) && Array.isArray(out.petPathImages[petId][pid])) {
+            out.petPathImages[petId][pid] = out.petPathImages[petId][pid].map((v, i) => v || defArr[i] || '');
+          }
+        });
+      }
     });
   }
 
