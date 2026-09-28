@@ -11,7 +11,7 @@
     { id: '02cat',   name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。' },
     { id: '01dog',   name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。' },
     { id: 'bunny',   name: '彩虹獨角兔',   emoji: '🐰', img: '', trait: '奇幻系', desc: '耳朵能聽見每個願望，蹦蹦跳跳把色彩帶給全班。' },
-    { id: 'fox',     name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。' },
+    { id: '03fox',   name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。' },
     { id: 'panda',   name: '功夫熊貓',     emoji: '🐼', img: '', trait: '堅毅系', desc: '動作慢但招招紮實，是隊伍裡最可靠的後盾。' },
     { id: 'otter',   name: '焦糖水獺',     emoji: '🦦', img: '', trait: '探索系', desc: '毛色像融化的焦糖，喜歡在溪流間尋找新鮮事。' },
     { id: 'hamster', name: '花生倉鼠',     emoji: '🐹', img: '', trait: '整潔系', desc: '小小的頰囊塞滿寶貝，最愛把教室角落都整理好。' },
@@ -63,7 +63,7 @@
   const DEFAULT_PET_PATH_NAMES = {
     '01dog': { path1: '奶泡療癒師：照顧隊友',     path2: '山野搜救員：尋找迷路夥伴',   path3: '曙光騎士：守護隊伍' },
     '02cat': { path1: '莓露精靈：花朵與露珠魔法', path2: '莓光探險家：地圖與尋寶',     path3: '歐蕾競速員：接力與速度' },
-    fox:     { path1: '雲端信使：傳遞心願',       path2: '雪原追蹤員：辨認足跡',       path3: '極光幻術師：操縱雲霧' },
+    '03fox': { path1: '雲端信使：傳遞心願',       path2: '雪原追蹤員：辨認足跡',       path3: '極光幻術師：操縱雲霧' },
     bunny:   { path1: '願望彩繪師：描繪夢想',     path2: '彩虹跳躍者：闖關與移動',     path3: '光譜魔導士：運用色彩能量' },
     hamster: { path1: '花生收藏家：整理珍寶',     path2: '秘境探險家：望遠鏡與地圖',   path3: '遺跡解謎師：機關與線索' },
     koala:   { path1: '森林香草師：調配香草',     path2: '風暴觀測員：追蹤天氣',       path3: '皇家氣象官：指揮風雨' },
@@ -80,16 +80,19 @@
   /* 老師已經整理好、可直接內建的寵物真實照片（V1–V10，共用圖＋各路線專屬圖）。
      檔名 shared-vN／path{1,2,3}-vN 對應 petStageLevels 陣列索引 N-1。
      還沒整理照片的寵物不在這裡，畫面會照舊退回 emoji。 */
-  function petImageAssetSet(dir, parts) {
+  function petImageAssetSet(dir, parts, sharedLen) {
     const list = parts || ['shared', 'path1', 'path2', 'path3'];
-    const arr = (prefix) => Array.from({ length: 10 }, (_, i) => `assets/img/pets/${dir}/${prefix}-v${i + 1}.png`);
+    const arr = (prefix, len) => Array.from({ length: len || 10 }, (_, i) => `assets/img/pets/${dir}/${prefix}-v${i + 1}.png`);
     const result = {};
-    list.forEach((p) => { result[p] = arr(p); });
+    list.forEach((p) => { result[p] = arr(p, p === 'shared' ? sharedLen : 10); });
     return result;
   }
   const DEFAULT_PET_IMAGE_ASSETS = {
     '01dog': petImageAssetSet('01dog'),
     '02cat': petImageAssetSet('02cat'),
+    /* 03fox 目前只有 V1–V3 共用造型的照片（三條路線 V4–V10 都各自齊全，那個範圍本來就不會用到
+       共用圖），shared 陣列只給到第 3 張，避免指到還沒存在的 shared-v4~v10.png。 */
+    '03fox': petImageAssetSet('03fox', undefined, 3),
   };
 
 
@@ -463,7 +466,9 @@
       petStageLevels: DEFAULT_PET_STAGES.map((s) => ({ minLevel: s.minLevel, name: s.name })),
       petImages: PETS.reduce((acc, p) => {
         const preset = DEFAULT_PET_IMAGE_ASSETS[p.id];
-        acc[p.id] = preset ? preset.shared.slice() : new Array(DEFAULT_PET_STAGES.length).fill('');
+        const arr = preset ? preset.shared.slice() : [];
+        while (arr.length < DEFAULT_PET_STAGES.length) arr.push('');
+        acc[p.id] = arr;
         return acc;
       }, {}),
       petPaths: U.deepClone(DEFAULT_PET_PATHS),
