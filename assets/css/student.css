@@ -56,11 +56,6 @@
   animation: float-y 4.5s ease-in-out infinite;
 }
 .hero-pet__face { font-size: 130px; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .22)); }
-.hero-pet__label {
-  margin-top: 8px; display: inline-block; background: rgba(10, 59, 54, .86); color: #fff;
-  border: 2px solid var(--gold); border-radius: 14px; padding: 6px 16px; font-weight: 800;
-  font-size: 14px; white-space: nowrap;
-}
 .hero-pet__bubble {
   position: absolute; right: 100%; top: 34%; margin-right: 12px; white-space: nowrap;
   background: rgba(10, 59, 54, .86); color: #fff; border: 2px solid var(--gold);

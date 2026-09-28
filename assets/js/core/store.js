@@ -269,6 +269,7 @@
     migratePetStages(out, s, base);
     migratePetPaths(out, s, base);
     migratePetImageAssets(out);
+    migratePetImageCrossRefs(out);
     out.petNames = Object.assign({}, base.petNames, s.petNames || {});
     migrateStoryline(out, s, base);
     return out;
@@ -330,6 +331,32 @@
           const defArr = preset[pid];
           if (Array.isArray(defArr) && Array.isArray(out.petPathImages[petId][pid])) {
             out.petPathImages[petId][pid] = out.petPathImages[petId][pid].map((v, i) => v || defArr[i] || '');
+          }
+        });
+      }
+    });
+  }
+
+  /* 「管理圖片」的「選擇」是共用的 GitHub 檔案總管，01dog／02cat 兩個資料夾在裡面緊鄰在一起，
+     老師偶爾會點錯資料夾，把別隻寵物的圖片網址填到這隻寵物的欄位。這裡偵測「網址明顯指到別隻
+     內建寵物的資料夾」這種不可能是故意的狀況，自動換回這隻寵物自己的預設圖；老師之後仍可以用
+     「選擇」或「上傳」重新換成想要的圖片。 */
+  function migratePetImageCrossRefs(out) {
+    const assets = (M && M.DEFAULT_PET_IMAGE_ASSETS) || {};
+    const ids = Object.keys(assets);
+    ids.forEach((petId) => {
+      const preset = assets[petId];
+      const otherIds = ids.filter((id) => id !== petId);
+      const isWrong = (url) => !!url && otherIds.some((oid) => url.indexOf('/' + oid + '/') >= 0);
+      if (Array.isArray(out.petImages[petId]) && Array.isArray(preset.shared)) {
+        out.petImages[petId] = out.petImages[petId].map((v, i) => (isWrong(v) ? (preset.shared[i] || '') : v));
+      }
+      if (out.petPathImages[petId]) {
+        Object.keys(out.petPathImages[petId]).forEach((pid) => {
+          const defArr = preset[pid];
+          if (Array.isArray(out.petPathImages[petId][pid])) {
+            out.petPathImages[petId][pid] = out.petPathImages[petId][pid]
+              .map((v, i) => (isWrong(v) ? ((defArr && defArr[i]) || '') : v));
           }
         });
       }

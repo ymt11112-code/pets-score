@@ -332,7 +332,6 @@
         el('div', { class: 'hero-pet' }, [
           el('div', { class: 'hero-pet__bubble', text: storyChapter ? ('再 ' + missionLeft + ' 顆星光就能點亮下一座燈塔！') : ('再 ' + missionLeft + ' 點就能打開森林寶箱！') }),
           el('div', { class: 'hero-pet__face' }, [M.petFace(pet, 168, st ? lv.level : 1, st ? st.petPathId : null)]),
-          st ? el('div', { class: 'hero-pet__label', text: (st.petName || pet.name) + ' Lv.' + lv.level }) : null,
         ]),
       ]),
 
