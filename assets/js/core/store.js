@@ -324,7 +324,7 @@
       const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
       if (!c) return;
       const p = patch || {};
-      ['name', 'week', 'threshold', 'taskTitle', 'rewardTitle', 'rewardEmoji', 'intro', 'clearStory'].forEach((k) => {
+      ['name', 'week', 'threshold', 'taskTitle', 'rewardTitle', 'rewardEmoji', 'intro', 'clearStory', 'bg', 'lighthouseImg'].forEach((k) => {
         if (p[k] == null) return;
         c[k] = (k === 'week' || k === 'threshold') ? (Number(p[k]) || 0) : p[k];
       });

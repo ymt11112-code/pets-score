@@ -130,6 +130,7 @@
     U.modal({
       title: (c.rewardEmoji || '🏮') + ' ' + c.name + ' 通關了！',
       body: el('div', { class: 'stack' }, [
+        el('div', { style: { textAlign: 'center' } }, [lighthouseImg(c, 'cleared', 130)]),
         el('p', { class: 'modal__text', text: c.clearStory }),
         el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: (c.rewardEmoji || '🎁') + ' 獎勵：' + c.rewardTitle }),
       ]),
@@ -138,11 +139,22 @@
     });
   }
 
+  /* 燈塔圖示：有圖就用圖（未解鎖時用 CSS 變灰暗，不用另外準備「熄滅版」），沒有圖就退回 emoji */
+  function lighthouseImg(c, state, size) {
+    if (!c.lighthouseImg) return el('span', { text: state === 'locked' ? '🔒' : (c.rewardEmoji || '🗼') });
+    return el('img', {
+      src: c.lighthouseImg, alt: c.name,
+      class: 'lighthouse__img' + (state === 'locked' ? ' is-dim' : ''),
+      style: size ? { width: size + 'px', height: size + 'px' } : null,
+    });
+  }
+
   function openChapterDetail(c, state) {
     if (state === 'locked') {
       U.modal({
         title: '🔒 ' + c.name,
         body: el('div', {}, [
+          el('div', { style: { textAlign: 'center', marginBottom: '12px' } }, [lighthouseImg(c, state, 96)]),
           el('p', { class: 'modal__text', text: '這座燈塔還沒解鎖，完成前面的關卡後就能揭開它的故事。' }),
           el('p', { class: 'card__sub', style: { marginTop: '8px' }, text: '獎勵預覽：' + (c.rewardEmoji ? c.rewardEmoji + ' ' : '') + c.rewardTitle }),
         ]),
@@ -154,6 +166,7 @@
     U.modal({
       title: (state === 'cleared' ? '✅ ' : '🚀 ') + '第 ' + c.order + ' 關・' + c.name,
       body: el('div', {}, [
+        el('div', { style: { textAlign: 'center', marginBottom: '12px' } }, [lighthouseImg(c, state, 110)]),
         el('p', { class: 'modal__text', text: state === 'cleared' ? c.clearStory : c.intro }),
         state === 'cleared'
           ? el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '通關時間：' + U.fmtDate(c.clearedAt) + '　·　獎勵：' + (c.rewardEmoji ? c.rewardEmoji + ' ' : '') + c.rewardTitle })
@@ -180,7 +193,7 @@
     const lighthouses = el('div', { class: 'lighthouse-row' }, story.chapters.map((c, i) => {
       const state = c.cleared ? 'cleared' : (i === idx ? 'current' : 'locked');
       return el('button', { class: 'lighthouse lighthouse--' + state, onclick: () => openChapterDetail(c, state) }, [
-        el('div', { class: 'lighthouse__icon', text: state === 'locked' ? '🔒' : state === 'cleared' ? (c.rewardEmoji || '🗼') : '🗼' }),
+        el('div', { class: 'lighthouse__icon' }, [lighthouseImg(c, state)]),
         el('div', { class: 'lighthouse__name', text: c.name }),
         el('div', { class: 'lighthouse__label', text: state === 'cleared' ? '已點亮' : (state === 'current' ? '進行中' : '未解鎖') }),
       ]);
@@ -227,6 +240,7 @@
     const storyActive = !!(story && story.active);
     const storyIdx = storyActive ? S.storylineCurrentIndex(s) : -1;
     const storyChapter = storyActive && storyIdx < story.chapters.length ? story.chapters[storyIdx] : null;
+    const heroBgChapter = storyChapter || (storyActive ? story.chapters[story.chapters.length - 1] : null);
     const storyStars = storyActive ? S.storylineStars(s) : 0;
     const missionLeft = storyChapter ? Math.max(0, storyChapter.threshold - storyStars) : Math.max(0, mission.target - mission.progress);
     const day = Math.max(1, Math.round((Date.now() - s.classInfo.startedAt) / 86400000));
@@ -239,7 +253,7 @@
     });
 
     return el('div', {}, [
-      el('section', { class: 'hero' }, [
+      el('section', { class: 'hero', style: heroBgChapter && heroBgChapter.bg ? { '--hero-img': "url('" + heroBgChapter.bg + "')" } : null }, [
         el('div', { class: 'hero__path' }),
         deco,
         el('div', { class: 'wrap wrap--wide hero__inner' }, [

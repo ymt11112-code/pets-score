@@ -1628,7 +1628,9 @@
     const historyCard = sectionCard('history', '通關與獎勵紀錄', null, [
       clearedChapters.length
         ? el('div', {}, clearedChapters.map((c) => el('div', { class: 'log-row' }, [
-            el('span', { style: { fontSize: '20px' }, text: c.rewardEmoji || '🏆' }),
+            c.lighthouseImg
+              ? el('img', { src: c.lighthouseImg, alt: c.name, style: { width: '28px', height: '28px', objectFit: 'contain' } })
+              : el('span', { style: { fontSize: '20px' }, text: c.rewardEmoji || '🏆' }),
             el('div', { class: 'grow' }, [
               el('div', { style: { fontWeight: 700 }, text: '第 ' + c.order + ' 關・' + c.name },),
               el('div', { class: 'log-row__meta', text: '通關時間：' + U.fmtDate(c.clearedAt) + '　·　獎勵：' + c.rewardTitle + (c.rewardGranted ? '（已發放）' : '') }),
@@ -1677,7 +1679,9 @@
     return el('div', { class: 'card card--flat chapter-block' + (c.cleared ? ' is-cleared' : '') }, [
       el('div', { class: 'row row--between', style: { flexWrap: 'wrap', gap: '10px', marginBottom: '12px' } }, [
         el('div', { class: 'row', style: { gap: '10px', alignItems: 'center' } }, [
-          el('span', { style: { fontSize: '22px' }, text: c.cleared ? (c.rewardEmoji || '🗼') : '🗼' }),
+          c.lighthouseImg
+            ? el('img', { src: c.lighthouseImg, alt: c.name, style: { width: '30px', height: '30px', objectFit: 'contain' } })
+            : el('span', { style: { fontSize: '22px' }, text: c.cleared ? (c.rewardEmoji || '🗼') : '🗼' }),
           el('b', { style: { fontSize: '16px' }, text: '第 ' + c.order + ' 關・' + c.name }),
         ]),
         el('span', { class: 'pill ' + status.cls, text: status.text }),
