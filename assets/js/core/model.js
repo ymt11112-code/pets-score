@@ -375,7 +375,7 @@
       // .avatar-card__face 等）本來就比這裡的 size 大一些並置中對齊，所以圖片不會貼到圓形邊緣。
       return U.el('img', {
         class: 'pet-face', src: img, alt: p.name,
-        style: size ? { width: size + 'px', height: size + 'px', objectFit: 'contain' } : { objectFit: 'contain' },
+        style: size ? { width: size + 'px', height: size + 'px', maxWidth: '100%', objectFit: 'contain' } : { objectFit: 'contain' },
       });
     }
     return U.el('span', {
@@ -414,6 +414,7 @@
         active: true,
         petPathId: '',
         unlockedPaths: [],
+        avatarStageIdx: null,
       };
     });
 

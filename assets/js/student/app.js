@@ -35,7 +35,7 @@
     const stage = M.stageOf(level);
     const cos = showCos && st.equipped ? M.COSMETICS.find((c) => c.id === st.equipped) : null;
     return el('span', { class: 'mate__avatar', style: { width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.55) + 'px' } }, [
-      M.petFace(pet, Math.round(size * 0.62), level, st.petPathId),
+      M.petFace(pet, Math.round(size * 0.62), S.avatarDisplayLevel(st), st.petPathId),
       cos ? el('span', { class: 'mate__cos', text: cos.emoji }) : null,
       el('span', { class: 'pet-avatar__badge', text: stage.badge, style: { right: '-4px', bottom: '-4px' } }),
     ]);
@@ -82,7 +82,7 @@
           class: 'picker-btn', 'data-k': U.pad2(st.no) + st.name,
           onclick: () => { setMe(st.id); dlg.close(); },
         }, [
-          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 56, M.levelFromXp(st.xp).level, st.petPathId)]),
+          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 56, S.avatarDisplayLevel(st), st.petPathId)]),
           el('div', { class: 'picker-btn__name', text: st.name }),
           el('div', { class: 'picker-btn__no', text: U.pad2(st.no) + ' 號' }),
         ])
@@ -302,7 +302,7 @@
                   const pathName = st.petPathId ? M.petPathName(pet, st.petPathId) : '';
                   const nextStage = (s.petStageLevels || []).find((t) => (t.minLevel || 1) > lv.level);
                   return el('div', { class: 'hero-card__pet' }, [
-                    el('span', { style: { fontSize: '30px' } }, [M.petFace(pet, 34, lv.level, st.petPathId)]),
+                    el('span', { style: { fontSize: '30px' } }, [M.petFace(pet, 34, S.avatarDisplayLevel(st), st.petPathId)]),
                     el('div', { class: 'grow' }, [
                       el('div', { style: { fontWeight: 800 }, text: (st.petName || pet.name) + (pathName ? '・' + pathName : '') + ' Lv.' + lv.level }),
                       el('div', { class: 'muted', style: { fontSize: '13px' }, text: '再獲得 ' + (lv.need - lv.inLevel) + ' XP 升到 Lv.' + (lv.level + 1) }),
@@ -347,7 +347,7 @@
         ]),
         el('div', { class: 'hero-pet' }, [
           el('div', { class: 'hero-pet__bubble', text: storyChapter ? ('再 ' + missionLeft + ' 顆星光就能點亮下一座燈塔！') : ('再 ' + missionLeft + ' 點就能打開森林寶箱！') }),
-          el('div', { class: 'hero-pet__face' }, [M.petFace(pet, 168, st ? lv.level : 1, st ? st.petPathId : null)]),
+          el('div', { class: 'hero-pet__face' }, [M.petFace(pet, 220, st ? S.avatarDisplayLevel(st) : 1, st ? st.petPathId : null)]),
         ]),
       ]),
 
@@ -439,11 +439,53 @@
       el('div', { style: { marginTop: '14px' } }, [progressBar(Math.round((pts / target) * 100), true)]),
       el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '6px' }, text: '距離下一個小隊寶箱還差 ' + Math.max(0, target - pts) + ' 點' }),
       el('div', { class: 'row', style: { marginTop: '12px', flexWrap: 'wrap', gap: '6px' } },
-        members.slice(0, 8).map((m) => el('span', { title: m.name }, [M.petFace(M.petById(m.petId), 28, M.levelFromXp(m.xp).level, m.petPathId)]))),
+        members.slice(0, 8).map((m) => el('span', { title: m.name }, [M.petFace(M.petById(m.petId), 28, S.avatarDisplayLevel(m), m.petPathId)]))),
     ]);
   }
 
   /* ================= 視圖：我的寵物 ================= */
+  /* 造型收藏：把「已經達到過的造型階段」都列出來，已達到的可以直接點來穿上（純外觀選擇，
+     不影響等級、XP 或畫面上顯示的階段名稱），還沒達到的用灰階＋鎖頭顯示，點了也沒作用。 */
+  function stageGalleryCard(st, lv, pet) {
+    const s = S.get();
+    const levels = s.petStageLevels || [];
+    let autoIdx = 0;
+    levels.forEach((t, i) => { if ((t.minLevel || 1) <= lv.level) autoIdx = i; });
+    const overrideOk = st.avatarStageIdx !== null && st.avatarStageIdx !== undefined
+      && levels[st.avatarStageIdx] && (levels[st.avatarStageIdx].minLevel || 1) <= lv.level;
+    const activeIdx = overrideOk ? st.avatarStageIdx : autoIdx;
+    const unlockedCount = levels.filter((t) => (t.minLevel || 1) <= lv.level).length;
+    return el('div', { class: 'card' }, [
+      el('div', { class: 'card__head' }, [
+        el('div', {}, [
+          el('h3', { class: 'card__title', text: '造型收藏' }),
+          el('p', { class: 'card__sub', text: '已經達到的造型都能隨時穿上，不會影響等級、XP 或目前的階段名稱。' }),
+        ]),
+        el('span', { class: 'pill', text: unlockedCount + ' / ' + levels.length }),
+      ]),
+      el('div', { class: 'cos-grid' }, levels.map((t, idx) => {
+        const unlocked = (t.minLevel || 1) <= lv.level;
+        const active = idx === activeIdx;
+        return el('button', {
+          class: 'cos' + (unlocked ? ' is-owned' : ' is-locked') + (active ? ' is-equipped' : ''),
+          onclick: () => {
+            if (!unlocked) return U.toast('升到 Lv.' + (t.minLevel || 1) + ' 才會解鎖', 'warn');
+            S.setAvatarStage(st.id, idx);
+            U.toast('換上「' + t.name + '」造型！');
+          },
+        }, [
+          active ? el('span', { class: 'cos__tag', text: '穿著中' }) : null,
+          el('div', {
+            style: { marginBottom: '6px', filter: unlocked ? 'none' : 'grayscale(1)', opacity: unlocked ? 1 : .55 },
+          }, [M.petFace(pet, 76, t.minLevel || 1, st.petPathId)]),
+          unlocked ? null : el('span', { style: { position: 'absolute', top: '8px', right: '8px', fontSize: '16px' }, text: '🔒' }),
+          el('div', { class: 'cos__name', text: t.name }),
+          el('div', { class: 'cos__meta', text: unlocked ? 'Lv.' + (t.minLevel || 1) : '需 Lv.' + (t.minLevel || 1) }),
+        ]);
+      })),
+    ]);
+  }
+
   /* 身分路線卡：V4 之前顯示預告，V4 之後可以選擇／切換／解鎖新路線；切換不影響等級、XP、星光 */
   function petPathCard(st, lv, pet) {
     const paths = S.get().petPaths || [];
@@ -474,7 +516,7 @@
           },
         }, [
           active ? el('span', { class: 'cos__tag', text: '使用中' }) : null,
-          el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 56, lv.level, p.id)]),
+          el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 76, lv.level, p.id)]),
           el('div', { class: 'cos__name', text: M.petPathName(pet, p.id) }),
           el('div', { class: 'cos__meta', text: unlocked ? '已解鎖' : '尚未解鎖，點一下開啟' }),
         ]);
@@ -508,7 +550,7 @@
             dlg.close();
           },
         }, [
-          el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 56, lv.level, p.id)]),
+          el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 76, lv.level, p.id)]),
           el('div', { class: 'cos__name', text: M.petPathName(pet, p.id) }),
         ]))),
       ]),
@@ -534,7 +576,7 @@
           el('div', { class: 'pet-stage' }, [
             el('div', { class: 'pet-stage__glow' }),
             el('div', { class: 'pet-stage__face' }, [
-              M.petFace(pet, 140, lv.level, st.petPathId),
+              M.petFace(pet, 230, S.avatarDisplayLevel(st), st.petPathId),
               cos ? el('span', { class: 'pet-stage__cos', text: cos.emoji }) : null,
             ]),
             el('div', { class: 'pet-stage__name', text: (st.petName || pet.name) + ' Lv.' + lv.level }),
@@ -575,37 +617,7 @@
 
             petPathCard(st, lv, pet),
 
-            el('div', { class: 'card' }, [
-              el('div', { class: 'card__head' }, [
-                el('div', {}, [
-                  el('h3', { class: 'card__title', text: '造型收藏' }),
-                  el('p', { class: 'card__sub', text: '達到等級並花費金幣即可解鎖，點一下可穿脫。' }),
-                ]),
-                el('span', { class: 'pill', text: (st.cosmetics || []).length + ' / ' + M.COSMETICS.length }),
-              ]),
-              el('div', { class: 'cos-grid' }, M.COSMETICS.map((c) => {
-                const owned = (st.cosmetics || []).indexOf(c.id) >= 0;
-                const locked = lv.level < c.unlockLevel;
-                return el('button', {
-                  class: 'cos' + (owned ? ' is-owned' : '') + (locked && !owned ? ' is-locked' : '') + (st.equipped === c.id ? ' is-equipped' : ''),
-                  onclick: () => {
-                    if (owned) {
-                      S.equipCosmetic(st.id, c.id);
-                      U.toast(st.equipped === c.id ? '已脫下 ' + c.name : '換上 ' + c.name + '！');
-                      return;
-                    }
-                    const r = S.unlockCosmetic(st.id, c.id);
-                    if (!r.ok) return U.toast(r.msg, 'warn');
-                    U.toast('🎉 解鎖了 ' + c.name + '！');
-                  },
-                }, [
-                  st.equipped === c.id ? el('span', { class: 'cos__tag', text: '穿著中' }) : null,
-                  el('div', { class: 'cos__emoji', text: owned ? c.emoji : locked ? '🔒' : c.emoji }),
-                  el('div', { class: 'cos__name', text: c.name }),
-                  el('div', { class: 'cos__meta', text: owned ? '已擁有' : locked ? '需 Lv.' + c.unlockLevel : '🪙 ' + c.cost }),
-                ]);
-              })),
-            ]),
+            stageGalleryCard(st, lv, pet),
 
             el('div', { class: 'card' }, [
               el('h3', { class: 'card__title', text: '我的徽章' }),

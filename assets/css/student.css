@@ -55,7 +55,7 @@
   position: absolute; right: 4%; bottom: 20px; z-index: 3; text-align: center;
   animation: float-y 4.5s ease-in-out infinite;
 }
-.hero-pet__face { font-size: 130px; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .22)); }
+.hero-pet__face { font-size: 220px; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .22)); }
 .hero-pet__bubble {
   position: absolute; right: 100%; top: 34%; margin-right: 12px; white-space: nowrap;
   background: rgba(10, 59, 54, .86); color: #fff; border: 2px solid var(--gold);
@@ -143,7 +143,7 @@
   position: absolute; left: 50%; bottom: 52px; width: 210px; height: 40px; transform: translateX(-50%);
   background: radial-gradient(closest-side, rgba(246, 196, 83, .75), rgba(246, 196, 83, 0));
 }
-.pet-stage__face { font-size: 140px; position: relative; animation: float-y 4s ease-in-out infinite; }
+.pet-stage__face { font-size: 230px; position: relative; animation: float-y 4s ease-in-out infinite; }
 .pet-stage__cos { position: absolute; right: 22%; top: 8%; font-size: 40px; }
 .pet-stage__name { font-size: 24px; font-weight: 900; margin-top: 6px; }
 .pet-stage__trait { color: #0f7a54; font-weight: 700; margin-top: 4px; }

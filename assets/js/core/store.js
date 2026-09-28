@@ -246,7 +246,7 @@
     out.classInfo = Object.assign({}, base.classInfo, s.classInfo || {});
     out.settings = Object.assign({}, base.settings, s.settings || {});
     out.students = (s.students || base.students).map((st) =>
-      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [] }, st)
+      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [], avatarStageIdx: null }, st)
     );
     ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
@@ -914,6 +914,28 @@
     });
   }
 
+  /* 「造型收藏」讓學生自由穿回任何一個已經達到過的造型階段，純粹是外觀選擇，
+     不會動到等級、XP、星光或畫面上顯示的階段名稱——那些一律照真實等級計算。
+     avatarStageIdx 存的是 petStageLevels 的陣列索引；空著（null）就是照目前等級自動顯示。 */
+  function avatarDisplayLevel(st) {
+    const real = M.levelFromXp((st && st.xp) || 0).level;
+    if (!st || st.avatarStageIdx === null || st.avatarStageIdx === undefined) return real;
+    const stage = (state.petStageLevels || [])[st.avatarStageIdx];
+    if (!stage || (stage.minLevel || 1) > real) return real; // 還沒達到那一階就不生效，安全退回目前等級
+    return stage.minLevel || 1;
+  }
+
+  function setAvatarStage(studentId, idx) {
+    commit((s) => {
+      const t = s.students.find((x) => x.id === studentId);
+      if (!t) return;
+      if (idx === null) { t.avatarStageIdx = null; return; }
+      const real = M.levelFromXp(t.xp || 0).level;
+      const stage = (s.petStageLevels || [])[idx];
+      if (stage && (stage.minLevel || 1) <= real) t.avatarStageIdx = idx;
+    }, { silent: true });
+  }
+
   /* 幫「某一隻寵物」的某條路線取專屬名稱（因為每隻寵物的發展不盡相同，不一定要跟全班共用的預設名稱一樣）；
      名稱留空就是清掉這隻寵物的自訂名稱，改回顯示全班共用的預設名稱。 */
   function renamePetPath(petId, pathId, name) {
@@ -1029,6 +1051,7 @@
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
     award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, renamePetPath, redeem,
+    avatarDisplayLevel, setAvatarStage,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
