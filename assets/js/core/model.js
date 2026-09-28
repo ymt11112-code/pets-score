@@ -93,6 +93,11 @@
     { id: 'cheer',    label: '鼓勵同學',   icon: '🏆', points: 2, xp: 3, coins: 2, kind: 'add' },
     { id: 'mission',  label: '完成共同任務', icon: '🗺️', points: 3, xp: 5, coins: 3, kind: 'add' },
     { id: 'remind',   label: '溫馨提醒',   icon: '💭', points: -1, xp: 0, coins: 0, kind: 'deduct' },
+    /* 守護行動快捷規則：對應星野主線的行動進度統計，id 不要改（chapters 的 actionRuleIds 會用到） */
+    { id: 'warmth',     label: '傳遞暖光', icon: '🌞', points: 2, xp: 3, coins: 2, kind: 'add' },
+    { id: 'initiative', label: '主動爭取', icon: '🚀', points: 2, xp: 3, coins: 2, kind: 'add' },
+    { id: 'courage',    label: '勇敢試想', icon: '💡', points: 2, xp: 3, coins: 2, kind: 'add' },
+    { id: 'revise',     label: '修正再試', icon: '🔧', points: 2, xp: 3, coins: 2, kind: 'add' },
   ];
 
   /* 預設兌換商店 */
@@ -127,35 +132,40 @@
   const STORYLINE_CHAPTERS = [
     {
       id: 'ch1', order: 1, name: '微光森林', week: 7, threshold: 180,
-      taskTitle: '全班完成守護隊公約', rewardTitle: '森林背景、第一座燈塔點亮', rewardEmoji: '🌲',
+      taskTitle: '🌞 點亮第一道暖光（全班完成守護隊公約）', rewardTitle: '森林背景、第一座燈塔點亮', rewardEmoji: '🌲',
+      actionRuleIds: ['warmth'], actionTarget: 15, participantTarget: 0,
       bg: 'assets/img/storyline/ch1-bg.jpg', lighthouseImg: 'assets/img/storyline/ch1-lighthouse.png',
       intro: '星野的第一座燈塔正在熄滅，微光森林霧氣瀰漫。守護隊員與動物夥伴踏進林道，只要蒐集星光、完成守護隊公約，就能讓森林重新亮起。',
       clearStory: '最後一道公約完成的瞬間，森林深處傳來低鳴——燈塔亮了！動物夥伴們的眼睛閃著光，守護隊踏出了遠征的第一步。',
     },
     {
       id: 'ch2', order: 2, name: '回聲溪谷', week: 10, threshold: 370,
-      taskTitle: '完成 1 次分工合作挑戰', rewardTitle: '溪谷背景、共同裝飾', rewardEmoji: '🏞️',
+      taskTitle: '🤝 讓回聲變成對話（各小組完成一次先聽、再接、再補充的討論）', rewardTitle: '溪谷背景、共同裝飾', rewardEmoji: '🏞️',
+      actionRuleIds: ['warmth', 'initiative', 'courage', 'revise'], actionTarget: 0, participantTarget: 15,
       bg: 'assets/img/storyline/ch2-bg.jpg', lighthouseImg: 'assets/img/storyline/ch2-lighthouse.png',
       intro: '沿著微光森林往前，是回聲溪谷。溪水沖刷著岩壁，傳來奇異的回聲。傳說唯有真正分工合作的隊伍，才能讓溪谷聽懂他們的心聲。',
       clearStory: '當分工合作的挑戰完成，溪谷的回聲忽然變成清亮的歌聲。第二座燈塔緩緩亮起，照亮了前方更遠的路。',
     },
     {
       id: 'ch3', order: 3, name: '風語高地', week: 13, threshold: 560,
-      taskTitle: '完成 2 種不同類型的合作挑戰', rewardTitle: '限定寵物配件、第三座燈塔', rewardEmoji: '🎐',
+      taskTitle: '🚀 迎風踏出一步（全班累積主動嘗試紀錄）', rewardTitle: '限定寵物配件、第三座燈塔', rewardEmoji: '🎐',
+      actionRuleIds: ['initiative'], actionTarget: 21, participantTarget: 15,
       bg: 'assets/img/storyline/ch3-bg.jpg', lighthouseImg: 'assets/img/storyline/ch3-lighthouse.png',
       intro: '風語高地終年強風呼嘯，據說風裡藏著古老的訊息。守護隊必須完成不同的合作挑戰，才能聽懂風想說的話，點亮第三座燈塔。',
       clearStory: '當兩種挑戰都完成，狂風忽然靜了下來，化作溫柔的低語。第三座燈塔亮起，限定的守護配件也悄悄出現在動物夥伴身上。',
     },
     {
       id: 'ch4', order: 4, name: '雲端星塔', week: 16, threshold: 750,
-      taskTitle: '完成 1 次班級服務任務', rewardTitle: '星塔背景、班級隊伍稱號', rewardEmoji: '🌌',
+      taskTitle: '💡 讓錯誤變成線索（完成兩次先猜想—討論—修正活動）', rewardTitle: '星塔背景、班級隊伍稱號', rewardEmoji: '🌌',
+      actionRuleIds: ['courage', 'revise'], actionTarget: 0, participantTarget: 15,
       bg: 'assets/img/storyline/ch4-bg.jpg', lighthouseImg: 'assets/img/storyline/ch4-lighthouse.png',
       intro: '雲端星塔聳立在雲海之上，是離星空最近的地方。守護隊要完成一次班級服務任務，證明自己不只守護彼此，也守護整個星野。',
       clearStory: '服務任務完成的那天，雲海散開，星塔頂端亮起耀眼的光。守護隊獲得了屬於自己的隊伍稱號，向著最後一座燈塔前進。',
     },
     {
       id: 'ch5', order: 5, name: '星野再啟', week: 20, threshold: 1000,
-      taskTitle: '完成班級成長圖鑑', rewardTitle: '終章紀念徽章與結局畫面', rewardEmoji: '🏅',
+      taskTitle: '✨ 勇氣接力（每人留下一件更願意嘗試的事，完成班級成長圖鑑）', rewardTitle: '終章紀念徽章與結局畫面', rewardEmoji: '🏅',
+      actionRuleIds: [], actionTarget: 0, participantTarget: 0,
       bg: 'assets/img/storyline/ch5-finale.jpg', lighthouseImg: 'assets/img/storyline/ch5-lighthouse.png',
       intro: '旅程來到終章。只要完成班級成長圖鑑，記錄下這一路的蛻變，星野最後一座燈塔就會被重新點亮。',
       clearStory: '五座燈塔同時亮起，照亮了整片星野。守護隊員與動物夥伴並肩而立，這不是結束，而是下一段冒險的開始。',

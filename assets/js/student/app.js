@@ -11,6 +11,14 @@
   let view = 'map';
   let meId = null;
 
+  /* 每週勇氣邀請卡：自己選一項做到就好，不用每個人做一樣的事；老師觀察到就會用對應的守護行動規則加點 */
+  const COURAGE_CARD_ITEMS = [
+    { icon: '🌞', title: '傳遞暖光', example: '主動向一位同學說出具體的感謝或鼓勵。' },
+    { icon: '🚀', title: '主動爭取', example: '在小組活動中，提出「這部分我想試試看」。' },
+    { icon: '💡', title: '勇敢試想', example: '說出一個還不確定的想法，加上一句「我是這樣想的……」。' },
+    { icon: '🔧', title: '修正再試', example: '修正一次自己的想法，分享「我改變想法是因為……」。' },
+  ];
+
   /* ---------- 小元件 ---------- */
   function petAvatar(st, size, showCos) {
     const pet = M.petById(st.petId);
@@ -149,6 +157,22 @@
     });
   }
 
+  /* 守護行動的雙指標進度（行動次數／參與人數），兩個門檻都是選填，都是 0 就不顯示 */
+  function chapterActionLine(c) {
+    if (!(c.actionTarget > 0 || c.participantTarget > 0)) return null;
+    const prog = S.storylineChapterActionProgress(S.get(), c.id);
+    const parts = [];
+    if (c.actionTarget > 0) parts.push('行動 ' + prog.count + ' ／ ' + c.actionTarget + ' 次');
+    if (c.participantTarget > 0) parts.push('參與夥伴 ' + prog.participants + ' ／ ' + c.participantTarget + ' 人');
+    const doneAction = c.actionTarget <= 0 || prog.count >= c.actionTarget;
+    const doneParticipant = c.participantTarget <= 0 || prog.participants >= c.participantTarget;
+    let hint;
+    if (doneAction && doneParticipant) hint = '這部分條件都達成囉！';
+    else if (c.participantTarget > 0 && !doneParticipant) hint = '再邀請 ' + (c.participantTarget - prog.participants) + ' 位夥伴一起加入！';
+    else hint = '繼續累積行動次數！';
+    return el('p', { class: 'card__sub', style: { marginTop: '6px' }, text: parts.join('　') + '　' + hint });
+  }
+
   function openChapterDetail(c, state) {
     if (state === 'locked') {
       U.modal({
@@ -176,6 +200,7 @@
                 el('span', { text: '共同任務：' + c.taskTitle }),
                 el('b', { text: c.taskDone ? '已完成' : '未完成' }),
               ]),
+              chapterActionLine(c),
             ]),
       ]),
       actions: [{ label: '關閉' }],
@@ -226,6 +251,7 @@
         el('span', { class: 'muted', style: { fontSize: '12.5px' }, text: statusText }),
       ]),
       el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '8px' }, text: '過關獎勵：' + (c.rewardEmoji ? c.rewardEmoji + ' ' : '') + c.rewardTitle }),
+      chapterActionLine(c),
     ]);
   }
 
@@ -576,6 +602,19 @@
             el('div', { class: 'card__sub', style: { marginTop: '10px' }, text: '＊任務完成度由老師在後台更新。' }),
           ]),
           el('div', { class: 'stack' }, [
+            el('div', { class: 'card', style: { background: 'var(--green-soft)', border: '1.5px solid var(--green)' } }, [
+              el('h3', { class: 'card__title', text: '🌟 今天為星野帶來哪一道光？' }),
+              el('p', { class: 'card__sub', style: { marginBottom: '12px' }, text: '自己選一項做到就可以，不用每個人做一樣的事。' }),
+              el('div', { class: 'stack', style: { gap: '10px' } }, COURAGE_CARD_ITEMS.map((it) =>
+                el('div', { class: 'task-row' }, [
+                  el('span', { class: 'task-row__icon', text: it.icon }),
+                  el('div', { class: 'grow' }, [
+                    el('div', { class: 'task-row__title', text: it.title }),
+                    el('div', { class: 'task-row__meta', text: it.example }),
+                  ]),
+                ])
+              )),
+            ]),
             el('div', { class: 'card' }, [
               el('h3', { class: 'card__title', text: '可以加點的約定' }),
               el('p', { class: 'card__sub', style: { marginBottom: '12px' }, text: '做到下面任何一項，老師就會幫你加點。' }),

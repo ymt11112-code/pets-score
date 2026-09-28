@@ -283,6 +283,24 @@
     }, 0);
   }
 
+  /* 某一關「守護行動」的即時進度：符合 actionRuleIds 的加點次數，以及有出現過的不同學生數。
+     跟 storylineStars 一樣是每次即時算，不是另外存累加數字，補登/撤銷都會自動對。 */
+  function storylineChapterActionProgress(s, chapterId) {
+    const st = s.storyline;
+    const c = st && (st.chapters || []).find((x) => x.id === chapterId);
+    if (!st || !st.active || !c || !(c.actionRuleIds || []).length) return { count: 0, participants: 0 };
+    const ids = c.actionRuleIds;
+    const seen = new Set();
+    let count = 0;
+    s.ledger.forEach((e) => {
+      if (e.undone || e.ts < st.activatedAt) return;
+      if (ids.indexOf(e.ruleId) < 0) return;
+      count += e.studentIds.length;
+      e.studentIds.forEach((id) => seen.add(id));
+    });
+    return { count, participants: seen.size };
+  }
+
   /* 目前正在進行的關卡索引；全部過關則回傳 chapters.length */
   function storylineCurrentIndex(s) {
     const chapters = (s.storyline && s.storyline.chapters) || [];
@@ -324,9 +342,9 @@
       const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
       if (!c) return;
       const p = patch || {};
-      ['name', 'week', 'threshold', 'taskTitle', 'rewardTitle', 'rewardEmoji', 'intro', 'clearStory', 'bg', 'lighthouseImg'].forEach((k) => {
+      ['name', 'week', 'threshold', 'taskTitle', 'rewardTitle', 'rewardEmoji', 'intro', 'clearStory', 'bg', 'lighthouseImg', 'actionRuleIds', 'actionTarget', 'participantTarget'].forEach((k) => {
         if (p[k] == null) return;
-        c[k] = (k === 'week' || k === 'threshold') ? (Number(p[k]) || 0) : p[k];
+        c[k] = (k === 'week' || k === 'threshold' || k === 'actionTarget' || k === 'participantTarget') ? (Number(p[k]) || 0) : p[k];
       });
     }, { silent: true });
   }
@@ -827,7 +845,7 @@
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
     connectSheet, useLocal, pullRemote, pushRemote, sheetCall,
-    storylineStars, storylineWeeklyGain, storylineCurrentIndex,
+    storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress,
     activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear,
   };
 })(window);

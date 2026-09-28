@@ -1703,6 +1703,7 @@
   function chapterEditor(c, idx, s) {
     const curIdx = S.storylineCurrentIndex(s);
     const stars = S.storylineStars(s);
+    const actionProgress = S.storylineChapterActionProgress(s, c.id);
     const status = chapterStatus(c, idx, curIdx);
     const upd = (patch) => S.updateChapterConfig(c.id, patch);
     const isCurrent = idx === curIdx && !c.cleared;
@@ -1748,6 +1749,31 @@
         el('label', { class: 'field__label', text: '額外共同任務' }),
         el('input', { class: 'input', value: c.taskTitle, onchange: (e) => upd({ taskTitle: e.target.value }) }),
       ]),
+      el('div', { class: 'field', style: { marginTop: '10px' } }, [
+        el('label', { class: 'field__label', text: '對應的守護行動規則（用來統計行動次數與參與人數，可複選）' }),
+        el('div', { class: 'tag-toggle' }, ['warmth', 'initiative', 'courage', 'revise'].map((rid) => {
+          const r = s.rules.find((x) => x.id === rid);
+          const active = (c.actionRuleIds || []).indexOf(rid) >= 0;
+          return el('button', {
+            class: active ? 'is-on' : '',
+            text: r ? r.icon + ' ' + r.label : rid,
+            onclick: () => {
+              const cur = c.actionRuleIds || [];
+              upd({ actionRuleIds: active ? cur.filter((x) => x !== rid) : cur.concat([rid]) });
+            },
+          });
+        })),
+      ]),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', marginTop: '10px' } }, [
+        el('div', { class: 'field', style: { width: '160px' } }, [
+          el('label', { class: 'field__label', text: '行動次數目標（0＝不追蹤）' }),
+          el('input', { class: 'input', type: 'number', value: c.actionTarget || 0, onchange: (e) => upd({ actionTarget: e.target.value }) }),
+        ]),
+        el('div', { class: 'field', style: { width: '160px' } }, [
+          el('label', { class: 'field__label', text: '參與人數目標（0＝不追蹤）' }),
+          el('input', { class: 'input', type: 'number', value: c.participantTarget || 0, onchange: (e) => upd({ participantTarget: e.target.value }) }),
+        ]),
+      ]),
       el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', marginTop: '10px' } }, [
         el('div', { class: 'field grow', style: { minWidth: '220px' } }, [
           el('label', { class: 'field__label', text: '開場劇情' }),
@@ -1761,6 +1787,11 @@
       el('div', { class: 'row row--between', style: { flexWrap: 'wrap', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed var(--line)' } }, [
         el('div', {}, [
           el('div', { style: { fontSize: '13px', color: 'var(--ink-mute)' }, text: '星光進度：' + stars.toLocaleString() + ' / ' + Number(c.threshold).toLocaleString() + (stars >= c.threshold ? '（已達標）' : '') }),
+          (c.actionTarget > 0 || c.participantTarget > 0) ? el('div', { style: { fontSize: '13px', color: 'var(--ink-mute)', marginTop: '3px' }, text:
+            [
+              c.actionTarget > 0 ? '行動次數 ' + actionProgress.count + ' / ' + c.actionTarget + (actionProgress.count >= c.actionTarget ? '（已達標）' : '') : '',
+              c.participantTarget > 0 ? '參與人數 ' + actionProgress.participants + ' / ' + c.participantTarget + (actionProgress.participants >= c.participantTarget ? '（已達標）' : '') : '',
+            ].filter(Boolean).join('　') }) : null,
         ]),
         c.cleared
           ? el('button', {
