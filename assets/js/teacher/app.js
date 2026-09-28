@@ -1810,7 +1810,7 @@
               c.actionTarget > 0 ? '行動次數 ' + actionProgress.count + ' / ' + c.actionTarget + (actionProgress.count >= c.actionTarget ? '（已達標）' : '') : '',
               c.participantTarget > 0 ? '參與人數 ' + actionProgress.participants + ' / ' + c.participantTarget + (actionProgress.participants >= c.participantTarget ? '（已達標）' : '') : '',
             ].filter(Boolean).join('　') }) : null,
-          (c.actionRuleIds || []).length
+          (c.actionRuleIds || []).length && idx <= curIdx
             ? el('button', { class: 'btn btn--ghost btn--sm', style: { marginTop: '6px' }, text: '👥 全班參與狀況', onclick: () => openChapterParticipants(c) })
             : null,
         ]),

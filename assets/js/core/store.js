@@ -303,8 +303,11 @@
 
   function storylineChapterActionEntries(s, chapterId) {
     const st = s.storyline;
-    const c = st && (st.chapters || []).find((x) => x.id === chapterId);
+    const chapters = (st && st.chapters) || [];
+    const idx = chapters.findIndex((x) => x.id === chapterId);
+    const c = chapters[idx];
     if (!st || !st.active || !c || !(c.actionRuleIds || []).length) return [];
+    if (idx > storylineCurrentIndex(s)) return []; // 還沒輪到的關卡，不該顯示任何進度（不然會誤把前面關卡期間的紀錄當成這關已經完成）
     const ids = c.actionRuleIds;
     const from = storylineChapterWindowStart(s, chapterId);
     const to = (c.cleared && c.clearedAt) ? c.clearedAt : Infinity; // 已通關的關卡，進度會停在通關那一刻，不會被後面關卡的同一個規則繼續加進來
