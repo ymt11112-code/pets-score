@@ -1251,8 +1251,11 @@
               const withImg = images.filter(Boolean).length;
               const totalStages = (s.petStageLevels || []).length;
               const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
+              /* 列表前面的小圖示固定顯示 V3（分岔前的最後一階）的造型，不受路線影響、也不會因為
+                 學生等級高低而跳來跳去，方便老師快速辨認每種寵物。 */
+              const v3Level = ((s.petStageLevels || [])[2] || {}).minLevel || 1;
               return el('div', { class: 'rule-edit' }, [
-                M.petFace(p, 32, 999),
+                M.petFace(p, 32, v3Level),
                 el('input', {
                   class: 'input grow', value: p.name, placeholder: '寵物名稱',
                   onchange: (e) => {
