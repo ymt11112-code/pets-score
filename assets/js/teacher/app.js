@@ -84,7 +84,7 @@
   function petCell(st, size) {
     const pet = M.petById(st.petId);
     return el('span', { class: 'pet-avatar', style: { width: (size || 46) + 'px', height: (size || 46) + 'px' } }, [
-      M.petFace(pet, Math.round((size || 46) * 0.62), M.levelFromXp(st.xp).level),
+      M.petFace(pet, Math.round((size || 46) * 0.62), M.levelFromXp(st.xp).level, st.petPathId),
     ]);
   }
 
@@ -117,6 +117,24 @@
     if (ups.length) {
       U.toast('🎉 ' + ups.map((u) => u.name + ' Lv.' + u.level).join('、') + ' 升級了！');
     }
+    notifyStorylineActionProgress(ruleObj);
+  }
+
+  /* 如果剛才用的規則正好是目前關卡在追蹤的守護行動，順便提醒老師最新的行動次數／參與人數，
+     不用特地切到星野主線頁才看得到（這兩個數字本來就是即時算的，這裡只是多跳一則提示）。 */
+  function notifyStorylineActionProgress(ruleObj) {
+    const s = S.get();
+    const story = s.storyline;
+    if (!story || !story.active) return;
+    const idx = S.storylineCurrentIndex(s);
+    const c = story.chapters[idx];
+    if (!c || (c.actionRuleIds || []).indexOf(ruleObj.id) < 0) return;
+    if (!(c.actionTarget > 0 || c.participantTarget > 0)) return;
+    const prog = S.storylineChapterActionProgress(s, c.id);
+    const parts = [];
+    if (c.actionTarget > 0) parts.push('行動 ' + prog.count + '／' + c.actionTarget + ' 次');
+    if (c.participantTarget > 0) parts.push('參與夥伴 ' + prog.participants + '／' + c.participantTarget + ' 人');
+    U.toast('🌟 ' + c.name + '：' + parts.join('　'));
   }
 
   /* ================= 班級總覽 ================= */
@@ -155,6 +173,8 @@
         noteCard('🏆', (s.classInfo.badgeCount || 0) + ' 枚', '班級徽章已解鎖'),
       ]),
 
+      storylineOverviewCard(),
+
       el('div', { class: 'cols' }, [
         card('學生與寵物成長', '課堂點數與寵物經驗分開顯示，方便追蹤真實進步。', [studentTable()],
           el('span', { class: 'pill', text: filteredStudents().length + ' 位學生' })),
@@ -166,6 +186,40 @@
         ]),
       ]),
     ]);
+  }
+
+  /* 班級總覽的星野主線摘要卡：沒啟用就顯示一個引導入口，啟用後顯示目前進度 */
+  function storylineOverviewCard() {
+    const s = S.get();
+    const story = s.storyline;
+    if (!story || !story.active) {
+      return card('🌟 星野守護隊：動物夥伴的遠征', '把日常加分變成全班一起闖關的冒險故事，尚未啟用。', [
+        el('button', { class: 'btn btn--green', text: '前往設定並啟用 →', onclick: () => go('storyline') }),
+      ]);
+    }
+    const idx = S.storylineCurrentIndex(s);
+    const stars = S.storylineStars(s);
+    const weekly = S.storylineWeeklyGain(s);
+    const allCleared = idx >= story.chapters.length;
+    const c = story.chapters[idx] || story.chapters[story.chapters.length - 1];
+    const left = Math.max(0, c.threshold - stars);
+    let statusText;
+    if (allCleared) statusText = '🎉 五座燈塔全部點亮，故事完結！';
+    else if (stars >= c.threshold && !c.taskDone) statusText = '⭐ 星光已集滿，等待完成共同任務';
+    else if (stars >= c.threshold) statusText = '✅ 條件都符合，正在確認通關';
+    else statusText = '還差 ' + left + ' 顆星光';
+
+    return card('🌟 ' + story.title,
+      allCleared ? null : '目前關卡：第 ' + c.order + ' 關・' + c.name + '（建議第 ' + c.week + ' 週完成）',
+      [
+        el('div', { class: 'kpi-grid', style: { marginBottom: '4px' } }, [
+          kpi('✨', '本篇章星光', stars.toLocaleString(), allCleared ? '五關全數完成' : '門檻 ' + c.threshold.toLocaleString()),
+          kpi('📈', '本週新增星光', weekly, '平均每週約 ' + weekly + ' 顆'),
+          kpi('🚩', '共同任務', allCleared ? '—' : (c.taskDone ? '已確認完成' : '尚未完成'), allCleared ? '' : c.taskTitle),
+          kpi('🏁', '目前狀態', allCleared ? '已完結' : ('第 ' + (idx + 1) + ' / ' + story.chapters.length + ' 關'), statusText),
+        ]),
+      ],
+      el('button', { class: 'btn btn--ghost btn--sm', text: '管理星野主線 →', onclick: () => go('storyline') }));
   }
 
   function kpi(icon, label, value, note) {
@@ -418,7 +472,7 @@
           const absent = S.isAbsent(st.id);
           const on = selected.has(st.id);
           return avatarCard(
-            M.petFace(M.petById(st.petId), faceSize, M.levelFromXp(st.xp).level),
+            M.petFace(M.petById(st.petId), faceSize, M.levelFromXp(st.xp).level, st.petPathId),
             (showNo ? U.pad2(st.no) + ' ' : '') + st.name, absent ? '請假' : statFor(st), on, absent,
             () => {
               if (absent) return U.toast('這位同學今天請假中，如需調整請到「出席」', 'warn');
@@ -571,7 +625,7 @@
       const lv = M.levelFromXp(st.xp);
       const pet = M.petById(st.petId);
       headEl.appendChild(el('div', { class: 'profile-head' }, [
-        M.petFace(pet, 84, lv.level),
+        M.petFace(pet, 84, lv.level, st.petPathId),
         el('div', { class: 'grow' }, [
           el('div', { class: 'profile-head__name', text: U.pad2(st.no) + ' ' + st.name }),
           el('div', { class: 'muted', style: { fontSize: '13px' }, text: (st.petName || pet.name) + ' · Lv.' + lv.level }),
@@ -744,7 +798,7 @@
         const absent = S.isAbsent(st.id, day);
         grid.appendChild(el('button', { class: 'avatar-card' + (absent ? ' is-absent' : ' is-on'), onclick: () => { S.setAttendance(st.id, absent ? '' : 'absent', day); paint(); } }, [
           el('div', { class: 'avatar-card__face' }, [
-            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level),
+            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level, st.petPathId),
             el('span', { class: absent ? 'avatar-card__badge avatar-card__badge--absent' : 'avatar-card__check', text: absent ? '假' : '✓' }),
           ]),
           el('div', { class: 'avatar-card__label', text: U.pad2(st.no) + ' ' + st.name }),
@@ -874,7 +928,7 @@
                   onchange: (e) => S.commit((d) => { d.students.find((x) => x.id === st.id).groupId = e.target.value; }),
                 }, s.groups.map((g) => el('option', { value: g.id, text: g.name, selected: g.id === st.groupId ? 'selected' : null })))]),
                 el('td', { class: 'col-hide-sm' }, [el('div', { class: 'row', style: { gap: '8px' } }, [
-                  M.petFace(M.petById(st.petId), 24, M.levelFromXp(st.xp).level),
+                  M.petFace(M.petById(st.petId), 24, M.levelFromXp(st.xp).level, st.petPathId),
                   el('span', { text: st.petName || M.petById(st.petId).name }),
                 ])]),
                 el('td', { text: String(st.points) }),
@@ -1285,6 +1339,16 @@
               }),
             }),
           ]),
+          card('🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((s.petStageLevels || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
+            el('div', { class: 'stack' }, (s.petPaths || []).map((p, idx) =>
+              el('div', { class: 'rule-edit' }, [
+                el('input', {
+                  class: 'input grow', value: p.name, placeholder: '路線名稱',
+                  onchange: (e) => { const nm = e.target.value.trim(); if (nm) S.commit((d) => { d.petPaths[idx].name = nm; }); },
+                }),
+              ])
+            )),
+          ]),
         ]),
       ]),
     ]);
@@ -1347,45 +1411,117 @@
     });
   }
 
+  function petImageRow(pet, t, idx, images, save, paint) {
+    const img = images[idx] || '';
+    const preview = img
+      ? el('img', { src: img, style: { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)', flex: '0 0 auto' } })
+      : el('span', { style: { fontSize: '26px', width: '48px', textAlign: 'center', flex: '0 0 auto' }, text: pet.emoji });
+    return el('div', { class: 'rule-edit', style: { alignItems: 'flex-start' } }, [
+      preview,
+      el('div', { class: 'grow stack', style: { gap: '6px' } }, [
+        el('div', { style: { fontWeight: 800, fontSize: '13.5px' }, text: 'Lv.' + t.minLevel + (t.name ? '・' + t.name : '') }),
+        el('div', { class: 'row', style: { gap: '6px' } }, [
+          el('input', {
+            class: 'input grow', value: img, placeholder: 'https://… 或 assets/img/pets/xxx.png',
+            onchange: (e) => { images[idx] = e.target.value.trim(); save(); paint(); },
+          }),
+          uploadButton(pet, t, idx, images, save, paint),
+          pickButton(idx, images, save, paint),
+        ]),
+      ]),
+    ]);
+  }
+
   function openPetImageManager(pet) {
     const levels = S.get().petStageLevels || [];
+    const branchIdx = M.PATH_BRANCH_STAGE_INDEX; // V4 開始分路線
     let images = ((S.get().petImages || {})[pet.id] || []).slice();
     while (images.length < levels.length) images.push('');
 
-    function save() {
+    function saveShared() {
       S.commit((d) => { d.petImages = d.petImages || {}; d.petImages[pet.id] = images.slice(); });
     }
 
-    const listEl = el('div', { class: 'stack' });
+    const paths = S.get().petPaths || [];
+    let activePathId = (paths[0] || {}).id;
+    const pathImagesMap = {};
+    paths.forEach((p) => {
+      const arr = (((S.get().petPathImages || {})[pet.id] || {})[p.id] || []).slice();
+      while (arr.length < levels.length) arr.push('');
+      pathImagesMap[p.id] = arr;
+    });
 
-    function paint() {
-      listEl.innerHTML = '';
+    const sharedListEl = el('div', { class: 'stack' });
+    const pathTabsEl = el('div', { class: 'tag-toggle' });
+    const pathNameEl = el('div', {});
+    const pathListEl = el('div', { class: 'stack' });
+
+    function paintPathNameField() {
+      pathNameEl.innerHTML = '';
+      const pathId = activePathId;
+      const globalName = (paths.find((p) => p.id === pathId) || {}).name || pathId;
+      const customNow = ((S.get().petPathNames || {})[pet.id] || {})[pathId] || '';
+      pathNameEl.appendChild(el('div', { class: 'field', style: { maxWidth: '320px', marginTop: '10px' } }, [
+        el('label', { class: 'field__label', text: '「' + pet.name + '」在這條路線的專屬名稱（留空就沿用班級預設）' }),
+        el('input', {
+          class: 'input', value: customNow, placeholder: '預設：' + globalName,
+          onchange: (e) => {
+            S.renamePetPath(pet.id, pathId, e.target.value.trim());
+            paintPathTabs();
+            paintPathNameField();
+          },
+        }),
+      ]));
+    }
+
+    function paintShared() {
+      sharedListEl.innerHTML = '';
       if (!levels.length) {
-        listEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '還沒有設定任何等級門檻，請先到上面「寵物等級門檻」新增。' }));
+        sharedListEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '還沒有設定任何等級門檻，請先到上面「寵物等級門檻」新增。' }));
         return;
       }
       levels.forEach((t, idx) => {
-        const img = images[idx] || '';
-        const preview = img
-          ? el('img', { src: img, style: { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)', flex: '0 0 auto' } })
-          : el('span', { style: { fontSize: '26px', width: '48px', textAlign: 'center', flex: '0 0 auto' }, text: pet.emoji });
-        listEl.appendChild(el('div', { class: 'rule-edit', style: { alignItems: 'flex-start' } }, [
-          preview,
-          el('div', { class: 'grow stack', style: { gap: '6px' } }, [
-            el('div', { style: { fontWeight: 800, fontSize: '13.5px' }, text: 'Lv.' + t.minLevel + (t.name ? '・' + t.name : '') }),
-            el('div', { class: 'row', style: { gap: '6px' } }, [
-              el('input', {
-                class: 'input grow', value: img, placeholder: 'https://… 或 assets/img/pets/xxx.png',
-                onchange: (e) => { images[idx] = e.target.value.trim(); save(); paint(); },
-              }),
-              uploadButton(pet, t, idx, images, save, paint),
-              pickButton(idx, images, save, paint),
-            ]),
-          ]),
-        ]));
+        if (idx >= branchIdx) return;
+        sharedListEl.appendChild(petImageRow(pet, t, idx, images, saveShared, paintShared));
       });
     }
-    paint();
+
+    function paintPathTabs() {
+      pathTabsEl.innerHTML = '';
+      paths.forEach((p) => {
+        pathTabsEl.appendChild(el('button', {
+          class: p.id === activePathId ? 'is-on' : '',
+          text: M.petPathName(pet, p.id),
+          onclick: () => { activePathId = p.id; paintPathTabs(); paintPathNameField(); paintPathRows(); },
+        }));
+      });
+    }
+
+    function paintPathRows() {
+      pathListEl.innerHTML = '';
+      if (levels.length <= branchIdx) {
+        pathListEl.appendChild(el('div', { class: 'empty', style: { padding: '10px 0' }, text: '目前的等級門檻還沒有 V4 以上的階段，請先到上面「寵物等級門檻」新增。' }));
+        return;
+      }
+      const pathId = activePathId; // 鎖定這次畫面對應的路線，避免上傳圖片途中切分頁造成寫錯路線
+      const arr = pathImagesMap[pathId];
+      function savePath() {
+        S.commit((d) => {
+          d.petPathImages = d.petPathImages || {};
+          d.petPathImages[pet.id] = d.petPathImages[pet.id] || {};
+          d.petPathImages[pet.id][pathId] = arr.slice();
+        });
+      }
+      levels.forEach((t, idx) => {
+        if (idx < branchIdx) return;
+        pathListEl.appendChild(petImageRow(pet, t, idx, arr, savePath, paintPathRows));
+      });
+    }
+
+    paintShared();
+    paintPathTabs();
+    paintPathNameField();
+    paintPathRows();
 
     U.modal({
       title: '管理「' + pet.name + '」的造型圖片',
@@ -1395,7 +1531,12 @@
           el('p', { class: 'card__sub', style: { margin: 0, flex: '1 1 260px' }, text: '等級門檻是全部寵物共用的，要調整請到上面「寵物等級門檻」；這裡只設定這隻寵物在各階段要換上的圖片。' }),
           el('button', { class: 'btn btn--ghost btn--sm', text: '⚙️ GitHub 上傳設定', onclick: () => openGithubSettings() }),
         ]),
-        listEl,
+        el('p', { class: 'field__label', text: 'V1–V' + branchIdx + '（共用，不分路線）' }),
+        sharedListEl,
+        el('p', { class: 'field__label', style: { marginTop: '6px' }, text: 'V' + (branchIdx + 1) + '–V' + levels.length + '（依身分路線分開設定，先選路線再設定圖片）' }),
+        pathTabsEl,
+        pathNameEl,
+        pathListEl,
       ]),
       actions: [{ label: '完成', kind: 'primary' }],
     });
@@ -1546,6 +1687,306 @@
           },
         },
       ],
+    });
+  }
+
+  /* ================= 星野主線 ================= */
+  function pageStoryline() {
+    const s = S.get();
+    const story = s.storyline;
+    const stars = S.storylineStars(s);
+    const idx = S.storylineCurrentIndex(s);
+
+    const activateDate = el('input', { class: 'input', type: 'date', value: U.todayKey() });
+    const overviewCard = sectionCard('overview', '總覽', story.active ? '故事已啟用，正依目前的加分紀錄計算本篇章星光。' : '啟用後，篇章星光會從你選擇的日期開始重新計算，不影響班級既有的總星星。', [
+      story.active
+        ? el('div', {}, [
+            el('div', { class: 'kpi-grid' }, [
+              kpi('📅', '啟用日', U.fmtDate(story.activatedAt)),
+              kpi('✨', '本篇章星光', stars.toLocaleString()),
+              kpi('📈', '本週新增星光', S.storylineWeeklyGain(s)),
+              kpi('🏁', '目前關卡', idx >= story.chapters.length ? '已全部完結' : ('第 ' + (idx + 1) + ' 關')),
+            ]),
+            el('button', {
+              class: 'btn btn--ghost btn--sm', text: '📅 重新設定啟用日', style: { marginTop: '12px' },
+              onclick: () => openResetActivationDate(story),
+            }),
+          ])
+        : el('div', { class: 'row', style: { gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' } }, [
+            el('div', { class: 'field', style: { width: '200px' } }, [
+              el('label', { class: 'field__label', text: '啟用日（篇章星光從這天開始算）' }),
+              activateDate,
+            ]),
+            el('button', {
+              class: 'btn btn--green', text: '🌟 啟用星野主線', onclick: () => {
+                const ts = activateDate.value ? new Date(activateDate.value + 'T00:00:00').getTime() : Date.now();
+                U.confirmDialog('啟用星野主線', '啟用後，「' + U.fmtDate(ts) + '」之後產生的正數加分才會計入本篇章星光；班級既有的總星星不會被改動。', '啟用').then((ok) => {
+                  if (!ok) return;
+                  S.activateStoryline(ts);
+                  U.toast('已啟用星野主線！');
+                  render();
+                });
+              },
+            }),
+          ]),
+    ]);
+
+    const chaptersCard = sectionCard('chapters', '五關設定與任務確認', '門檻採本篇章累積星光，過關後不歸零；修改門檻或文字不會清除既有進度。', [
+      el('div', { class: 'stack', style: { gap: '14px' } }, story.chapters.map((c, i) => chapterEditor(c, i, s))),
+    ]);
+
+    const clearedChapters = story.chapters.filter((c) => c.cleared);
+    const historyCard = sectionCard('history', '通關與獎勵紀錄', null, [
+      clearedChapters.length
+        ? el('div', {}, clearedChapters.map((c) => el('div', { class: 'log-row' }, [
+            c.lighthouseImg
+              ? el('img', { src: c.lighthouseImg, alt: c.name, style: { width: '28px', height: '28px', objectFit: 'contain' } })
+              : el('span', { style: { fontSize: '20px' }, text: c.rewardEmoji || '🏆' }),
+            el('div', { class: 'grow' }, [
+              el('div', { style: { fontWeight: 700 }, text: '第 ' + c.order + ' 關・' + c.name },),
+              el('div', { class: 'log-row__meta', text: '通關時間：' + U.fmtDate(c.clearedAt) + '　·　獎勵：' + c.rewardTitle + (c.rewardGranted ? '（已發放）' : '') }),
+            ]),
+            el('button', {
+              class: 'btn btn--danger btn--sm', text: '撤銷通關',
+              onclick: () => U.confirmDialog(
+                '撤銷「' + c.name + '」的通關',
+                '這會收回這一關的通關與獎勵標記，共同任務也會恢復成「尚未完成」，學生前台會立刻恢復未過關的畫面。請確認這是你要的結果。',
+                '撤銷通關'
+              ).then((ok) => { if (!ok) return; S.revertChapterClear(c.id); U.toast('已撤銷「' + c.name + '」的通關', 'warn'); render(); }),
+            }),
+          ])))
+        : el('div', { class: 'empty', text: '目前還沒有任何關卡通關。' }),
+    ]);
+
+    return el('div', {}, [
+      pageHead('星野主線', '《星野守護隊：動物夥伴的遠征》——把日常加分變成全班一起闖關的冒險故事。',
+        sectionJumpBar([
+          { id: 'overview', label: '📊 總覽' },
+          { id: 'chapters', label: '🗺️ 五關設定' },
+          { id: 'history', label: '🏆 通關紀錄' },
+        ])),
+      el('div', { class: 'stack', style: { gap: '18px' } }, [overviewCard, chaptersCard, historyCard]),
+    ]);
+  }
+
+  /* 重新設定啟用日：改的是「本篇章星光」重新計算的起算點，不是重新啟用一次全新的故事──
+     已經通關的關卡不會被撤銷，但還沒通關的關卡，星光會立刻依新日期重新算一次，可能因此暴增或減少。 */
+  function openResetActivationDate(story) {
+    const dateInput = el('input', { class: 'input', type: 'date', value: U.todayKey(story.activatedAt) });
+    U.modal({
+      title: '重新設定啟用日',
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'modal__text', text: '目前啟用日是 ' + U.fmtDate(story.activatedAt) + '。改成新日期後，本篇章星光會立刻依「新日期之後的加分紀錄」重新計算，可能會變多或變少。' }),
+        el('p', { class: 'card__sub', text: '已經通關的關卡不會被撤銷；還沒通關的關卡，星光達標與否會馬上套用新的計算結果。' }),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '新的啟用日' }),
+          dateInput,
+        ]),
+      ]),
+      actions: [
+        { label: '取消' },
+        {
+          label: '更新啟用日', kind: 'primary',
+          onClick: () => {
+            if (!dateInput.value) { U.toast('請選擇日期', 'warn'); return true; }
+            const ts = new Date(dateInput.value + 'T00:00:00').getTime();
+            S.activateStoryline(ts);
+            U.toast('已更新啟用日為 ' + U.fmtDate(ts));
+            render();
+          },
+        },
+      ],
+    });
+  }
+
+  function chapterStatus(c, idx, curIdx) {
+    if (c.cleared || idx < curIdx) return { text: '✅ 已通關', cls: '' };
+    if (idx > curIdx) return { text: '🔒 尚未解鎖', cls: 'pill--gray' };
+    return { text: '🚀 進行中', cls: 'pill--gold' };
+  }
+
+  function chapterEditor(c, idx, s) {
+    const curIdx = S.storylineCurrentIndex(s);
+    const stars = S.storylineStars(s);
+    const actionProgress = S.storylineChapterActionProgress(s, c.id);
+    const status = chapterStatus(c, idx, curIdx);
+    const upd = (patch) => S.updateChapterConfig(c.id, patch);
+    const isCurrent = idx === curIdx && !c.cleared;
+
+    const noteInput = el('input', {
+      class: 'input grow', value: c.taskNote || '', placeholder: '備註（選填，例如完成方式或日期細節）',
+      onchange: (e) => S.setChapterTaskDone(c.id, c.taskDone, e.target.value.trim()),
+    });
+
+    return el('div', { class: 'card card--flat chapter-block' + (c.cleared ? ' is-cleared' : '') }, [
+      el('div', { class: 'row row--between', style: { flexWrap: 'wrap', gap: '10px', marginBottom: '12px' } }, [
+        el('div', { class: 'row', style: { gap: '10px', alignItems: 'center' } }, [
+          c.lighthouseImg
+            ? el('img', { src: c.lighthouseImg, alt: c.name, style: { width: '30px', height: '30px', objectFit: 'contain' } })
+            : el('span', { style: { fontSize: '22px' }, text: c.cleared ? (c.rewardEmoji || '🗼') : '🗼' }),
+          el('b', { style: { fontSize: '16px' }, text: '第 ' + c.order + ' 關・' + c.name }),
+        ]),
+        el('span', { class: 'pill ' + status.cls, text: status.text }),
+      ]),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
+        el('div', { class: 'field', style: { width: '160px' } }, [
+          el('label', { class: 'field__label', text: '關卡名稱' }),
+          el('input', { class: 'input', value: c.name, onchange: (e) => upd({ name: e.target.value }) }),
+        ]),
+        el('div', { class: 'field', style: { width: '110px' } }, [
+          el('label', { class: 'field__label', text: '建議週次' }),
+          el('input', { class: 'input', type: 'number', value: c.week, onchange: (e) => upd({ week: e.target.value }) }),
+        ]),
+        el('div', { class: 'field', style: { width: '140px' } }, [
+          el('label', { class: 'field__label', text: '累積星光門檻' }),
+          el('input', { class: 'input', type: 'number', value: c.threshold, onchange: (e) => upd({ threshold: e.target.value }) }),
+        ]),
+        el('div', { class: 'field', style: { width: '64px' } }, [
+          el('label', { class: 'field__label', text: '獎勵圖示' }),
+          el('input', { class: 'input rule-edit__icon', value: c.rewardEmoji || '', onchange: (e) => upd({ rewardEmoji: e.target.value }) }),
+        ]),
+        el('div', { class: 'field grow', style: { minWidth: '200px' } }, [
+          el('label', { class: 'field__label', text: '通關獎勵說明' }),
+          el('input', { class: 'input', value: c.rewardTitle, onchange: (e) => upd({ rewardTitle: e.target.value }) }),
+        ]),
+      ]),
+      el('div', { class: 'field', style: { marginTop: '10px' } }, [
+        el('label', { class: 'field__label', text: '額外共同任務' }),
+        el('input', { class: 'input', value: c.taskTitle, onchange: (e) => upd({ taskTitle: e.target.value }) }),
+      ]),
+      el('div', { class: 'field', style: { marginTop: '10px' } }, [
+        el('label', { class: 'field__label', text: '對應的守護行動規則（用來統計行動次數與參與人數，可複選）' }),
+        el('div', { class: 'tag-toggle' }, ['warmth', 'initiative', 'courage', 'revise'].map((rid) => {
+          const r = s.rules.find((x) => x.id === rid);
+          const active = (c.actionRuleIds || []).indexOf(rid) >= 0;
+          return el('button', {
+            class: active ? 'is-on' : '',
+            text: r ? r.icon + ' ' + r.label : rid,
+            onclick: () => {
+              const cur = c.actionRuleIds || [];
+              upd({ actionRuleIds: active ? cur.filter((x) => x !== rid) : cur.concat([rid]) });
+            },
+          });
+        })),
+      ]),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', marginTop: '10px' } }, [
+        el('div', { class: 'field', style: { width: '160px' } }, [
+          el('label', { class: 'field__label', text: '行動次數目標（0＝不追蹤）' }),
+          el('input', { class: 'input', type: 'number', value: c.actionTarget || 0, onchange: (e) => upd({ actionTarget: e.target.value }) }),
+        ]),
+        el('div', { class: 'field', style: { width: '160px' } }, [
+          el('label', { class: 'field__label', text: '參與人數目標（0＝不追蹤）' }),
+          el('input', { class: 'input', type: 'number', value: c.participantTarget || 0, onchange: (e) => upd({ participantTarget: e.target.value }) }),
+        ]),
+      ]),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', marginTop: '10px' } }, [
+        el('div', { class: 'field grow', style: { minWidth: '220px' } }, [
+          el('label', { class: 'field__label', text: '開場劇情' }),
+          el('textarea', { class: 'textarea', style: { minHeight: '56px' }, onchange: (e) => upd({ intro: e.target.value }) }, [c.intro]),
+        ]),
+        el('div', { class: 'field grow', style: { minWidth: '220px' } }, [
+          el('label', { class: 'field__label', text: '過關劇情' }),
+          el('textarea', { class: 'textarea', style: { minHeight: '56px' }, onchange: (e) => upd({ clearStory: e.target.value }) }, [c.clearStory]),
+        ]),
+      ]),
+      el('div', { class: 'row row--between', style: { flexWrap: 'wrap', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed var(--line)' } }, [
+        el('div', {}, [
+          el('div', { style: { fontSize: '13px', color: 'var(--ink-mute)' }, text: '星光進度：' + stars.toLocaleString() + ' / ' + Number(c.threshold).toLocaleString() + (stars >= c.threshold ? '（已達標）' : '') }),
+          (c.actionTarget > 0 || c.participantTarget > 0) ? el('div', { style: { fontSize: '13px', color: 'var(--ink-mute)', marginTop: '3px' }, text:
+            [
+              c.actionTarget > 0 ? '行動次數 ' + actionProgress.count + ' / ' + c.actionTarget + (actionProgress.count >= c.actionTarget ? '（已達標）' : '') : '',
+              c.participantTarget > 0 ? '參與人數 ' + actionProgress.participants + ' / ' + c.participantTarget + (actionProgress.participants >= c.participantTarget ? '（已達標）' : '') : '',
+            ].filter(Boolean).join('　') }) : null,
+          (c.actionRuleIds || []).length && idx <= curIdx
+            ? el('button', { class: 'btn btn--ghost btn--sm', style: { marginTop: '6px' }, text: '👥 全班參與狀況', onclick: () => openChapterParticipants(c) })
+            : null,
+        ]),
+        c.cleared
+          ? el('button', {
+              class: 'btn btn--danger btn--sm', text: '撤銷通關',
+              onclick: () => U.confirmDialog('撤銷「' + c.name + '」的通關', '這會收回通關與獎勵標記，共同任務也會恢復成「尚未完成」。', '撤銷通關')
+                .then((ok) => { if (!ok) return; S.revertChapterClear(c.id); U.toast('已撤銷通關', 'warn'); render(); }),
+            })
+          : el('label', { class: 'row', style: { gap: '8px', cursor: 'pointer' } }, [
+              el('input', {
+                class: 'checkbox', type: 'checkbox', checked: c.taskDone ? 'checked' : null,
+                onchange: (e) => { S.setChapterTaskDone(c.id, e.target.checked, noteInput.value.trim()); render(); },
+              }),
+              el('span', { style: { fontSize: '13.5px' }, text: '共同任務已完成' + (c.taskDone && c.taskDoneAt ? '（' + U.fmtDate(c.taskDoneAt) + '）' : '') }),
+              noteInput,
+            ]),
+      ]),
+      !c.cleared && isCurrent && stars >= c.threshold && !c.taskDone
+        ? el('p', { class: 'card__sub', style: { marginTop: '8px', color: 'var(--gold)' }, text: '⭐ 星光已集滿，只差確認共同任務就能通關！' })
+        : null,
+    ]);
+  }
+
+  /* 全班參與狀況：座號頭像打勾表示這一關已經有對應的守護行動紀錄；點頭像直接用目前選的規則幫他加分 */
+  function openChapterParticipants(c) {
+    const s = S.get();
+    const ruleIds = c.actionRuleIds || [];
+    if (!ruleIds.length) return U.toast('這一關還沒設定對應的守護行動規則', 'warn');
+    let activeRuleId = ruleIds[0];
+    const grid = el('div', { class: 'avatar-grid' });
+    const ruleTabs = el('div', { class: 'tag-toggle' });
+    const activeLabel = el('p', { class: 'card__sub' });
+
+    function paintRuleTabs() {
+      ruleTabs.innerHTML = '';
+      ruleIds.forEach((rid) => {
+        const r = S.rule(rid);
+        ruleTabs.appendChild(el('button', {
+          class: rid === activeRuleId ? 'is-on' : '',
+          text: r ? r.icon + ' ' + r.label : rid,
+          onclick: () => { activeRuleId = rid; paintRuleTabs(); },
+        }));
+      });
+      const active = S.rule(activeRuleId);
+      activeLabel.textContent = '目前用來加分的規則：' + (active ? active.icon + ' ' + active.label + '（+' + active.points + ' 點）' : activeRuleId);
+    }
+
+    function paint() {
+      const stats = S.storylineChapterParticipantStats(S.get(), c.id);
+      grid.innerHTML = '';
+      sortStudents(s.students, s).forEach((st) => {
+        const stat = stats[st.id];
+        const has = !!stat;
+        grid.appendChild(el('button', {
+          class: 'avatar-card' + (has ? ' is-on' : ''),
+          title: has ? '這一關已累積 ' + stat.count + ' 次、+' + stat.points + ' 點；點一下可以再加一次' : '點一下用「' + (S.rule(activeRuleId) || {}).label + '」幫他加分',
+          onclick: () => {
+            const rule = S.rule(activeRuleId);
+            if (!rule) return;
+            applyRule([st.id], rule);
+            paint();
+          },
+        }, [
+          el('div', { class: 'avatar-card__face' }, [
+            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level, st.petPathId),
+            has ? el('span', { class: 'avatar-card__check', text: '✓' }) : null,
+          ]),
+          el('div', { class: 'avatar-card__label', text: U.pad2(st.no) + ' ' + st.name }),
+          has ? el('div', { class: 'avatar-card__extra', text: '×' + stat.count + '　+' + stat.points + ' 點' }) : null,
+        ]));
+      });
+    }
+
+    paintRuleTabs();
+    paint();
+    U.modal({
+      title: c.name + '・全班參與狀況',
+      wide: true,
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'card__sub', text: '打勾＋累積次數代表這位同學在這一關已經有對應的加分紀錄。點頭像會直接用下面選的規則幫他加分（可以重複點）。' }),
+        el('div', { class: 'stack', style: { gap: '6px' } }, [
+          ruleIds.length > 1 ? el('p', { class: 'field__label', text: '要用哪個規則加分：' }) : null,
+          ruleIds.length > 1 ? ruleTabs : null,
+          activeLabel,
+        ]),
+        grid,
+      ]),
+      actions: [{ label: '完成', kind: 'primary' }],
     });
   }
 
@@ -1804,7 +2245,7 @@
     function list(items, valueFn, metaFn) {
       return el('div', {}, items.map((x, i) => el('div', { class: 'lead-row' + (i < 3 ? ' lead-row--' + (i + 1) : '') }, [
         el('span', { class: 'lead-row__medal', text: medal(i) }),
-        x.emoji ? el('span', { style: { fontSize: '22px' }, text: x.emoji }) : M.petFace(M.petById(x.petId), 22, M.levelFromXp(x.xp).level),
+        x.emoji ? el('span', { style: { fontSize: '22px' }, text: x.emoji }) : M.petFace(M.petById(x.petId), 22, M.levelFromXp(x.xp).level, x.petPathId),
         el('div', { class: 'grow' }, [
           el('div', { style: { fontWeight: 800 }, text: x.name }),
           el('div', { class: 'log-row__meta', text: metaFn ? metaFn(x) : '' }),
@@ -1958,7 +2399,10 @@
     const resetCard = card('🔄 重設點數 / 重新開始', '新學期可以清空點數，保留學生名單。', [
       el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
         el('button', { class: 'btn btn--danger', text: '清空點數（保留名單）', onclick: () => {
-          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單與分組保留。', '清空').then((ok) => {
+          const storyWarn = S.get().storyline && S.get().storyline.active
+            ? '「星野主線」的啟用狀態與五關進度也會一起被清空，之後要重新啟用才能繼續累積篇章星光。'
+            : '';
+          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單與分組保留。' + storyWarn, '清空').then((ok) => {
             if (!ok) return;
             S.resetAll(true); U.toast('已重設', 'warn'); render();
           });
@@ -2356,6 +2800,7 @@
     guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
     pets: pagePets, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
+    storyline: pageStoryline,
   };
 
   function go(p) {

@@ -239,6 +239,10 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 /* ---------- 設定 ---------- */
 .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; align-items: start; }
 
+/* ---------- 星野主線：關卡編輯卡 ---------- */
+.chapter-block { border: 1.5px solid var(--line); }
+.chapter-block.is-cleared { border-color: var(--green); background: var(--green-soft); }
+
 /* ---------- 可收合的區塊卡片 ---------- */
 .section-card { padding: 0; overflow: hidden; scroll-margin-top: 190px; }
 .section-card__head {

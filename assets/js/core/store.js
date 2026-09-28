@@ -224,7 +224,7 @@
     out.classInfo = Object.assign({}, base.classInfo, s.classInfo || {});
     out.settings = Object.assign({}, base.settings, s.settings || {});
     out.students = (s.students || base.students).map((st) =>
-      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0 }, st)
+      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [] }, st)
     );
     ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
@@ -235,11 +235,252 @@
         if (out.toolbar.indexOf(id) < 0) out.toolbar.push(id);
       });
     }
+    /* 舊存檔可能是在「守護行動」四個快捷規則出現前存的，這裡補進去避免星野主線的關卡設定找不到對應規則 */
+    ['warmth', 'initiative', 'courage', 'revise'].forEach((id) => {
+      if (!out.rules.some((r) => r.id === id)) {
+        const def = base.rules.find((r) => r.id === id);
+        if (def) out.rules.push(Object.assign({}, def));
+      }
+    });
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     migratePetStages(out, s, base);
+    migratePetPaths(out, s, base);
+    migratePetImageAssets(out);
     out.petNames = Object.assign({}, base.petNames, s.petNames || {});
+    migrateStoryline(out, s, base);
     return out;
+  }
+
+  /* 身分路線：舊存檔沒有 petPaths/petPathImages 就用預設補上；已經存在的路線名稱、已經上傳的圖片都保留，
+     只補上「新增的寵物」或「新增的路線」還沒建立過的空陣列，避免程式讀到 undefined。 */
+  const OLD_DEFAULT_PATH_NAMES = ['路線一', '路線二', '路線三']; // 這功能剛推出時用過的佔位名稱，之後統一升級成正式名稱一次
+  /* 職業名稱表定案前的存檔（updatedAt 早於這個時間點）都強制套用最新表一次；這個時間點固定寫死在程式碼裡，
+     不會隨每次載入變動，所以只會在「第一次讀到這個新版程式碼」時生效一次，之後老師自己改的名稱就穩定了。 */
+  const PET_PATH_NAMES_FORCE_UPGRADE_BEFORE = new Date('2026-09-28T00:00:00+08:00').getTime();
+  function migratePetPaths(out, s, base) {
+    out.petPaths = Array.isArray(s.petPaths) && s.petPaths.length ? s.petPaths : base.petPaths;
+    /* 還停在最早期佔位名稱、老師還沒自己改過的路線，順便升級成新的正式名稱（只比對還沒被改過的） */
+    out.petPaths = out.petPaths.map((p) => {
+      if (OLD_DEFAULT_PATH_NAMES.indexOf(p.name) < 0) return p;
+      const upgraded = base.petPaths.find((bp) => bp.id === p.id);
+      return upgraded ? Object.assign({}, p, { name: upgraded.name }) : p;
+    });
+    const raw = (s && s.petPathImages) || {};
+    const pathIds = out.petPaths.map((p) => p.id);
+    const stageLen = (out.petStageLevels || base.petStageLevels).length;
+    const result = {};
+    const petIds = Object.keys(Object.assign({}, base.petImages, out.petImages || {}));
+    petIds.forEach((petId) => {
+      const rawForPet = raw[petId] || {};
+      result[petId] = {};
+      pathIds.forEach((pid) => {
+        const existing = rawForPet[pid];
+        result[petId][pid] = Array.isArray(existing) && existing.length === stageLen ? existing : new Array(stageLen).fill('');
+      });
+    });
+    out.petPathImages = result;
+    out.petPathNames = (s && s.petPathNames && typeof s.petPathNames === 'object') ? s.petPathNames : {};
+    /* 內建寵物如果還沒設定過專屬職業名稱，補上預先想好的版本；老師已經自己改過的（不管改哪一條）完全不動 */
+    Object.keys(M.DEFAULT_PET_PATH_NAMES || {}).forEach((petId) => {
+      if (!out.petPathNames[petId]) out.petPathNames[petId] = Object.assign({}, M.DEFAULT_PET_PATH_NAMES[petId]);
+    });
+    /* 職業名稱表這幾天改版好幾次，版本號沒跟上的帳號（多半是我自己剛才自動補上、老師還來不及看到就被我改版的）
+       強制升級成最新版一次；升級後把版本號寫回去，之後老師自己改過的名稱就不會再被蓋掉了。 */
+    if ((s.updatedAt || 0) < PET_PATH_NAMES_FORCE_UPGRADE_BEFORE) {
+      Object.keys(M.DEFAULT_PET_PATH_NAMES || {}).forEach((petId) => {
+        out.petPathNames[petId] = Object.assign({}, M.DEFAULT_PET_PATH_NAMES[petId]);
+      });
+    }
+  }
+
+  /* 老師已經整理好的寵物真實照片（目前只有柯基）：舊存檔裡對應的欄位如果還是空字串（老師還沒自己
+     上傳過圖片），自動補上；老師已經透過「管理圖片」自己上傳過的欄位完全不動，不會被蓋掉。 */
+  function migratePetImageAssets(out) {
+    const assets = (M && M.DEFAULT_PET_IMAGE_ASSETS) || {};
+    Object.keys(assets).forEach((petId) => {
+      const preset = assets[petId];
+      if (Array.isArray(out.petImages[petId]) && Array.isArray(preset.shared)) {
+        out.petImages[petId] = out.petImages[petId].map((v, i) => v || preset.shared[i] || '');
+      }
+      if (out.petPathImages[petId]) {
+        Object.keys(out.petPathImages[petId]).forEach((pid) => {
+          const defArr = preset[pid];
+          if (Array.isArray(defArr) && Array.isArray(out.petPathImages[petId][pid])) {
+            out.petPathImages[petId][pid] = out.petPathImages[petId][pid].map((v, i) => v || defArr[i] || '');
+          }
+        });
+      }
+    });
+  }
+
+  /* 星野主線：定義值（名稱／門檻／任務文字…）先套用預設，再用舊資料裡「已經存在」的欄位覆蓋回去，
+     這樣舊帳號第一次載入會自動補上這個功能，之後教師編輯過的文字或已經達成的進度也不會被蓋掉。 */
+  function migrateStoryline(out, s, base) {
+    const raw = (s && s.storyline) || {};
+    const rawChapters = Array.isArray(raw.chapters) ? raw.chapters : [];
+    out.storyline = {
+      active: !!raw.active,
+      activatedAt: raw.activatedAt || 0,
+      title: raw.title || base.storyline.title,
+      chapters: base.storyline.chapters.map((defCh) => {
+        const existing = rawChapters.find((c) => c && c.id === defCh.id);
+        return existing ? Object.assign({}, defCh, existing) : Object.assign({}, defCh);
+      }),
+    };
+  }
+
+  /* 本篇章星光＝啟用後（ts >= activatedAt）、尚未撤銷、點數為正的加點紀錄總和。
+     這是每次即時從點數紀錄重新算出來的，不是另外存一個累加數字：
+     補登、編輯、撤銷、重新整理或重新同步都會自動算對，不會重複計算或算錯。 */
+  function storylineStars(s) {
+    const st = s.storyline;
+    if (!st || !st.active) return 0;
+    return s.ledger.reduce((sum, e) => {
+      if (e.undone || (e.points || 0) <= 0) return sum;
+      if (e.ts < st.activatedAt) return sum;
+      return sum + e.points * e.studentIds.length;
+    }, 0);
+  }
+
+  function storylineWeeklyGain(s) {
+    const st = s.storyline;
+    if (!st || !st.active) return 0;
+    const from = Math.max(st.activatedAt, weekStartTs());
+    return s.ledger.reduce((sum, e) => {
+      if (e.undone || (e.points || 0) <= 0) return sum;
+      if (e.ts < from) return sum;
+      return sum + e.points * e.studentIds.length;
+    }, 0);
+  }
+
+  /* 每一關「守護行動」的計算起點：第一關從啟用日算起，之後每一關從「前一關通關的時間」算起，
+     這樣同一個規則被好幾關重複用到時，不會把前一關已經算過的次數/人數也算進這一關。 */
+  function storylineChapterWindowStart(s, chapterId) {
+    const st = s.storyline;
+    const chapters = (st && st.chapters) || [];
+    const idx = chapters.findIndex((c) => c.id === chapterId);
+    if (!st || idx <= 0) return st ? st.activatedAt : 0;
+    const prev = chapters[idx - 1];
+    return (prev && prev.cleared && prev.clearedAt) ? Math.max(st.activatedAt, prev.clearedAt) : st.activatedAt;
+  }
+
+  function storylineChapterActionEntries(s, chapterId) {
+    const st = s.storyline;
+    const chapters = (st && st.chapters) || [];
+    const idx = chapters.findIndex((x) => x.id === chapterId);
+    const c = chapters[idx];
+    if (!st || !st.active || !c || !(c.actionRuleIds || []).length) return [];
+    if (idx > storylineCurrentIndex(s)) return []; // 還沒輪到的關卡，不該顯示任何進度（不然會誤把前面關卡期間的紀錄當成這關已經完成）
+    const ids = c.actionRuleIds;
+    const from = storylineChapterWindowStart(s, chapterId);
+    const to = (c.cleared && c.clearedAt) ? c.clearedAt : Infinity; // 已通關的關卡，進度會停在通關那一刻，不會被後面關卡的同一個規則繼續加進來
+    return s.ledger.filter((e) => !e.undone && e.ts >= from && e.ts <= to && ids.indexOf(e.ruleId) >= 0);
+  }
+
+  /* 某一關「守護行動」的即時進度：符合 actionRuleIds 的加點次數，以及有出現過的不同學生數。
+     跟 storylineStars 一樣是每次即時算，不是另外存累加數字，補登/撤銷都會自動對。 */
+  function storylineChapterActionProgress(s, chapterId) {
+    const seen = new Set();
+    let count = 0;
+    storylineChapterActionEntries(s, chapterId).forEach((e) => {
+      count += e.studentIds.length;
+      e.studentIds.forEach((id) => seen.add(id));
+    });
+    return { count, participants: seen.size };
+  }
+
+  /* 這一關「已經參與過」的學生 id 集合，給教師端的全班參與狀況畫面用 */
+  function storylineChapterParticipantIds(s, chapterId) {
+    const seen = new Set();
+    storylineChapterActionEntries(s, chapterId).forEach((e) => e.studentIds.forEach((id) => seen.add(id)));
+    return seen;
+  }
+
+  /* 每個學生在這一關被記錄了幾次守護行動、總共拿到多少點數，給全班參與狀況畫面顯示用 */
+  function storylineChapterParticipantStats(s, chapterId) {
+    const stats = {};
+    storylineChapterActionEntries(s, chapterId).forEach((e) => {
+      e.studentIds.forEach((id) => {
+        const cur = stats[id] || { count: 0, points: 0 };
+        cur.count += 1;
+        cur.points += (e.points || 0);
+        stats[id] = cur;
+      });
+    });
+    return stats;
+  }
+
+  /* 目前正在進行的關卡索引；全部過關則回傳 chapters.length */
+  function storylineCurrentIndex(s) {
+    const chapters = (s.storyline && s.storyline.chapters) || [];
+    for (let i = 0; i < chapters.length; i++) {
+      if (!chapters[i].cleared) return i;
+    }
+    return chapters.length;
+  }
+
+  /* 每次 commit 都會呼叫一次：檢查目前這關是不是「星光達標」且「共同任務已確認」，
+     兩個條件同時成立才算過關並發獎（只會由 false 變 true，不會自動復原，
+     避免事後修正點數紀錄時被誤判為「退關」）。 */
+  function checkStorylineProgress(s) {
+    const st = s.storyline;
+    if (!st || !st.active) return;
+    const idx = storylineCurrentIndex(s);
+    const c = st.chapters[idx];
+    if (!c || c.cleared) return;
+    const stars = storylineStars(s);
+    if (stars >= c.threshold && c.taskDone) {
+      c.cleared = true;
+      c.clearedAt = Date.now();
+      c.rewardGranted = true;
+      c.rewardGrantedAt = Date.now();
+    }
+  }
+
+  /* ---------- 星野主線：教師管理動作 ---------- */
+  function activateStoryline(activatedAt) {
+    commit((s) => {
+      s.storyline = s.storyline || M.seedStoryline();
+      s.storyline.active = true;
+      s.storyline.activatedAt = activatedAt || Date.now();
+    });
+  }
+
+  function updateChapterConfig(chapterId, patch) {
+    commit((s) => {
+      const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
+      if (!c) return;
+      const p = patch || {};
+      ['name', 'week', 'threshold', 'taskTitle', 'rewardTitle', 'rewardEmoji', 'intro', 'clearStory', 'bg', 'lighthouseImg', 'actionRuleIds', 'actionTarget', 'participantTarget'].forEach((k) => {
+        if (p[k] == null) return;
+        c[k] = (k === 'week' || k === 'threshold' || k === 'actionTarget' || k === 'participantTarget') ? (Number(p[k]) || 0) : p[k];
+      });
+    }, { silent: true });
+  }
+
+  function setChapterTaskDone(chapterId, done, note) {
+    commit((s) => {
+      const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
+      if (!c || c.cleared) return; // 已通關的關卡要用 revertChapterClear 明確撤回，不能直接改任務狀態
+      c.taskDone = !!done;
+      c.taskDoneAt = done ? Date.now() : 0;
+      if (note != null) c.taskNote = note;
+    });
+  }
+
+  /* 明確撤回「已通關」：同時收回獎勵標記與任務完成狀態，避免留下「已發獎但任務未完成」這種不一致狀態 */
+  function revertChapterClear(chapterId) {
+    commit((s) => {
+      const c = (s.storyline.chapters || []).find((x) => x.id === chapterId);
+      if (!c || !c.cleared) return;
+      c.cleared = false;
+      c.clearedAt = 0;
+      c.rewardGranted = false;
+      c.rewardGrantedAt = 0;
+      c.taskDone = false;
+      c.taskDoneAt = 0;
+    });
   }
 
   /* 寵物造型圖片以前是「每隻寵物各自存一份等級門檻＋圖片」，現在改成「全班共用一份等級門檻，
@@ -312,6 +553,7 @@
   function commit(mutator, opts) {
     const o = opts || {};
     mutator(state);
+    if (state.storyline) checkStorylineProgress(state);
     state.updatedAt = Date.now();
     persistLocal();
     if (o.sync !== false) scheduleRemoteSave();
@@ -609,6 +851,35 @@
     });
   }
 
+  /* 選擇／切換身分路線：第一次選某條路線會把它加進 unlockedPaths（等於「解鎖」），
+     之後同一個學生想換回已經解鎖過的路線，或想解鎖新的路線，都呼叫這個函式就好，
+     只改變「目前顯示走哪一條」，完全不動等級、XP、星光。 */
+  function choosePetPath(studentId, pathId) {
+    commit((s) => {
+      const t = s.students.find((x) => x.id === studentId);
+      if (!t) return;
+      if (!(s.petPaths || []).some((p) => p.id === pathId)) return;
+      t.petPathId = pathId;
+      t.unlockedPaths = t.unlockedPaths || [];
+      if (t.unlockedPaths.indexOf(pathId) < 0) t.unlockedPaths.push(pathId);
+    });
+  }
+
+  /* 幫「某一隻寵物」的某條路線取專屬名稱（因為每隻寵物的發展不盡相同，不一定要跟全班共用的預設名稱一樣）；
+     名稱留空就是清掉這隻寵物的自訂名稱，改回顯示全班共用的預設名稱。 */
+  function renamePetPath(petId, pathId, name) {
+    commit((s) => {
+      s.petPathNames = s.petPathNames || {};
+      const nm = (name || '').trim();
+      if (nm) {
+        s.petPathNames[petId] = s.petPathNames[petId] || {};
+        s.petPathNames[petId][pathId] = nm;
+      } else if (s.petPathNames[petId]) {
+        delete s.petPathNames[petId][pathId];
+      }
+    }, { silent: true });
+  }
+
   function redeem(studentId, itemId) {
     const item = state.shop.find((i) => i.id === itemId);
     const st = student(studentId);
@@ -708,10 +979,13 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
-    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, redeem,
+    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, renamePetPath, redeem,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
     connectSheet, useLocal, pullRemote, pushRemote, sheetCall,
+    storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress,
+    storylineChapterParticipantIds, storylineChapterParticipantStats,
+    activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear,
   };
 })(window);
