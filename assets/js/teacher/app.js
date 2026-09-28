@@ -1843,6 +1843,7 @@
     let activeRuleId = ruleIds[0];
     const grid = el('div', { class: 'avatar-grid' });
     const ruleTabs = el('div', { class: 'tag-toggle' });
+    const activeLabel = el('p', { class: 'card__sub' });
 
     function paintRuleTabs() {
       ruleTabs.innerHTML = '';
@@ -1854,16 +1855,19 @@
           onclick: () => { activeRuleId = rid; paintRuleTabs(); },
         }));
       });
+      const active = S.rule(activeRuleId);
+      activeLabel.textContent = '目前用來加分的規則：' + (active ? active.icon + ' ' + active.label + '（+' + active.points + ' 點）' : activeRuleId);
     }
 
     function paint() {
-      const done = S.storylineChapterParticipantIds(S.get(), c.id);
+      const stats = S.storylineChapterParticipantStats(S.get(), c.id);
       grid.innerHTML = '';
       sortStudents(s.students, s).forEach((st) => {
-        const has = done.has(st.id);
+        const stat = stats[st.id];
+        const has = !!stat;
         grid.appendChild(el('button', {
           class: 'avatar-card' + (has ? ' is-on' : ''),
-          title: has ? '已經有這一關的紀錄，點一下可以再加一次' : '點一下用「' + (S.rule(activeRuleId) || {}).label + '」幫他加分',
+          title: has ? '這一關已累積 ' + stat.count + ' 次、+' + stat.points + ' 點；點一下可以再加一次' : '點一下用「' + (S.rule(activeRuleId) || {}).label + '」幫他加分',
           onclick: () => {
             const rule = S.rule(activeRuleId);
             if (!rule) return;
@@ -1876,6 +1880,7 @@
             has ? el('span', { class: 'avatar-card__check', text: '✓' }) : null,
           ]),
           el('div', { class: 'avatar-card__label', text: U.pad2(st.no) + ' ' + st.name }),
+          has ? el('div', { class: 'avatar-card__extra', text: '×' + stat.count + '　+' + stat.points + ' 點' }) : null,
         ]));
       });
     }
@@ -1886,8 +1891,12 @@
       title: c.name + '・全班參與狀況',
       wide: true,
       body: el('div', { class: 'stack' }, [
-        el('p', { class: 'card__sub', text: '打勾代表這位同學在這一關已經有對應的加分紀錄。點頭像會直接用下面選的規則幫他加分（可以重複點）。' }),
-        ruleIds.length > 1 ? el('div', { class: 'stack', style: { gap: '6px' } }, [el('p', { class: 'field__label', text: '要用哪個規則加分：' }), ruleTabs]) : null,
+        el('p', { class: 'card__sub', text: '打勾＋累積次數代表這位同學在這一關已經有對應的加分紀錄。點頭像會直接用下面選的規則幫他加分（可以重複點）。' }),
+        el('div', { class: 'stack', style: { gap: '6px' } }, [
+          ruleIds.length > 1 ? el('p', { class: 'field__label', text: '要用哪個規則加分：' }) : null,
+          ruleIds.length > 1 ? ruleTabs : null,
+          activeLabel,
+        ]),
         grid,
       ]),
       actions: [{ label: '完成', kind: 'primary' }],

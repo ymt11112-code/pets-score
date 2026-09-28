@@ -333,6 +333,20 @@
     return seen;
   }
 
+  /* 每個學生在這一關被記錄了幾次守護行動、總共拿到多少點數，給全班參與狀況畫面顯示用 */
+  function storylineChapterParticipantStats(s, chapterId) {
+    const stats = {};
+    storylineChapterActionEntries(s, chapterId).forEach((e) => {
+      e.studentIds.forEach((id) => {
+        const cur = stats[id] || { count: 0, points: 0 };
+        cur.count += 1;
+        cur.points += (e.points || 0);
+        stats[id] = cur;
+      });
+    });
+    return stats;
+  }
+
   /* 目前正在進行的關卡索引；全部過關則回傳 chapters.length */
   function storylineCurrentIndex(s) {
     const chapters = (s.storyline && s.storyline.chapters) || [];
@@ -877,7 +891,8 @@
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
     connectSheet, useLocal, pullRemote, pushRemote, sheetCall,
-    storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress, storylineChapterParticipantIds,
+    storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress,
+    storylineChapterParticipantIds, storylineChapterParticipantStats,
     activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear,
   };
 })(window);
