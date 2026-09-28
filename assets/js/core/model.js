@@ -259,6 +259,22 @@
     return builtin.concat(extra).map((p) => resolvePetName(p, names));
   }
 
+  /* 某隻寵物在「身分路線」上要顯示的名稱：每隻寵物可以各自取名（因為每隻寵物的發展不盡相同），
+     沒特別取名的就顯示全班共用的預設路線名稱。 */
+  function petPathName(pet, pathId) {
+    try {
+      const S = global.PetStore;
+      if (S && S.get) {
+        const s = S.get() || {};
+        const custom = ((s.petPathNames || {})[pet.id] || {})[pathId];
+        if (custom) return custom;
+        const base = (s.petPaths || []).find((p) => p.id === pathId);
+        if (base) return base.name;
+      }
+    } catch (e) { /* 忽略 */ }
+    return pathId;
+  }
+
   function petById(id) {
     const list = allPets();
     return list.find((p) => p.id === id) || list[0] || PETS[0];
@@ -414,6 +430,7 @@
         DEFAULT_PET_PATHS.forEach((path) => { acc[p.id][path.id] = new Array(DEFAULT_PET_STAGES.length).fill(''); });
         return acc;
       }, {}),
+      petPathNames: {},
       petNames: {},
       customPets: [],
       deletedPetIds: [],
@@ -459,6 +476,6 @@
     PETS, STAGES, COSMETICS, FOODS, BADGES, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, PATH_BRANCH_STAGE_INDEX,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
-    xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, seedState,
+    xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, petPathName, seedState,
   };
 })(window);

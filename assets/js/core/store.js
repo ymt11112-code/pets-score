@@ -276,6 +276,7 @@
       });
     });
     out.petPathImages = result;
+    out.petPathNames = (s && s.petPathNames && typeof s.petPathNames === 'object') ? s.petPathNames : {};
   }
 
   /* 星野主線：定義值（名稱／門檻／任務文字…）先套用預設，再用舊資料裡「已經存在」的欄位覆蓋回去，
@@ -829,6 +830,21 @@
     });
   }
 
+  /* 幫「某一隻寵物」的某條路線取專屬名稱（因為每隻寵物的發展不盡相同，不一定要跟全班共用的預設名稱一樣）；
+     名稱留空就是清掉這隻寵物的自訂名稱，改回顯示全班共用的預設名稱。 */
+  function renamePetPath(petId, pathId, name) {
+    commit((s) => {
+      s.petPathNames = s.petPathNames || {};
+      const nm = (name || '').trim();
+      if (nm) {
+        s.petPathNames[petId] = s.petPathNames[petId] || {};
+        s.petPathNames[petId][pathId] = nm;
+      } else if (s.petPathNames[petId]) {
+        delete s.petPathNames[petId][pathId];
+      }
+    }, { silent: true });
+  }
+
   function redeem(studentId, itemId) {
     const item = state.shop.find((i) => i.id === itemId);
     const st = student(studentId);
@@ -928,7 +944,7 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
-    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, redeem,
+    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, renamePetPath, redeem,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,

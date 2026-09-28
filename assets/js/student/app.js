@@ -438,7 +438,7 @@
       return el('div', { class: 'card' }, [
         el('h3', { class: 'card__title', text: '🌟 身分路線' }),
         el('p', { class: 'card__sub', text: '升到 Lv.' + branchLevel + '（' + branchName + '）就能選擇一條專屬的成長路線，外型會從這裡開始分岔！' }),
-        el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', marginTop: '10px' } }, paths.map((p) => el('span', { class: 'pill pill--gray', text: p.name }))),
+        el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', marginTop: '10px' } }, paths.map((p) => el('span', { class: 'pill pill--gray', text: M.petPathName(pet, p.id) }))),
       ]);
     }
     return el('div', { class: 'card' }, [
@@ -455,12 +455,12 @@
           class: 'cos' + (unlocked ? ' is-owned' : '') + (active ? ' is-equipped' : ''),
           onclick: () => {
             S.choosePetPath(st.id, p.id);
-            U.toast(unlocked ? '已切換成「' + p.name + '」' : '🎉 解鎖了「' + p.name + '」路線！');
+            U.toast(unlocked ? '已切換成「' + M.petPathName(pet, p.id) + '」' : '🎉 解鎖了「' + M.petPathName(pet, p.id) + '」路線！');
           },
         }, [
           active ? el('span', { class: 'cos__tag', text: '使用中' }) : null,
           el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 56, lv.level, p.id)]),
-          el('div', { class: 'cos__name', text: p.name }),
+          el('div', { class: 'cos__name', text: M.petPathName(pet, p.id) }),
           el('div', { class: 'cos__meta', text: unlocked ? '已解鎖' : '尚未解鎖，點一下開啟' }),
         ]);
       })),
@@ -489,12 +489,12 @@
           class: 'cos',
           onclick: () => {
             S.choosePetPath(st.id, p.id);
-            U.toast('🎉 選擇了「' + p.name + '」路線！');
+            U.toast('🎉 選擇了「' + M.petPathName(pet, p.id) + '」路線！');
             dlg.close();
           },
         }, [
           el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 56, lv.level, p.id)]),
-          el('div', { class: 'cos__name', text: p.name }),
+          el('div', { class: 'cos__name', text: M.petPathName(pet, p.id) }),
         ]))),
       ]),
       actions: [{ label: '稍後再選' }],

@@ -1339,7 +1339,7 @@
               }),
             }),
           ]),
-          card('🌟 身分路線名稱（全部寵物共用）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((s.petStageLevels || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條；圖片在上面「管理圖片」裡設定。', [
+          card('🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((s.petStageLevels || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
             el('div', { class: 'stack' }, (s.petPaths || []).map((p, idx) =>
               el('div', { class: 'rule-edit' }, [
                 el('input', {
@@ -1453,7 +1453,26 @@
 
     const sharedListEl = el('div', { class: 'stack' });
     const pathTabsEl = el('div', { class: 'tag-toggle' });
+    const pathNameEl = el('div', {});
     const pathListEl = el('div', { class: 'stack' });
+
+    function paintPathNameField() {
+      pathNameEl.innerHTML = '';
+      const pathId = activePathId;
+      const globalName = (paths.find((p) => p.id === pathId) || {}).name || pathId;
+      const customNow = ((S.get().petPathNames || {})[pet.id] || {})[pathId] || '';
+      pathNameEl.appendChild(el('div', { class: 'field', style: { maxWidth: '320px', marginTop: '10px' } }, [
+        el('label', { class: 'field__label', text: '「' + pet.name + '」在這條路線的專屬名稱（留空就沿用班級預設）' }),
+        el('input', {
+          class: 'input', value: customNow, placeholder: '預設：' + globalName,
+          onchange: (e) => {
+            S.renamePetPath(pet.id, pathId, e.target.value.trim());
+            paintPathTabs();
+            paintPathNameField();
+          },
+        }),
+      ]));
+    }
 
     function paintShared() {
       sharedListEl.innerHTML = '';
@@ -1472,8 +1491,8 @@
       paths.forEach((p) => {
         pathTabsEl.appendChild(el('button', {
           class: p.id === activePathId ? 'is-on' : '',
-          text: p.name,
-          onclick: () => { activePathId = p.id; paintPathTabs(); paintPathRows(); },
+          text: M.petPathName(pet, p.id),
+          onclick: () => { activePathId = p.id; paintPathTabs(); paintPathNameField(); paintPathRows(); },
         }));
       });
     }
@@ -1501,6 +1520,7 @@
 
     paintShared();
     paintPathTabs();
+    paintPathNameField();
     paintPathRows();
 
     U.modal({
@@ -1515,6 +1535,7 @@
         sharedListEl,
         el('p', { class: 'field__label', style: { marginTop: '6px' }, text: 'V' + (branchIdx + 1) + '–V' + levels.length + '（依身分路線分開設定，先選路線再設定圖片）' }),
         pathTabsEl,
+        pathNameEl,
         pathListEl,
       ]),
       actions: [{ label: '完成', kind: 'primary' }],
