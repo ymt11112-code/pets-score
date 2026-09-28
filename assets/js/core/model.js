@@ -45,13 +45,31 @@
     { minLevel: 50, name: '神獸體' },
   ];
 
-  /* 升到 V4（成長體）之後，學生要選一條「身分路線」，V4–V10 的造型各走各的；
-     名稱呼應星野主線的星光／森林／月夜意象，老師可以在後台隨時改成自己想要的主題名稱。 */
+  /* 升到 V4（成長體）之後，學生要選一條「身分路線」，其實就是這隻寵物的「職業型態」：
+     V4–V10 的造型各走各的，路線名稱是老師可以在後台隨時改的班級預設值。 */
   const DEFAULT_PET_PATHS = [
     { id: 'path1', name: '星輝路線' },
     { id: 'path2', name: '森語路線' },
     { id: 'path3', name: '月光路線' },
   ];
+
+  /* 每隻寵物預設的「職業型態」三選一，對應 path1/path2/path3：
+     path1 偏溫柔療癒、path2 偏勇氣冒險、path3 偏踏實探索，呼應各自的特質；老師可以在
+     「管理圖片」裡隨時改成自己想要的職業名稱，這裡只是先幫忙想好的預設版本，不用從零開始想。 */
+  const DEFAULT_PET_PATH_NAMES = {
+    cat:     { path1: '靜心陪讀員', path2: '溫柔守夜騎士', path3: '好奇觀察家' },
+    corgi:   { path1: '奶泡療癒師', path2: '曙光騎士',     path3: '山野搜救員' },
+    bunny:   { path1: '傾聽療癒師', path2: '暖心大使',     path3: '雲端信使' },
+    fox:     { path1: '謎題破解者', path2: '星圖導航員',   path3: '智囊軍師' },
+    panda:   { path1: '和平調解員', path2: '圓桌騎士',     path3: '團隊後盾' },
+    otter:   { path1: '深潭探勘員', path2: '溪谷嚮導',     path3: '好奇偵察兵' },
+    hamster: { path1: '秩序管理員', path2: '巢穴建築師',   path3: '收納達人' },
+    penguin: { path1: '恆心守衛',   path2: '破冰先鋒',     path3: '極地行者' },
+    dragon:  { path1: '烈焰勇者',   path2: '破浪騎士',     path3: '逆風先鋒' },
+    alpaca:  { path1: '擁抱治療師', path2: '安撫使者',     path3: '雲朵牧羊人' },
+    capy:    { path1: '呼吸教練',   path2: '溫泉守護者',   path3: '沉穩軍師' },
+    bear:    { path1: '蜂蜜工匠',   path2: '森林守衛',     path3: '力量搬運工' },
+  };
 
 
   /* 造型（金幣解鎖 / 等級解鎖） */
@@ -430,7 +448,7 @@
         DEFAULT_PET_PATHS.forEach((path) => { acc[p.id][path.id] = new Array(DEFAULT_PET_STAGES.length).fill(''); });
         return acc;
       }, {}),
-      petPathNames: {},
+      petPathNames: U.deepClone(DEFAULT_PET_PATH_NAMES),
       petNames: {},
       customPets: [],
       deletedPetIds: [],
@@ -474,7 +492,7 @@
 
   global.PetModel = {
     PETS, STAGES, COSMETICS, FOODS, BADGES, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
-    DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, PATH_BRANCH_STAGE_INDEX,
+    DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
     xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, petPathName, seedState,
   };

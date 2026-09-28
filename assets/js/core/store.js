@@ -277,6 +277,10 @@
     });
     out.petPathImages = result;
     out.petPathNames = (s && s.petPathNames && typeof s.petPathNames === 'object') ? s.petPathNames : {};
+    /* 內建寵物如果還沒設定過專屬職業名稱，補上預先想好的版本；老師已經自己改過的（不管改哪一條）完全不動 */
+    Object.keys(M.DEFAULT_PET_PATH_NAMES || {}).forEach((petId) => {
+      if (!out.petPathNames[petId]) out.petPathNames[petId] = Object.assign({}, M.DEFAULT_PET_PATH_NAMES[petId]);
+    });
   }
 
   /* 星野主線：定義值（名稱／門檻／任務文字…）先套用預設，再用舊資料裡「已經存在」的欄位覆蓋回去，
