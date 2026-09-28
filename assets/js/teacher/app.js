@@ -1595,11 +1595,17 @@
     const activateDate = el('input', { class: 'input', type: 'date', value: U.todayKey() });
     const overviewCard = sectionCard('overview', '總覽', story.active ? '故事已啟用，正依目前的加分紀錄計算本篇章星光。' : '啟用後，篇章星光會從你選擇的日期開始重新計算，不影響班級既有的總星星。', [
       story.active
-        ? el('div', { class: 'kpi-grid' }, [
-            kpi('📅', '啟用日', U.fmtDate(story.activatedAt)),
-            kpi('✨', '本篇章星光', stars.toLocaleString()),
-            kpi('📈', '本週新增星光', S.storylineWeeklyGain(s)),
-            kpi('🏁', '目前關卡', idx >= story.chapters.length ? '已全部完結' : ('第 ' + (idx + 1) + ' 關')),
+        ? el('div', {}, [
+            el('div', { class: 'kpi-grid' }, [
+              kpi('📅', '啟用日', U.fmtDate(story.activatedAt)),
+              kpi('✨', '本篇章星光', stars.toLocaleString()),
+              kpi('📈', '本週新增星光', S.storylineWeeklyGain(s)),
+              kpi('🏁', '目前關卡', idx >= story.chapters.length ? '已全部完結' : ('第 ' + (idx + 1) + ' 關')),
+            ]),
+            el('button', {
+              class: 'btn btn--ghost btn--sm', text: '📅 重新設定啟用日', style: { marginTop: '12px' },
+              onclick: () => openResetActivationDate(story),
+            }),
           ])
         : el('div', { class: 'row', style: { gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' } }, [
             el('div', { class: 'field', style: { width: '200px' } }, [
@@ -1656,6 +1662,36 @@
         ])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [overviewCard, chaptersCard, historyCard]),
     ]);
+  }
+
+  /* 重新設定啟用日：改的是「本篇章星光」重新計算的起算點，不是重新啟用一次全新的故事──
+     已經通關的關卡不會被撤銷，但還沒通關的關卡，星光會立刻依新日期重新算一次，可能因此暴增或減少。 */
+  function openResetActivationDate(story) {
+    const dateInput = el('input', { class: 'input', type: 'date', value: U.todayKey(story.activatedAt) });
+    U.modal({
+      title: '重新設定啟用日',
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'modal__text', text: '目前啟用日是 ' + U.fmtDate(story.activatedAt) + '。改成新日期後，本篇章星光會立刻依「新日期之後的加分紀錄」重新計算，可能會變多或變少。' }),
+        el('p', { class: 'card__sub', text: '已經通關的關卡不會被撤銷；還沒通關的關卡，星光達標與否會馬上套用新的計算結果。' }),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '新的啟用日' }),
+          dateInput,
+        ]),
+      ]),
+      actions: [
+        { label: '取消' },
+        {
+          label: '更新啟用日', kind: 'primary',
+          onClick: () => {
+            if (!dateInput.value) { U.toast('請選擇日期', 'warn'); return true; }
+            const ts = new Date(dateInput.value + 'T00:00:00').getTime();
+            S.activateStoryline(ts);
+            U.toast('已更新啟用日為 ' + U.fmtDate(ts));
+            render();
+          },
+        },
+      ],
+    });
   }
 
   function chapterStatus(c, idx, curIdx) {
