@@ -11,6 +11,15 @@
   let view = 'map';
   let meId = null;
 
+  /* 從目前等級進度（levelFromXp 的結果）換算「還要多少 XP 才能到某個等級」，
+     累加中間每一級的升級門檻，讓「還要幾 XP 解鎖新造型」可以直接跟目前的 XP 進度對照。 */
+  function xpUntilLevel(lv, targetLevel) {
+    if (targetLevel <= lv.level) return 0;
+    let xp = lv.need - lv.inLevel;
+    for (let l = lv.level + 1; l < targetLevel; l++) xp += M.xpForNext(l);
+    return xp;
+  }
+
   /* 每週勇氣邀請卡：自己選一項做到就好，不用每個人做一樣的事；老師觀察到就會用對應的守護行動規則加點 */
   const COURAGE_CARD_ITEMS = [
     { icon: '🌞', title: '傳遞暖光', example: '主動向一位同學說出具體的感謝或鼓勵。' },
@@ -289,13 +298,20 @@
             el('h1', { class: 'hero-card__title', html: (st ? st.name : s.classInfo.className) + '的<br>星光冒險' }),
             el('p', { class: 'hero-card__desc', text: '每一次專注、合作與勇敢，都會讓班級的探險地圖再前進一步。' }),
             st
-              ? el('div', { class: 'hero-card__pet' }, [
-                  el('span', { style: { fontSize: '30px' } }, [M.petFace(pet, 34, lv.level, st.petPathId)]),
-                  el('div', { class: 'grow' }, [
-                    el('div', { style: { fontWeight: 800 }, text: (st.petName || pet.name) + ' Lv.' + lv.level }),
-                    el('div', { class: 'muted', style: { fontSize: '13px' }, text: '再獲得 ' + (lv.need - lv.inLevel) + ' XP 升到 Lv.' + (lv.level + 1) }),
-                  ]),
-                ])
+              ? (() => {
+                  const pathName = st.petPathId ? M.petPathName(pet, st.petPathId) : '';
+                  const nextStage = (s.petStageLevels || []).find((t) => (t.minLevel || 1) > lv.level);
+                  return el('div', { class: 'hero-card__pet' }, [
+                    el('span', { style: { fontSize: '30px' } }, [M.petFace(pet, 34, lv.level, st.petPathId)]),
+                    el('div', { class: 'grow' }, [
+                      el('div', { style: { fontWeight: 800 }, text: (st.petName || pet.name) + (pathName ? '・' + pathName : '') + ' Lv.' + lv.level }),
+                      el('div', { class: 'muted', style: { fontSize: '13px' }, text: '再獲得 ' + (lv.need - lv.inLevel) + ' XP 升到 Lv.' + (lv.level + 1) }),
+                      nextStage
+                        ? el('div', { class: 'muted', style: { fontSize: '13px' }, text: '再 ' + xpUntilLevel(lv, nextStage.minLevel) + ' XP 解鎖新造型（Lv.' + nextStage.minLevel + '・' + nextStage.name + '）' })
+                        : null,
+                    ]),
+                  ]);
+                })()
               : el('button', { class: 'btn btn--green', style: { marginTop: '16px' }, text: '選擇我是誰 →', onclick: openIdentityPicker }),
           ]),
           el('div', { class: 'hero-stats' }, [
