@@ -82,7 +82,7 @@
           class: 'picker-btn', 'data-k': U.pad2(st.no) + st.name,
           onclick: () => { setMe(st.id); dlg.close(); },
         }, [
-          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 32, M.levelFromXp(st.xp).level, st.petPathId)]),
+          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 56, M.levelFromXp(st.xp).level, st.petPathId)]),
           el('div', { class: 'picker-btn__name', text: st.name }),
           el('div', { class: 'picker-btn__no', text: U.pad2(st.no) + ' 號' }),
         ])
