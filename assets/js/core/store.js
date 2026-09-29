@@ -1042,9 +1042,12 @@
     });
   }
 
-  /* 主寵物要先養到這個等級，才能開始收藏其他寵物（領養／抽獎），老師可在後台調整門檻。 */
+  /* 主寵物要先養到這個等級，才能開始收藏其他寵物（領養／抽獎），老師可在後台調整門檻。
+     已經有收藏（st.pets 不是空的）代表曾經解鎖過，這裡就一直算已解鎖——不然學生把主寵物切換成
+     剛收藏、等級還很低的那隻之後，會因為「目前主寵物」等級不夠，被鎖回去、連切回原本那隻的畫面都看不到。 */
   function canCollectPets(st) {
     if (!st) return false;
+    if ((st.pets || []).length > 0) return true;
     return M.levelFromXp(st.xp || 0).level >= ((state.settings || {}).petCollectUnlockLevel || 0);
   }
 
