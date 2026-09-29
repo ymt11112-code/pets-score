@@ -246,7 +246,7 @@
     out.classInfo = Object.assign({}, base.classInfo, s.classInfo || {});
     out.settings = Object.assign({}, base.settings, s.settings || {});
     out.students = (s.students || base.students).map((st) =>
-      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [], avatarStageIdx: null }, st)
+      Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [], avatarStageIdx: null, pets: [], displayPetKey: 'main' }, st)
     );
     ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds', 'messages'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
@@ -266,6 +266,14 @@
     });
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
+    if (!out.pathCapacity || typeof out.pathCapacity !== 'object') out.pathCapacity = {};
+    if (!out.petRarityOverrides || typeof out.petRarityOverrides !== 'object') out.petRarityOverrides = {};
+    /* 寵物稀有度分級：老師已經改過名稱／權重／領養價格的整份保留；只補上還沒出現過的分級
+       （例如日後新增第 4 個等級），不會覆蓋老師自己調整過的既有分級。 */
+    out.petRarities = Array.isArray(s.petRarities) && s.petRarities.length ? s.petRarities : base.petRarities;
+    (base.petRarities || []).forEach((br) => {
+      if (!out.petRarities.some((r) => r.id === br.id)) out.petRarities.push(Object.assign({}, br));
+    });
     migratePetStages(out, s, base);
     migratePetPaths(out, s, base);
     migratePetImageAssets(out);
@@ -941,40 +949,81 @@
     });
   }
 
+  /* ---------- 寵物收藏：主寵物 vs 收藏中的寵物 ----------
+     每個學生的「主寵物」就是原本直接存在學生物件上的那組欄位（petId/xp/petPathId/unlockedPaths/
+     avatarStageIdx/petName)——完全不改，所以加點、餵食、徽章、排行榜、星野主線星光全部不用動。
+     額外收藏的寵物存在 st.pets（陣列），每一筆是同樣欄位形狀的「凍結」實例，只有被切成主寵物時
+     才會開始累積 XP。petInstances/findPetInstance 讓「選路線」「換造型」這些邏輯可以不分主寵物
+     或收藏寵物，共用同一套程式碼。 */
+  function petInstances(st) {
+    return [{ key: 'main', ref: st }].concat((st.pets || []).map((p) => ({ key: p.id, ref: p })));
+  }
+  function findPetInstance(st, key) {
+    if (!key || key === 'main') return st;
+    return (st.pets || []).find((p) => p.id === key) || null;
+  }
+
+  /* 這條路線（某隻寵物的某條）目前全班已經有幾個人持有——即時算，不額外存計數器，
+     跟 storylineStars 一樣「現算現查」，資料不會跟實際狀況兜不起來。 */
+  function petPathClaimedCount(petId, pathId) {
+    let n = 0;
+    (state.students || []).forEach((st) => {
+      petInstances(st).forEach((inst) => {
+        if (inst.ref.petId === petId && (inst.ref.unlockedPaths || []).indexOf(pathId) >= 0) n++;
+      });
+    });
+    return n;
+  }
+
   /* 選擇／切換身分路線：已經解鎖過的路線可以隨時免費切換過去，完全不動等級、XP、星光。
      還沒解鎖過的路線第一次要花金幣解鎖（金額看 settings.pathUnlockCost，老師可調整），
-     金幣不夠就解鎖失敗；老師也可以用 giftPetPath 直接免費贈送，或透過星野主線關卡獎勵取得。 */
-  function choosePetPath(studentId, pathId) {
+     金幣不夠就解鎖失敗；老師也可以用 giftPetPath 直接免費贈送，或透過星野主線關卡獎勵取得。
+     如果老師有替這隻寵物的這條路線設定班級限定名額，額滿之後別人就不能再新解鎖（已經解鎖的人不受影響）。
+     instanceKey 是 'main'（主寵物）或某個 st.pets[].id（收藏中的寵物）。 */
+  function choosePetPathFor(studentId, instanceKey, pathId) {
     const t = student(studentId);
     if (!t) return { ok: false, msg: '找不到學生' };
+    const inst = findPetInstance(t, instanceKey);
+    if (!inst) return { ok: false, msg: '找不到這隻寵物' };
     if (!(state.petPaths || []).some((p) => p.id === pathId)) return { ok: false, msg: '找不到這條路線' };
-    const already = (t.unlockedPaths || []).indexOf(pathId) >= 0;
+    const already = (inst.unlockedPaths || []).indexOf(pathId) >= 0;
     if (already) {
       commit((s) => {
-        const x = s.students.find((y) => y.id === studentId);
+        const x = findPetInstance(s.students.find((y) => y.id === studentId), instanceKey);
         if (x) x.petPathId = pathId;
       });
       return { ok: true, unlocked: false };
     }
-    const isFirstEver = (t.unlockedPaths || []).length === 0; // V4 第一次選路線是免費的起點，不用花錢
+    const cap = ((state.pathCapacity || {})[inst.petId] || {})[pathId] || 0;
+    if (cap > 0 && petPathClaimedCount(inst.petId, pathId) >= cap) {
+      return { ok: false, msg: '這條路線班級名額已經額滿了' };
+    }
+    const isFirstEver = (inst.unlockedPaths || []).length === 0; // V4 第一次選路線是免費的起點，不用花錢
     const cost = isFirstEver ? 0 : Math.max(0, (state.settings || {}).pathUnlockCost || 0);
     if ((t.coins || 0) < cost) return { ok: false, msg: '還差 ' + (cost - (t.coins || 0)) + ' 金幣', needCoins: cost - (t.coins || 0) };
     commit((s) => {
       const x = s.students.find((y) => y.id === studentId);
       if (!x) return;
+      const xi = findPetInstance(x, instanceKey);
+      if (!xi) return;
       x.coins -= cost;
-      x.petPathId = pathId;
-      x.unlockedPaths = x.unlockedPaths || [];
-      if (x.unlockedPaths.indexOf(pathId) < 0) x.unlockedPaths.push(pathId);
+      xi.petPathId = pathId;
+      xi.unlockedPaths = xi.unlockedPaths || [];
+      if (xi.unlockedPaths.indexOf(pathId) < 0) xi.unlockedPaths.push(pathId);
       if (cost > 0) {
         s.ledger.unshift({
           id: U.uid('lg'), ts: Date.now(), studentIds: [studentId], ruleId: 'pathUnlock',
-          label: '解鎖身分路線 ' + M.petPathName(M.petById(x.petId), pathId), points: 0, xp: 0, coins: -cost,
+          label: '解鎖身分路線 ' + M.petPathName(M.petById(xi.petId), pathId), points: 0, xp: 0, coins: -cost,
           note: '', by: x.name, undone: false,
         });
       }
     });
     return { ok: true, unlocked: true };
+  }
+
+  /* 舊版只對「主寵物」操作的版本，維持原本呼叫方式不用改（petPathCard、maybeShowPathChoice 都還是這樣叫）。 */
+  function choosePetPath(studentId, pathId) {
+    return choosePetPathFor(studentId, 'main', pathId);
   }
 
   /* 老師直接免費贈送一條路線給某個學生（例如口頭鼓勵、活動獎勵），不扣金幣，
@@ -987,6 +1036,130 @@
       t.unlockedPaths = t.unlockedPaths || [];
       if (t.unlockedPaths.indexOf(pathId) < 0) t.unlockedPaths.push(pathId);
       if (!t.petPathId) t.petPathId = pathId;
+    });
+  }
+
+  /* 主寵物要先養到這個等級，才能開始收藏其他寵物（領養／抽獎），老師可在後台調整門檻。 */
+  function canCollectPets(st) {
+    if (!st) return false;
+    return M.levelFromXp(st.xp || 0).level >= ((state.settings || {}).petCollectUnlockLevel || 0);
+  }
+
+  function petRarityOf(petId) {
+    const pet = M.petById(petId);
+    const rid = (pet && pet.rarity) || 'common';
+    return (state.petRarities || []).find((r) => r.id === rid) || { id: rid, name: rid, weight: 1, adoptCost: 0 };
+  }
+
+  /* 花金幣直接領養一隻指定的新寵物（不能是已經擁有的），價格看這隻寵物的稀有度分級；
+     領養進來的寵物是「凍結」狀態（Lv.1、還沒選路線），不會自動變成主寵物，
+     學生要自己到收藏頁用 switchMainPet 決定要不要換上場成長。 */
+  function adoptPet(studentId, petId) {
+    const t = student(studentId);
+    if (!t) return { ok: false, msg: '找不到學生' };
+    if (!canCollectPets(t)) return { ok: false, msg: '主寵物還沒達到收藏解鎖等級' };
+    const pet = M.petById(petId);
+    if (!pet) return { ok: false, msg: '找不到這隻寵物' };
+    if (petInstances(t).some((inst) => inst.ref.petId === petId)) return { ok: false, msg: '已經擁有這隻寵物了' };
+    const rarity = petRarityOf(petId);
+    const cost = Math.max(0, rarity.adoptCost || 0);
+    if ((t.coins || 0) < cost) return { ok: false, msg: '還差 ' + (cost - (t.coins || 0)) + ' 金幣', needCoins: cost - (t.coins || 0) };
+    commit((s) => {
+      const x = s.students.find((y) => y.id === studentId);
+      if (!x) return;
+      x.coins -= cost;
+      x.pets = x.pets || [];
+      x.pets.push({ id: U.uid('petinst'), petId, xp: 0, petPathId: '', unlockedPaths: [], avatarStageIdx: null, petName: '' });
+      s.ledger.unshift({
+        id: U.uid('lg'), ts: Date.now(), studentIds: [studentId], ruleId: 'adopt',
+        label: '領養寵物 ' + pet.name, points: 0, xp: 0, coins: -cost,
+        note: '', by: x.name, undone: false,
+      });
+    });
+    return { ok: true, petId };
+  }
+
+  /* 花金幣抽一隻隨機寵物（照稀有度權重加權），抽獎金額看 settings.gachaCost。
+     只會抽到「還沒擁有」的寵物；如果候選池是空的（全部都擁有了），直接退回一半金幣當安慰獎，
+     不做無限重抽，避免全部抽完之後卡住。 */
+  function drawPetGacha(studentId) {
+    const t = student(studentId);
+    if (!t) return { ok: false, msg: '找不到學生' };
+    if (!canCollectPets(t)) return { ok: false, msg: '主寵物還沒達到收藏解鎖等級' };
+    const cost = Math.max(0, (state.settings || {}).gachaCost || 0);
+    if ((t.coins || 0) < cost) return { ok: false, msg: '還差 ' + (cost - (t.coins || 0)) + ' 金幣', needCoins: cost - (t.coins || 0) };
+    const ownedIds = petInstances(t).map((inst) => inst.ref.petId);
+    const pool = M.allPets().filter((p) => ownedIds.indexOf(p.id) < 0);
+    let result = null;
+    commit((s) => {
+      const x = s.students.find((y) => y.id === studentId);
+      if (!x) return;
+      x.coins -= cost;
+      if (!pool.length) {
+        // 全部都抽過了：退回一半金幣安慰，不硬塞重複的寵物
+        const refund = Math.round(cost / 2);
+        x.coins += refund;
+        s.ledger.unshift({
+          id: U.uid('lg'), ts: Date.now(), studentIds: [studentId], ruleId: 'gacha',
+          label: '抽獎（寵物已經全部擁有，退回一半金幣）', points: 0, xp: 0, coins: refund - cost,
+          note: '', by: x.name, undone: false,
+        });
+        result = { ok: true, petId: null, duplicate: true, refund };
+        return;
+      }
+      const totalWeight = pool.reduce((sum, p) => sum + Math.max(1, petRarityOf(p.id).weight || 1), 0);
+      let roll = Math.random() * totalWeight;
+      let picked = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) {
+        roll -= Math.max(1, petRarityOf(pool[i].id).weight || 1);
+        if (roll <= 0) { picked = pool[i]; break; }
+      }
+      x.pets = x.pets || [];
+      x.pets.push({ id: U.uid('petinst'), petId: picked.id, xp: 0, petPathId: '', unlockedPaths: [], avatarStageIdx: null, petName: '' });
+      s.ledger.unshift({
+        id: U.uid('lg'), ts: Date.now(), studentIds: [studentId], ruleId: 'gacha',
+        label: '抽獎抽到 ' + picked.name, points: 0, xp: 0, coins: -cost,
+        note: '', by: x.name, undone: false,
+      });
+      result = { ok: true, petId: picked.id, duplicate: false };
+    });
+    return result;
+  }
+
+  /* 切換主寵物：把「目前主寵物」跟「收藏裡指定那隻」的資料整組互換（petId/xp/petPathId/
+     unlockedPaths/avatarStageIdx/petName），等級、XP 完全保留，不會因為切換而改變或歸零。 */
+  function switchMainPet(studentId, instanceKey) {
+    if (!instanceKey || instanceKey === 'main') return { ok: true };
+    commit((s) => {
+      const t = s.students.find((x) => x.id === studentId);
+      if (!t) return;
+      const idx = (t.pets || []).findIndex((p) => p.id === instanceKey);
+      if (idx < 0) return;
+      const collected = t.pets[idx];
+      const mainSnapshot = {
+        id: U.uid('petinst'), petId: t.petId, xp: t.xp, petPathId: t.petPathId,
+        unlockedPaths: t.unlockedPaths || [], avatarStageIdx: t.avatarStageIdx, petName: t.petName || '',
+      };
+      t.petId = collected.petId;
+      t.xp = collected.xp || 0;
+      t.petPathId = collected.petPathId || '';
+      t.unlockedPaths = collected.unlockedPaths || [];
+      t.avatarStageIdx = collected.avatarStageIdx != null ? collected.avatarStageIdx : null;
+      t.petName = collected.petName || '';
+      t.pets.splice(idx, 1, mainSnapshot);
+      if (t.displayPetKey === instanceKey) t.displayPetKey = 'main';
+      else if (t.displayPetKey === 'main') t.displayPetKey = mainSnapshot.id;
+    });
+    return { ok: true };
+  }
+
+  /* 只換「首頁展示哪一張臉」，不動任何等級/路線資料，純外觀選擇。 */
+  function setDisplayPet(studentId, instanceKey) {
+    commit((s) => {
+      const t = s.students.find((x) => x.id === studentId);
+      if (!t) return;
+      if (!findPetInstance(t, instanceKey)) return;
+      t.displayPetKey = instanceKey || 'main';
     });
   }
 
@@ -1036,15 +1209,22 @@
     return stage.minLevel || 1;
   }
 
-  function setAvatarStage(studentId, idx) {
+  /* 泛化版：對「主寵物」或某隻收藏寵物設定造型階段覆蓋，instanceKey 同上是 'main' 或 st.pets[].id。 */
+  function setAvatarStageFor(studentId, instanceKey, idx) {
     commit((s) => {
       const t = s.students.find((x) => x.id === studentId);
       if (!t) return;
-      if (idx === null) { t.avatarStageIdx = null; return; }
-      const real = M.levelFromXp(t.xp || 0).level;
+      const inst = findPetInstance(t, instanceKey);
+      if (!inst) return;
+      if (idx === null) { inst.avatarStageIdx = null; return; }
+      const real = M.levelFromXp(inst.xp || 0).level;
       const stage = (s.petStageLevels || [])[idx];
-      if (stage && (stage.minLevel || 1) <= real) t.avatarStageIdx = idx;
-    }, { silent: true });
+      if (stage && (stage.minLevel || 1) <= real) inst.avatarStageIdx = idx;
+    });
+  }
+
+  function setAvatarStage(studentId, idx) {
+    return setAvatarStageFor(studentId, 'main', idx);
   }
 
   /* 幫「某一隻寵物」的某條路線取專屬名稱（因為每隻寵物的發展不盡相同，不一定要跟全班共用的預設名稱一樣）；
@@ -1161,8 +1341,9 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
-    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, giftPetPath, renamePetPath, redeem,
-    avatarDisplayLevel, setAvatarStage,
+    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
+    avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
+    canCollectPets, adoptPet, drawPetGacha, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
     sendMessage, studentMessages, unreadMessageCount, markMessagesRead,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,

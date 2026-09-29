@@ -270,6 +270,10 @@
     const st = me();
     const lv = st ? M.levelFromXp(st.xp) : null;
     const pet = st ? M.petById(st.petId) : M.petById(M.PETS[5].id);
+    /* 首頁右下角那隻大的展示寵物可能跟主寵物不一樣（學生自己在收藏頁指定的），
+       但旁邊「Lv.X／再幾 XP 升級」這些文字說明一律照主寵物算，成長只跟主寵物有關。 */
+    const displayInst = st ? (S.petInstances(st).find((i) => i.key === (st.displayPetKey || 'main')) || { ref: st }).ref : null;
+    const displayPet = displayInst ? M.petById(displayInst.petId) : pet;
     const mission = s.classMission;
     const story = s.storyline;
     const storyActive = !!(story && story.active);
@@ -347,7 +351,7 @@
         ]),
         el('div', { class: 'hero-pet' }, [
           el('div', { class: 'hero-pet__bubble', text: storyChapter ? ('再 ' + missionLeft + ' 顆星光就能點亮下一座燈塔！') : ('再 ' + missionLeft + ' 點就能打開森林寶箱！') }),
-          el('div', { class: 'hero-pet__face' }, [M.petFace(pet, 220, st ? S.avatarDisplayLevel(st) : 1, st ? st.petPathId : null)]),
+          el('div', { class: 'hero-pet__face' }, [M.petFace(displayPet, 220, displayInst ? S.avatarDisplayLevel(displayInst) : 1, displayInst ? displayInst.petPathId : null)]),
         ]),
       ]),
 
@@ -446,14 +450,23 @@
   /* ================= 視圖：我的寵物 ================= */
   /* 造型收藏：把「已經達到過的造型階段」都列出來，已達到的可以直接點來穿上（純外觀選擇，
      不影響等級、XP 或畫面上顯示的階段名稱），還沒達到的用灰階＋鎖頭顯示，點了也沒作用。 */
-  function stageGalleryCard(st, lv, pet) {
+  /* instanceKey 是 'main'（主寵物）或某個 st.pets[].id（收藏中的寵物）；不傳就當主寵物，
+     維持舊呼叫方式不用改。等級一律照這隻寵物自己的 xp 算，不是登入學生的主寵物等級。 */
+  function resolvePetInstance(st, instanceKey) {
+    if (!instanceKey || instanceKey === 'main') return st;
+    return (st.pets || []).find((p) => p.id === instanceKey) || st;
+  }
+
+  function stageGalleryCard(st, pet, instanceKey) {
+    const inst = resolvePetInstance(st, instanceKey);
+    const lv = M.levelFromXp(inst.xp || 0);
     const s = S.get();
     const levels = s.petStageLevels || [];
     let autoIdx = 0;
     levels.forEach((t, i) => { if ((t.minLevel || 1) <= lv.level) autoIdx = i; });
-    const overrideOk = st.avatarStageIdx !== null && st.avatarStageIdx !== undefined
-      && levels[st.avatarStageIdx] && (levels[st.avatarStageIdx].minLevel || 1) <= lv.level;
-    const activeIdx = overrideOk ? st.avatarStageIdx : autoIdx;
+    const overrideOk = inst.avatarStageIdx !== null && inst.avatarStageIdx !== undefined
+      && levels[inst.avatarStageIdx] && (levels[inst.avatarStageIdx].minLevel || 1) <= lv.level;
+    const activeIdx = overrideOk ? inst.avatarStageIdx : autoIdx;
     const unlockedCount = levels.filter((t) => (t.minLevel || 1) <= lv.level).length;
     return el('div', { class: 'card' }, [
       el('div', { class: 'card__head' }, [
@@ -470,14 +483,14 @@
           class: 'cos' + (unlocked ? ' is-owned' : ' is-locked') + (active ? ' is-equipped' : ''),
           onclick: () => {
             if (!unlocked) return U.toast('升到 Lv.' + (t.minLevel || 1) + ' 才會解鎖', 'warn');
-            S.setAvatarStage(st.id, idx);
+            S.setAvatarStageFor(st.id, instanceKey || 'main', idx);
             U.toast('換上「' + t.name + '」造型！');
           },
         }, [
           active ? el('span', { class: 'cos__tag', text: '穿著中' }) : null,
           el('div', {
             style: { marginBottom: '6px', filter: unlocked ? 'none' : 'grayscale(1)', opacity: unlocked ? 1 : .55 },
-          }, [M.petFace(pet, 76, t.minLevel || 1, st.petPathId)]),
+          }, [M.petFace(pet, 76, t.minLevel || 1, inst.petPathId)]),
           unlocked ? null : el('span', { style: { position: 'absolute', top: '8px', right: '8px', fontSize: '16px' }, text: '🔒' }),
           el('div', { class: 'cos__name', text: t.name }),
           el('div', { class: 'cos__meta', text: unlocked ? 'Lv.' + (t.minLevel || 1) : '需 Lv.' + (t.minLevel || 1) }),
@@ -487,8 +500,11 @@
   }
 
   /* 身分路線卡：V4 之前顯示預告，V4 之後可以選擇／切換／解鎖新路線；已解鎖的路線隨時免費切換，
-     不影響等級、XP、星光；還沒解鎖的路線要花金幣購買（金額看老師設定），或等老師贈送、或從星野主線關卡獎勵拿到。 */
-  function petPathCard(st, lv, pet) {
+     不影響等級、XP、星光；還沒解鎖的路線要花金幣購買（金額看老師設定，班級名額額滿會被擋下），
+     或等老師贈送、或從星野主線關卡獎勵拿到。instanceKey 同上，不傳就是主寵物。 */
+  function petPathCard(st, pet, instanceKey) {
+    const inst = resolvePetInstance(st, instanceKey);
+    const lv = M.levelFromXp(inst.xp || 0);
     const s = S.get();
     const paths = s.petPaths || [];
     const cost = Math.max(0, (s.settings || {}).pathUnlockCost || 0);
@@ -509,12 +525,12 @@
         ]),
       ]),
       el('div', { class: 'cos-grid' }, paths.map((p) => {
-        const unlocked = (st.unlockedPaths || []).indexOf(p.id) >= 0;
-        const active = st.petPathId === p.id;
+        const unlocked = (inst.unlockedPaths || []).indexOf(p.id) >= 0;
+        const active = inst.petPathId === p.id;
         return el('button', {
           class: 'cos' + (unlocked ? ' is-owned' : '') + (active ? ' is-equipped' : ''),
           onclick: () => {
-            const r = S.choosePetPath(st.id, p.id);
+            const r = S.choosePetPathFor(st.id, instanceKey || 'main', p.id);
             if (!r.ok) return U.toast(r.msg, 'warn');
             U.toast(r.unlocked ? '🎉 花費 ' + cost + ' 金幣解鎖了「' + M.petPathName(pet, p.id) + '」路線！' : '已切換成「' + M.petPathName(pet, p.id) + '」');
           },
@@ -563,6 +579,142 @@
     });
   }
 
+  /* 開一個小視窗管理「這隻收藏的寵物」的路線／造型，跟主寵物頁面共用同一套卡片元件；
+     用 S.subscribe 讓視窗內容在每次資料變動後自動重畫，不然點了按鈕畫面會停在舊狀態。 */
+  function openInstanceManager(studentId, instanceKey, pet) {
+    const bodyEl = el('div', { class: 'stack' });
+    function paint() {
+      const freshSt = S.student(studentId);
+      if (!freshSt) return;
+      bodyEl.innerHTML = '';
+      bodyEl.appendChild(petPathCard(freshSt, pet, instanceKey));
+      bodyEl.appendChild(stageGalleryCard(freshSt, pet, instanceKey));
+    }
+    paint();
+    const unsub = S.subscribe(paint);
+    U.modal({ title: '管理「' + pet.name + '」', wide: true, body: bodyEl, actions: [{ label: '完成' }], onClose: unsub });
+  }
+
+  /* 抽獎：轉動動畫跟教師端抽籤同一套手感，結算才真正呼叫 S.drawPetGacha 扣款／發寵物。 */
+  function openGachaDraw(studentId) {
+    const st = S.student(studentId);
+    const cost = Math.max(0, (S.get().settings || {}).gachaCost || 0);
+    if ((st.coins || 0) < cost) return U.toast('金幣不夠，還差 ' + (cost - (st.coins || 0)) + ' 金幣', 'warn');
+    const pool = M.allPets();
+    const stage = el('div', { class: 'picker-stage' }, [
+      el('div', { class: 'picker-stage__emoji', text: '🎰' }),
+      el('div', { class: 'picker-stage__name', text: '抽獎中…' }),
+      el('div', { class: 'picker-stage__meta', text: '' }),
+    ]);
+    const handle = U.modal({ title: '🎰 抽獎', body: stage });
+    stage.classList.add('is-rolling');
+    let n = 0;
+    const iv = setInterval(() => {
+      const r = pool[Math.floor(Math.random() * pool.length)];
+      stage.children[0].textContent = r.emoji;
+      stage.children[1].textContent = r.name;
+      if (++n > 14) {
+        clearInterval(iv);
+        stage.classList.remove('is-rolling');
+        const result = S.drawPetGacha(studentId);
+        setTimeout(() => {
+          handle.close();
+          if (!result || !result.ok) { U.toast((result && result.msg) || '抽獎失敗', 'warn'); return; }
+          if (result.duplicate) { U.toast('寵物已經全部擁有了，退回 🪙' + result.refund + ' 金幣', 'ok'); return; }
+          U.toast('🎉 抽到了「' + M.petById(result.petId).name + '」！', 'ok');
+        }, 450);
+      }
+    }, 70);
+  }
+
+  /* ================= 視圖：寵物收藏 ================= */
+  function viewCollection() {
+    const st = me();
+    if (!st) return needIdentity('選擇身分後，就能查看收藏的寵物。');
+    const s = S.get();
+    const lv = M.levelFromXp(st.xp);
+    const unlockLevel = (s.settings || {}).petCollectUnlockLevel || 0;
+
+    if (!S.canCollectPets(st)) {
+      return el('div', { class: 'sect' }, [
+        el('div', { class: 'wrap wrap--wide' }, [
+          sectionHead('寵物收藏', '尚未解鎖', '主寵物升到 Lv.' + unlockLevel + ' 之後，就能開始花金幣領養或抽獎收藏其他寵物。'),
+          el('div', { class: 'card', style: { textAlign: 'center', padding: '44px' } }, [
+            el('div', { style: { fontSize: '48px' }, text: '🔒' }),
+            el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '目前 Lv.' + lv.level + '，再升 ' + Math.max(0, unlockLevel - lv.level) + ' 級就能解鎖' }),
+          ]),
+        ]),
+      ]);
+    }
+
+    const instances = S.petInstances(st);
+    const ownedIds = instances.map((inst) => inst.ref.petId);
+    const gachaCost = Math.max(0, (s.settings || {}).gachaCost || 0);
+    const displayKey = st.displayPetKey || 'main';
+
+    return el('div', { class: 'sect' }, [
+      el('div', { class: 'wrap wrap--wide' }, [
+        sectionHead('寵物收藏', '已擁有 ' + instances.length + ' / ' + M.allPets().length + ' 隻', '「主寵物」才會繼續成長；「首頁展示」只是換一張臉給大家看，不影響誰在成長。'),
+
+        el('div', { class: 'card' }, [
+          el('h3', { class: 'card__title', text: '已擁有' }),
+          el('div', { class: 'cos-grid' }, instances.map(({ key, ref }) => {
+            const pet = M.petById(ref.petId);
+            const ilv = M.levelFromXp(ref.xp || 0);
+            const isMain = key === 'main';
+            const isDisplay = displayKey === key;
+            return el('div', { class: 'cos' + (isMain ? ' is-owned' : '') }, [
+              isMain ? el('span', { class: 'cos__tag', text: '主寵物' }) : null,
+              el('div', { style: { marginBottom: '6px' } }, [M.petFace(pet, 76, S.avatarDisplayLevel(ref), ref.petPathId)]),
+              el('div', { class: 'cos__name', text: ref.petName || pet.name }),
+              el('div', { class: 'cos__meta', text: 'Lv.' + ilv.level + (isDisplay ? '　🏠 展示中' : '') }),
+              el('div', { class: 'row', style: { gap: '4px', marginTop: '8px', flexWrap: 'wrap', justifyContent: 'center' } }, [
+                !isMain ? el('button', {
+                  class: 'btn btn--ghost btn--sm', text: '設為主寵物',
+                  onclick: () => { S.switchMainPet(st.id, key); U.toast('已切換主寵物！'); },
+                }) : null,
+                !isDisplay ? el('button', {
+                  class: 'btn btn--ghost btn--sm', text: '設為展示',
+                  onclick: () => { S.setDisplayPet(st.id, key); U.toast('已設定首頁展示！'); },
+                }) : null,
+                el('button', { class: 'btn btn--ghost btn--sm', text: '造型／路線', onclick: () => openInstanceManager(st.id, key, pet) }),
+              ]),
+            ]);
+          })),
+        ]),
+
+        el('div', { class: 'card' }, [
+          el('div', { class: 'card__head' }, [
+            el('div', {}, [
+              el('h3', { class: 'card__title', text: '🎰 抽獎' }),
+              el('p', { class: 'card__sub', text: '花 🪙' + gachaCost + ' 金幣，隨機抽一隻還沒擁有的寵物；稀有度越高越少見。' }),
+            ]),
+          ]),
+          el('button', { class: 'btn btn--primary', style: { width: '100%' }, text: '🎰 抽獎（🪙' + gachaCost + '）', onclick: () => openGachaDraw(st.id) }),
+        ]),
+
+        el('div', { class: 'card' }, [
+          el('h3', { class: 'card__title', text: '尚未擁有' }),
+          el('div', { class: 'cos-grid' }, M.allPets().filter((p) => ownedIds.indexOf(p.id) < 0).map((p) => {
+            const rd = (s.petRarities || []).find((r) => r.id === (p.rarity || 'common')) || { name: '', adoptCost: 0 };
+            return el('button', {
+              class: 'cos',
+              onclick: () => {
+                const r = S.adoptPet(st.id, p.id);
+                if (!r.ok) return U.toast(r.msg, 'warn');
+                U.toast('🎉 領養了「' + p.name + '」！');
+              },
+            }, [
+              el('div', { style: { marginBottom: '6px' } }, [M.petFace(p, 76, 1)]),
+              el('div', { class: 'cos__name', text: p.name }),
+              el('div', { class: 'cos__meta', text: rd.name + '・🪙' + rd.adoptCost }),
+            ]);
+          })),
+        ]),
+      ]),
+    ]);
+  }
+
   function viewPet() {
     const st = me();
     if (!st) return needIdentity('選擇身分後，就能照顧你的寵物。');
@@ -589,7 +741,7 @@
             el('div', { style: { marginTop: '14px' } }, [progressBar(lv.percent, true)]),
             el('div', { class: 'muted', style: { fontSize: '13px', marginTop: '6px' }, text: lv.inLevel + ' / ' + lv.need + ' XP　還差 ' + (lv.need - lv.inLevel) + ' XP 升級' }),
             el('div', { class: 'row', style: { justifyContent: 'center', gap: '8px', marginTop: '14px' } }, [
-              el('button', { class: 'btn btn--ghost btn--sm', text: '🔄 換一隻寵物', onclick: openPetPicker }),
+              el('button', { class: 'btn btn--ghost btn--sm', text: '🎒 我的收藏', onclick: () => goTo('collection') }),
               el('button', { class: 'btn btn--ghost btn--sm', text: '✏️ 取名字', onclick: openRename }),
             ]),
           ]),
@@ -620,9 +772,9 @@
               })),
             ]),
 
-            petPathCard(st, lv, pet),
+            petPathCard(st, pet),
 
-            stageGalleryCard(st, lv, pet),
+            stageGalleryCard(st, pet),
 
             el('div', { class: 'card' }, [
               el('h3', { class: 'card__title', text: '我的徽章' }),
@@ -662,21 +814,6 @@
         el('span', { class: 'timeline-row__pts' + (minus ? ' is-minus' : ''), text: amount }),
       ]);
     });
-  }
-
-  function openPetPicker() {
-    const st = me();
-    const body = el('div', { class: 'cos-grid' }, M.allPets().map((p) =>
-      el('button', {
-        class: 'cos' + (st.petId === p.id ? ' is-equipped' : ''),
-        onclick: () => { S.choosePet(st.id, p.id); U.toast('換成 ' + p.name + ' 囉！'); dlg.close(); },
-      }, [
-        el('div', { class: 'cos__emoji', text: p.emoji }),
-        el('div', { class: 'cos__name', text: p.name }),
-        el('div', { class: 'cos__meta', text: p.trait }),
-      ])
-    ));
-    const dlg = U.modal({ title: '選擇你的寵物', body, wide: true });
   }
 
   function openRename() {
@@ -913,7 +1050,7 @@
   }
 
   /* ---------- 渲染 ---------- */
-  const VIEWS = { map: viewMap, pet: viewPet, task: viewTask, mates: viewMates, shop: viewShop };
+  const VIEWS = { map: viewMap, pet: viewPet, collection: viewCollection, task: viewTask, mates: viewMates, shop: viewShop };
 
   function renderWho() {
     const st = me();
@@ -958,6 +1095,13 @@
     });
   }
 
+  function goTo(viewName) {
+    view = viewName;
+    if (location.hash.slice(1) !== view) location.hash = view;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   function render() {
     const host = $('#view');
     host.innerHTML = '';
@@ -998,12 +1142,7 @@
 
     const hash = location.hash.slice(1);
     if (VIEWS[hash]) view = hash;
-    $$('#nav .nav__item').forEach((b) => b.addEventListener('click', () => {
-      view = b.dataset.view;
-      if (location.hash.slice(1) !== view) location.hash = view;
-      render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }));
+    $$('#nav .nav__item').forEach((b) => b.addEventListener('click', () => goTo(b.dataset.view)));
     window.addEventListener('hashchange', () => {
       const h = location.hash.slice(1);
       if (VIEWS[h] && h !== view) { view = h; render(); }

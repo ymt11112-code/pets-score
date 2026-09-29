@@ -1268,6 +1268,7 @@
               /* 列表前面的小圖示固定顯示 V3（分岔前的最後一階）的造型，不受路線影響、也不會因為
                  學生等級高低而跳來跳去，方便老師快速辨認每種寵物。 */
               const v3Level = ((s.petStageLevels || [])[2] || {}).minLevel || 1;
+              const rarityId = p.rarity || 'common';
               return el('div', { class: 'rule-edit' }, [
                 M.petFace(p, 32, v3Level),
                 el('input', {
@@ -1282,6 +1283,19 @@
                     }
                   },
                 }),
+                el('select', {
+                  class: 'select', style: { width: '92px' }, title: '稀有度（影響抽獎機率與領養金幣）',
+                  onchange: (e) => S.commit((d) => {
+                    if (isBuiltin) {
+                      d.petRarityOverrides = d.petRarityOverrides || {};
+                      d.petRarityOverrides[p.id] = e.target.value;
+                    } else {
+                      const cp = (d.customPets || []).find((x) => x.id === p.id);
+                      if (cp) cp.rarity = e.target.value;
+                    }
+                  }, { silent: true }),
+                },
+                  (s.petRarities || []).map((r) => el('option', { value: r.id, text: r.name, selected: r.id === rarityId ? 'selected' : null }))),
                 el('span', {
                   class: 'pill' + (withImg ? '' : ' pill--gray'),
                   text: totalStages + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
@@ -1376,6 +1390,53 @@
               }),
             ]),
           ]),
+          card('🎒 寵物收藏設定', '學生的主寵物升到指定等級後，就能開始花金幣「領養」指定寵物，或花金幣「抽獎」隨機獲得；每隻寵物的抽獎機率與領養價格看牠的稀有度分級。', [
+            el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
+              el('div', { class: 'field', style: { width: '200px' } }, [
+                el('label', { class: 'field__label', text: '主寵物達到幾級才能收藏' }),
+                el('input', {
+                  class: 'input', type: 'number', min: '1', value: String((s.settings || {}).petCollectUnlockLevel != null ? s.settings.petCollectUnlockLevel : 10),
+                  onchange: (e) => {
+                    const n = Math.max(1, Math.round(Number(e.target.value) || 1));
+                    S.commit((d) => { d.settings = d.settings || {}; d.settings.petCollectUnlockLevel = n; }, { silent: true });
+                  },
+                }),
+              ]),
+              el('div', { class: 'field', style: { width: '160px' } }, [
+                el('label', { class: 'field__label', text: '每次抽獎金幣' }),
+                el('input', {
+                  class: 'input', type: 'number', min: '0', value: String((s.settings || {}).gachaCost != null ? s.settings.gachaCost : 50),
+                  onchange: (e) => {
+                    const n = Math.max(0, Math.round(Number(e.target.value) || 0));
+                    S.commit((d) => { d.settings = d.settings || {}; d.settings.gachaCost = n; }, { silent: true });
+                  },
+                }),
+              ]),
+            ]),
+            el('p', { class: 'field__label', style: { marginTop: '14px' }, text: '稀有度分級（名稱／抽獎機率權重／領養金幣）' }),
+            el('div', { class: 'stack' }, (s.petRarities || []).map((r, idx) =>
+              el('div', { class: 'rule-edit' }, [
+                el('input', {
+                  class: 'input grow', value: r.name, placeholder: '分級名稱',
+                  onchange: (e) => { const nm = e.target.value.trim(); if (nm) S.commit((d) => { d.petRarities[idx].name = nm; }, { silent: true }); },
+                }),
+                el('div', { class: 'field', style: { width: '110px' } }, [
+                  el('label', { class: 'field__label', text: '抽獎權重' }),
+                  el('input', {
+                    class: 'input', type: 'number', min: '1', value: r.weight,
+                    onchange: (e) => S.commit((d) => { d.petRarities[idx].weight = Math.max(1, Math.round(Number(e.target.value) || 1)); }, { silent: true }),
+                  }),
+                ]),
+                el('div', { class: 'field', style: { width: '110px' } }, [
+                  el('label', { class: 'field__label', text: '領養金幣' }),
+                  el('input', {
+                    class: 'input', type: 'number', min: '0', value: r.adoptCost,
+                    onchange: (e) => S.commit((d) => { d.petRarities[idx].adoptCost = Math.max(0, Math.round(Number(e.target.value) || 0)); }, { silent: true }),
+                  }),
+                ]),
+              ])
+            )),
+          ]),
         ]),
       ]),
     ]);
@@ -1432,7 +1493,11 @@
           d.customPets = (d.customPets || []).filter((x) => x.id !== pet.id);
         }
         const fallback = (M.allPets().find((p) => p.id !== pet.id) || {}).id;
-        if (fallback) d.students.forEach((x) => { if (x.petId === pet.id) x.petId = fallback; });
+        d.students.forEach((x) => {
+          if (fallback && x.petId === pet.id) x.petId = fallback;
+          if (x.pets && x.pets.length) x.pets = x.pets.filter((p) => p.petId !== pet.id);
+          if (x.displayPetKey && x.displayPetKey !== 'main' && !(x.pets || []).some((p) => p.id === x.displayPetKey)) x.displayPetKey = 'main';
+        });
       });
       U.toast('已刪除「' + pet.name + '」', 'warn');
     });
@@ -1488,16 +1553,35 @@
       const pathId = activePathId;
       const globalName = (paths.find((p) => p.id === pathId) || {}).name || pathId;
       const customNow = ((S.get().petPathNames || {})[pet.id] || {})[pathId] || '';
-      pathNameEl.appendChild(el('div', { class: 'field', style: { maxWidth: '320px', marginTop: '10px' } }, [
-        el('label', { class: 'field__label', text: '「' + pet.name + '」在這條路線的專屬名稱（留空就沿用班級預設）' }),
-        el('input', {
-          class: 'input', value: customNow, placeholder: '預設：' + globalName,
-          onchange: (e) => {
-            S.renamePetPath(pet.id, pathId, e.target.value.trim());
-            paintPathTabs();
-            paintPathNameField();
-          },
-        }),
+      const cap = (((S.get().pathCapacity || {})[pet.id] || {})[pathId]) || 0;
+      const claimed = S.petPathClaimedCount(pet.id, pathId);
+      pathNameEl.appendChild(el('div', { class: 'row', style: { gap: '14px', flexWrap: 'wrap', marginTop: '10px' } }, [
+        el('div', { class: 'field', style: { maxWidth: '320px' } }, [
+          el('label', { class: 'field__label', text: '「' + pet.name + '」在這條路線的專屬名稱（留空就沿用班級預設）' }),
+          el('input', {
+            class: 'input', value: customNow, placeholder: '預設：' + globalName,
+            onchange: (e) => {
+              S.renamePetPath(pet.id, pathId, e.target.value.trim());
+              paintPathTabs();
+              paintPathNameField();
+            },
+          }),
+        ]),
+        el('div', { class: 'field', style: { width: '200px' } }, [
+          el('label', { class: 'field__label', text: '班級限定名額（0＝不限，目前 ' + claimed + ' 人持有）' }),
+          el('input', {
+            class: 'input', type: 'number', min: '0', value: String(cap),
+            onchange: (e) => {
+              const n = Math.max(0, Math.round(Number(e.target.value) || 0));
+              S.commit((d) => {
+                d.pathCapacity = d.pathCapacity || {};
+                d.pathCapacity[pet.id] = d.pathCapacity[pet.id] || {};
+                d.pathCapacity[pet.id][pathId] = n;
+              }, { silent: true });
+              paintPathNameField();
+            },
+          }),
+        ]),
       ]));
     }
 

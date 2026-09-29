@@ -8,20 +8,28 @@
      圖像先用 emoji 佔位；之後換成圖片只要把 img 欄位填上路徑，
      介面會自動改用 <img>（見 petFace()）。 */
   const PETS = [
-    { id: '02cat',   name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。' },
-    { id: '01dog',   name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。' },
-    { id: 'bunny',   name: '彩虹獨角兔',   emoji: '🐰', img: '', trait: '奇幻系', desc: '耳朵能聽見每個願望，蹦蹦跳跳把色彩帶給全班。' },
-    { id: '03fox',   name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。' },
-    { id: 'panda',   name: '功夫熊貓',     emoji: '🐼', img: '', trait: '堅毅系', desc: '動作慢但招招紮實，是隊伍裡最可靠的後盾。' },
-    { id: 'otter',   name: '焦糖水獺',     emoji: '🦦', img: '', trait: '探索系', desc: '毛色像融化的焦糖，喜歡在溪流間尋找新鮮事。' },
-    { id: 'hamster', name: '花生倉鼠',     emoji: '🐹', img: '', trait: '整潔系', desc: '小小的頰囊塞滿寶貝，最愛把教室角落都整理好。' },
-    { id: 'penguin', name: '極光企鵝',     emoji: '🐧', img: '', trait: '堅持系', desc: '揹著小小提燈，一步一步在黑夜裡帶路前進。' },
-    { id: 'dragon',  name: '抹茶小龍',     emoji: '🐲', img: '', trait: '勇氣系', desc: '遇到難題不退縮，會噴出鼓勵的火花。' },
-    { id: 'alpaca',  name: '棉花羊駝',     emoji: '🦙', img: '', trait: '溫柔系', desc: '毛茸茸的擁抱，專治上台前的緊張。' },
-    { id: 'capy',    name: '悠哉水豚',     emoji: '🦫', img: '', trait: '穩定系', desc: '從不慌張，教大家好好呼吸。' },
-    { id: 'bear',    name: '蜂蜜小熊',     emoji: '🐻', img: '', trait: '力量系', desc: '搬桌椅、整理公共區域的第一名。' },
-    { id: 'koala',   name: '薄荷無尾熊',   emoji: '🐨', img: '', trait: '療癒系', desc: '身上帶著淡淡薄荷香，總能在同學緊張時輕輕安撫。' },
-    { id: 'owl',     name: '星眠貓頭鷹',   emoji: '🦉', img: '', trait: '沉靜系', desc: '喜歡在安靜的角落閱讀，最懂得傾聽每個小小心事。' },
+    { id: '02cat',   name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。', rarity: 'common' },
+    { id: '01dog',   name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。', rarity: 'common' },
+    { id: 'bunny',   name: '彩虹獨角兔',   emoji: '🐰', img: '', trait: '奇幻系', desc: '耳朵能聽見每個願望，蹦蹦跳跳把色彩帶給全班。', rarity: 'common' },
+    { id: '03fox',   name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。', rarity: 'common' },
+    { id: 'panda',   name: '功夫熊貓',     emoji: '🐼', img: '', trait: '堅毅系', desc: '動作慢但招招紮實，是隊伍裡最可靠的後盾。', rarity: 'common' },
+    { id: 'otter',   name: '焦糖水獺',     emoji: '🦦', img: '', trait: '探索系', desc: '毛色像融化的焦糖，喜歡在溪流間尋找新鮮事。', rarity: 'common' },
+    { id: 'hamster', name: '花生倉鼠',     emoji: '🐹', img: '', trait: '整潔系', desc: '小小的頰囊塞滿寶貝，最愛把教室角落都整理好。', rarity: 'common' },
+    { id: 'penguin', name: '極光企鵝',     emoji: '🐧', img: '', trait: '堅持系', desc: '揹著小小提燈，一步一步在黑夜裡帶路前進。', rarity: 'common' },
+    { id: 'dragon',  name: '抹茶小龍',     emoji: '🐲', img: '', trait: '勇氣系', desc: '遇到難題不退縮，會噴出鼓勵的火花。', rarity: 'common' },
+    { id: 'alpaca',  name: '棉花羊駝',     emoji: '🦙', img: '', trait: '溫柔系', desc: '毛茸茸的擁抱，專治上台前的緊張。', rarity: 'common' },
+    { id: 'capy',    name: '悠哉水豚',     emoji: '🦫', img: '', trait: '穩定系', desc: '從不慌張，教大家好好呼吸。', rarity: 'common' },
+    { id: 'bear',    name: '蜂蜜小熊',     emoji: '🐻', img: '', trait: '力量系', desc: '搬桌椅、整理公共區域的第一名。', rarity: 'common' },
+    { id: 'koala',   name: '薄荷無尾熊',   emoji: '🐨', img: '', trait: '療癒系', desc: '身上帶著淡淡薄荷香，總能在同學緊張時輕輕安撫。', rarity: 'common' },
+    { id: 'owl',     name: '星眠貓頭鷹',   emoji: '🦉', img: '', trait: '沉靜系', desc: '喜歡在安靜的角落閱讀，最懂得傾聽每個小小心事。', rarity: 'common' },
+  ];
+
+  /* 寵物稀有度分級：決定抽獎機率權重（weight 越高越容易抽到）與直接領養的金幣價格，
+     老師可以在後台改名稱／權重／價格，也能改每隻寵物歸在哪一級。 */
+  const DEFAULT_PET_RARITIES = [
+    { id: 'common',    name: '普通', weight: 60, adoptCost: 30 },
+    { id: 'rare',      name: '稀有', weight: 30, adoptCost: 80 },
+    { id: 'legendary', name: '傳說', weight: 10, adoptCost: 200 },
   ];
 
   /* 寵物成長階段 */
@@ -282,23 +290,28 @@
       const S = global.PetStore;
       if (S && S.get) {
         const s = S.get() || {};
-        return { names: s.petNames || {}, extra: s.customPets || [], deleted: s.deletedPetIds || [] };
+        return {
+          names: s.petNames || {}, extra: s.customPets || [], deleted: s.deletedPetIds || [],
+          rarities: s.petRarityOverrides || {},
+        };
       }
     } catch (e) { /* store 還沒準備好就當作沒有任何自訂 */ }
-    return { names: {}, extra: [], deleted: [] };
+    return { names: {}, extra: [], deleted: [], rarities: {} };
   }
 
-  function resolvePetName(p, names) {
-    const custom = names[p.id];
-    return custom ? Object.assign({}, p, { name: custom }) : p;
+  function resolvePet(p, names, rarities) {
+    const patch = {};
+    if (names[p.id]) patch.name = names[p.id];
+    if (rarities[p.id]) patch.rarity = rarities[p.id];
+    return Object.keys(patch).length ? Object.assign({}, p, patch) : p;
   }
 
-  /* 取得全部「目前可用」的寵物圖鑑：內建寵物（扣掉被刪除的）＋ 老師自己新增的寵物，並套用自訂名稱。
+  /* 取得全部「目前可用」的寵物圖鑑：內建寵物（扣掉被刪除的）＋ 老師自己新增的寵物，並套用自訂名稱／稀有度。
      下拉選單、圖鑑列表、抽新寵物等都應該用這個，而不是直接用 PETS。 */
   function allPets() {
-    const { names, extra, deleted } = classPetData();
+    const { names, extra, deleted, rarities } = classPetData();
     const builtin = PETS.filter((p) => deleted.indexOf(p.id) < 0);
-    return builtin.concat(extra).map((p) => resolvePetName(p, names));
+    return builtin.concat(extra).map((p) => resolvePet(p, names, rarities));
   }
 
   /* 某隻寵物在「身分路線」上要顯示的名稱：每隻寵物可以各自取名（因為每隻寵物的發展不盡相同），
@@ -418,6 +431,8 @@
         petPathId: '',
         unlockedPaths: [],
         avatarStageIdx: null,
+        pets: [],
+        displayPetKey: 'main',
       };
     });
 
@@ -481,6 +496,9 @@
         return acc;
       }, {}),
       petPathNames: U.deepClone(DEFAULT_PET_PATH_NAMES),
+      petRarities: U.deepClone(DEFAULT_PET_RARITIES),
+      petRarityOverrides: {},
+      pathCapacity: {},
       petNames: {},
       customPets: [],
       deletedPetIds: [],
@@ -519,6 +537,8 @@
         soundDeduct: false,
         showBatchBar: true,
         pathUnlockCost: 50,
+        petCollectUnlockLevel: 10,
+        gachaCost: 50,
       },
     };
   }
@@ -526,7 +546,7 @@
   global.PetModel = {
     PETS, STAGES, COSMETICS, FOODS, BADGES, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
-    DEFAULT_PET_IMAGE_ASSETS,
+    DEFAULT_PET_IMAGE_ASSETS, DEFAULT_PET_RARITIES,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
     xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, petPathName, seedState,
   };
