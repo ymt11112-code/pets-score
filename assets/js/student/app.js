@@ -778,11 +778,11 @@
 
             el('div', { class: 'card' }, [
               el('h3', { class: 'card__title', text: '我的徽章' }),
-              el('p', { class: 'card__sub', style: { marginBottom: '14px' }, text: '已獲得 ' + (st.badges || []).length + ' / ' + M.BADGES.length + ' 枚' }),
-              el('div', { class: 'badge-grid' }, M.BADGES.map((b) => {
+              el('p', { class: 'card__sub', style: { marginBottom: '14px' }, text: '已獲得 ' + (st.badges || []).length + ' / ' + (S.get().badgeDefs || []).length + ' 枚' }),
+              el('div', { class: 'badge-grid' }, (S.get().badgeDefs || []).map((b) => {
                 const got = (st.badges || []).indexOf(b.id) >= 0;
                 return el('div', { class: 'badge-item' + (got ? '' : ' is-locked'), title: b.desc }, [
-                  el('div', { class: 'badge-item__emoji', text: b.emoji }),
+                  el('div', { class: 'badge-item__emoji' }, [M.badgeFace(b, 28)]),
                   el('div', { class: 'badge-item__name', text: b.name }),
                 ]);
               })),
@@ -946,7 +946,8 @@
     const lv = M.levelFromXp(st.xp);
     const pet = M.petById(st.petId);
     const g = S.group(st.groupId);
-    const badges = (st.badges || []).map((b) => M.BADGES.find((x) => x.id === b)).filter(Boolean);
+    const badgeDefs = S.get().badgeDefs || [];
+    const badges = (st.badges || []).map((b) => badgeDefs.find((x) => x.id === b)).filter(Boolean);
     U.modal({
       title: U.pad2(st.no) + ' ' + st.name,
       body: el('div', { class: 'stack' }, [
@@ -965,7 +966,7 @@
         ]),
         badges.length
           ? el('div', { class: 'badge-grid' }, badges.map((b) => el('div', { class: 'badge-item', title: b.desc }, [
-              el('div', { class: 'badge-item__emoji', text: b.emoji }),
+              el('div', { class: 'badge-item__emoji' }, [M.badgeFace(b, 28)]),
               el('div', { class: 'badge-item__name', text: b.name }),
             ])))
           : el('p', { class: 'muted', text: '還沒有徽章，加油！' }),

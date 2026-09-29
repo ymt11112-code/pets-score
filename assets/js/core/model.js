@@ -124,21 +124,55 @@
     { id: 'star',   name: '星星糖', emoji: '🌟', cost: 25, xp: 45 },
   ];
 
-  /* 徽章條件 */
-  const BADGES = [
-    { id: 'first_step',  name: '第一步',     emoji: '👣', desc: '獲得第一筆點數',           test: (s) => s.totalPoints >= 1 },
-    { id: 'p50',         name: '五十里程',   emoji: '🎯', desc: '累積 50 點',               test: (s) => s.totalPoints >= 50 },
-    { id: 'p100',        name: '百點探險家', emoji: '🏅', desc: '累積 100 點',              test: (s) => s.totalPoints >= 100 },
-    { id: 'streak7',     name: '七日堅持',   emoji: '🔥', desc: '連續 7 天有好表現',        test: (s) => s.streak >= 7 },
-    { id: 'streak14',    name: '雙週不間斷', emoji: '💪', desc: '連續 14 天有好表現',       test: (s) => s.streak >= 14 },
-    { id: 'lv5',         name: '成長中',     emoji: '🌱', desc: '寵物達到 Lv.5',            test: (s) => s.petLevel >= 5 },
-    { id: 'lv10',        name: '完全體',     emoji: '👑', desc: '寵物達到 Lv.10',           test: (s) => s.petLevel >= 10 },
-    { id: 'helper',      name: '小幫手',     emoji: '❤️', desc: '主動幫忙 10 次',           test: (s) => (s.ruleCount && s.ruleCount.help) >= 10 },
-    { id: 'tidy',        name: '整潔達人',   emoji: '🧹', desc: '環境整潔 10 次',           test: (s) => (s.ruleCount && s.ruleCount.tidy) >= 10 },
-    { id: 'teamwork',    name: '合作高手',   emoji: '🤝', desc: '小組合作 8 次',            test: (s) => (s.ruleCount && s.ruleCount.team) >= 8 },
-    { id: 'stylist',     name: '造型收藏家', emoji: '🎀', desc: '解鎖 3 種造型',            test: (s) => (s.cosmetics || []).length >= 3 },
-    { id: 'shopper',     name: '第一次兌換', emoji: '🎁', desc: '在商店兌換一次',           test: (s) => (s.redeemCount || 0) >= 1 },
+  /* 徽章條件：用「統計項目＋門檻」描述，不用寫死的函式，才能存進存檔、給老師在後台編輯。
+     statKey 是哪個統計數字，ruleCount 這個 statKey 要另外指定 ruleId（看的是哪個規則累計了幾次）。 */
+  const BADGE_STAT_DEFS = [
+    { key: 'totalPoints', label: '累積點數達到' },
+    { key: 'streak',      label: '連續天數達到' },
+    { key: 'petLevel',    label: '寵物等級達到' },
+    { key: 'ruleCount',   label: '某個規則累計次數達到' },
+    { key: 'cosmetics',   label: '解鎖造型數量達到' },
+    { key: 'redeemCount', label: '商店兌換次數達到' },
   ];
+  const DEFAULT_BADGES = [
+    { id: 'first_step',  name: '第一步',     emoji: '👣', img: '', desc: '獲得第一筆點數',       statKey: 'totalPoints', ruleId: '', value: 1 },
+    { id: 'p50',         name: '五十里程',   emoji: '🎯', img: '', desc: '累積 50 點',           statKey: 'totalPoints', ruleId: '', value: 50 },
+    { id: 'p100',        name: '百點探險家', emoji: '🏅', img: '', desc: '累積 100 點',          statKey: 'totalPoints', ruleId: '', value: 100 },
+    { id: 'streak7',     name: '七日堅持',   emoji: '🔥', img: '', desc: '連續 7 天有好表現',    statKey: 'streak',      ruleId: '', value: 7 },
+    { id: 'streak14',    name: '雙週不間斷', emoji: '💪', img: '', desc: '連續 14 天有好表現',   statKey: 'streak',      ruleId: '', value: 14 },
+    { id: 'lv5',         name: '成長中',     emoji: '🌱', img: '', desc: '寵物達到 Lv.5',        statKey: 'petLevel',    ruleId: '', value: 5 },
+    { id: 'lv10',        name: '完全體',     emoji: '👑', img: '', desc: '寵物達到 Lv.10',       statKey: 'petLevel',    ruleId: '', value: 10 },
+    { id: 'helper',      name: '小幫手',     emoji: '❤️', img: '', desc: '主動幫忙 10 次',       statKey: 'ruleCount',   ruleId: 'help', value: 10 },
+    { id: 'tidy',        name: '整潔達人',   emoji: '🧹', img: '', desc: '環境整潔 10 次',       statKey: 'ruleCount',   ruleId: 'tidy', value: 10 },
+    { id: 'teamwork',    name: '合作高手',   emoji: '🤝', img: '', desc: '小組合作 8 次',        statKey: 'ruleCount',   ruleId: 'team', value: 8 },
+    { id: 'stylist',     name: '造型收藏家', emoji: '🎀', img: '', desc: '解鎖 3 種造型',        statKey: 'cosmetics',   ruleId: '', value: 3 },
+    { id: 'shopper',     name: '第一次兌換', emoji: '🎁', img: '', desc: '在商店兌換一次',       statKey: 'redeemCount', ruleId: '', value: 1 },
+  ];
+
+  /* 判斷某個學生的統計資料是否達到某枚徽章的門檻，refreshBadges（store.js）用這個決定要不要發徽章。 */
+  function evalBadgeCondition(b, st) {
+    const val = b.value || 0;
+    switch (b.statKey) {
+      case 'totalPoints': return (st.totalPoints || 0) >= val;
+      case 'streak': return (st.streak || 0) >= val;
+      case 'petLevel': return (st.petLevel || 0) >= val;
+      case 'ruleCount': return ((st.ruleCount || {})[b.ruleId] || 0) >= val;
+      case 'cosmetics': return (st.cosmetics || []).length >= val;
+      case 'redeemCount': return (st.redeemCount || 0) >= val;
+      default: return false;
+    }
+  }
+
+  /* 徽章外觀：有自訂圖片就用圖片，沒有就用 emoji，跟寵物的 petFace 是同一套邏輯。 */
+  function badgeFace(b, size) {
+    if (b.img) {
+      return U.el('img', {
+        src: b.img, alt: b.name,
+        style: { width: size + 'px', height: size + 'px', objectFit: 'contain' },
+      });
+    }
+    return U.el('span', { text: b.emoji, style: { fontSize: Math.round(size * 0.82) + 'px' } });
+  }
 
   /* 預設加分規則（老師可自訂） */
   const DEFAULT_RULES = [
@@ -499,6 +533,7 @@
       petRarities: U.deepClone(DEFAULT_PET_RARITIES),
       petRarityOverrides: {},
       pathCapacity: {},
+      badgeDefs: U.deepClone(DEFAULT_BADGES),
       petNames: {},
       customPets: [],
       deletedPetIds: [],
@@ -544,10 +579,11 @@
   }
 
   global.PetModel = {
-    PETS, STAGES, COSMETICS, FOODS, BADGES, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_IMAGE_ASSETS, DEFAULT_PET_RARITIES,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
     xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, petPathName, seedState,
+    evalBadgeCondition, badgeFace,
   };
 })(window);

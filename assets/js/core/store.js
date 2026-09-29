@@ -274,6 +274,9 @@
     (base.petRarities || []).forEach((br) => {
       if (!out.petRarities.some((r) => r.id === br.id)) out.petRarities.push(Object.assign({}, br));
     });
+    /* 徽章定義：只有在存檔裡完全沒有這個欄位時（第一次從舊版存檔升級）才套用預設徽章清單；
+       只要老師存檔裡已經有這個欄位（就算刪到只剩幾枚），就完全尊重老師的版本，不會把刪掉的徽章救回來。 */
+    out.badgeDefs = Array.isArray(s.badgeDefs) ? s.badgeDefs : base.badgeDefs;
     migratePetStages(out, s, base);
     migratePetPaths(out, s, base);
     migratePetImageAssets(out);
@@ -724,9 +727,9 @@
 
   function refreshBadges(st) {
     st.badges = st.badges || [];
-    M.BADGES.forEach((b) => {
+    (state.badgeDefs || []).forEach((b) => {
       try {
-        if (b.test(st) && st.badges.indexOf(b.id) < 0) st.badges.push(b.id);
+        if (M.evalBadgeCondition(b, st) && st.badges.indexOf(b.id) < 0) st.badges.push(b.id);
       } catch (e) { /* 條件不成立就略過 */ }
     });
   }

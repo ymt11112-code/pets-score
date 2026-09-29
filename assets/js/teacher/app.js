@@ -701,10 +701,10 @@
       } else if (tab === 'badges') {
         const earned = st.badges || [];
         contentEl.appendChild(el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: '10px' } },
-          M.BADGES.map((b) => {
+          (S.get().badgeDefs || []).map((b) => {
             const got = earned.indexOf(b.id) >= 0;
             return el('div', { class: 'rule-edit', style: { opacity: got ? 1 : .45 } }, [
-              el('span', { style: { fontSize: '22px' }, text: b.emoji }),
+              M.badgeFace(b, 22),
               el('div', { class: 'grow' }, [
                 el('div', { style: { fontWeight: 700, fontSize: '13px' }, text: b.name }),
                 el('div', { class: 'log-row__meta', text: got ? '已解鎖' : b.desc }),
@@ -1226,20 +1226,17 @@
     [0, 260, 520].forEach((delay) => setTimeout(() => { try { playTone(1046); } catch (e) { /* 忽略 */ } }, delay));
   }
 
-  /* ================= 寵物與徽章 ================= */
+  /* ================= 寵物 ================= */
   function pagePets() {
     const s = S.get();
     const byPet = {};
     s.students.forEach((st) => { byPet[st.petId] = (byPet[st.petId] || 0) + 1; });
-    const badgeCount = {};
-    s.students.forEach((st) => (st.badges || []).forEach((b) => { badgeCount[b] = (badgeCount[b] || 0) + 1; }));
 
     return el('div', {}, [
-      pageHead('寵物與徽章', '看看全班的寵物分布與徽章解鎖情況。'),
+      pageHead('寵物', '看看全班的寵物分布，管理寵物種類、造型與收藏設定。'),
       el('div', { class: 'kpi-grid' }, [
         kpi('🐾', '寵物種類', Object.keys(byPet).length + ' / ' + M.allPets().length),
         kpi('👑', '完全體以上', s.students.filter((x) => M.levelFromXp(x.xp).level >= 10).length + ' 隻'),
-        kpi('🏅', '徽章總數', Object.values(badgeCount).reduce((a, b) => a + b, 0) + ' 枚'),
         kpi('🎀', '已解鎖造型', s.students.reduce((a, b) => a + (b.cosmetics || []).length, 0) + ' 件'),
       ]),
       el('div', { class: 'cols' }, [
@@ -1320,16 +1317,6 @@
                 el('b', { text: n + ' 人' }),
               ]);
             })),
-          ]),
-          card('徽章解鎖統計', null, [
-            el('div', {}, M.BADGES.map((b) => el('div', { class: 'log-row' }, [
-              el('span', { style: { fontSize: '18px' }, text: b.emoji }),
-              el('div', { class: 'grow' }, [
-                el('div', { style: { fontWeight: 700, fontSize: '13.5px' }, text: b.name }),
-                el('div', { class: 'log-row__meta', text: b.desc }),
-              ]),
-              el('b', { text: (badgeCount[b.id] || 0) + ' 人' }),
-            ]))),
           ]),
           card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
             el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
@@ -1427,8 +1414,8 @@
                     onchange: (e) => S.commit((d) => { d.petRarities[idx].weight = Math.max(1, Math.round(Number(e.target.value) || 1)); }, { silent: true }),
                   }),
                 ]),
-                el('div', { class: 'field', style: { width: '110px' } }, [
-                  el('label', { class: 'field__label', text: '領養金幣' }),
+                el('div', { class: 'field', style: { width: '150px' } }, [
+                  el('label', { class: 'field__label', text: '直接領養金幣（不透過抽獎）' }),
                   el('input', {
                     class: 'input', type: 'number', min: '0', value: r.adoptCost,
                     onchange: (e) => S.commit((d) => { d.petRarities[idx].adoptCost = Math.max(0, Math.round(Number(e.target.value) || 0)); }, { silent: true }),
@@ -1436,10 +1423,144 @@
                 ]),
               ])
             )),
+            el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '「抽獎」跟「領養」是兩種獨立的取得方式：抽獎只要付上面的抽獎金幣、抽到誰算誰；領養則是不用抽，直接付這裡的領養金幣指定要哪一隻，兩者不會疊加收費。' }),
           ]),
         ]),
       ]),
     ]);
+  }
+
+  /* ================= 徽章管理 ================= */
+  function pageBadges() {
+    const s = S.get();
+    const badgeCount = {};
+    s.students.forEach((st) => (st.badges || []).forEach((b) => { badgeCount[b] = (badgeCount[b] || 0) + 1; }));
+
+    return el('div', {}, [
+      pageHead('🏅 徽章管理', '設定徽章的名稱、圖片與解鎖條件；符合條件的學生下次有點數異動時會自動解鎖。'),
+      el('div', { class: 'kpi-grid' }, [
+        kpi('🏅', '徽章總數', (s.badgeDefs || []).length + ' 枚'),
+        kpi('🎉', '累計解鎖次數', Object.values(badgeCount).reduce((a, b) => a + b, 0) + ' 次'),
+      ]),
+      card('徽章清單', '改完立即生效，不用另外儲存。', [
+        el('div', { class: 'stack' }, (s.badgeDefs || []).map((b, idx) => badgeRow(b, idx, badgeCount[b.id] || 0))),
+        el('button', { class: 'btn btn--green', style: { width: '100%', marginTop: '4px' }, text: '＋ 新增徽章', onclick: openAddBadge }),
+      ]),
+    ]);
+  }
+
+  function badgeRow(b, idx, count) {
+    const update = (patch) => S.commit((d) => { Object.assign(d.badgeDefs[idx], patch); }, { silent: true });
+    const ruleOptions = S.get().rules || [];
+    return el('div', { class: 'card card--flat', style: { marginBottom: '10px' } }, [
+      el('div', { class: 'row', style: { gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' } }, [
+        el('div', { class: 'stack', style: { gap: '6px', alignItems: 'center', width: '76px' } }, [
+          M.badgeFace(b, 40),
+          el('input', {
+            class: 'input', style: { width: '76px', textAlign: 'center', padding: '6px' }, value: b.emoji, placeholder: 'emoji',
+            onchange: (e) => update({ emoji: e.target.value.trim() }),
+          }),
+        ]),
+        el('div', { class: 'grow stack', style: { gap: '8px', minWidth: '260px' } }, [
+          el('div', { class: 'row', style: { gap: '8px' } }, [
+            el('input', {
+              class: 'input grow', value: b.name, placeholder: '徽章名稱',
+              onchange: (e) => { const nm = e.target.value.trim(); if (nm) update({ name: nm }); },
+            }),
+            badgeImageUploadButton(b, (url) => update({ img: url })),
+            b.img ? el('button', { class: 'btn btn--ghost btn--sm', text: '移除圖片', onclick: () => update({ img: '' }) }) : null,
+          ]),
+          el('input', { class: 'input', value: b.desc, placeholder: '徽章說明', onchange: (e) => update({ desc: e.target.value }) }),
+          el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
+            el('select', {
+              class: 'select', style: { width: '190px' },
+              onchange: (e) => update({ statKey: e.target.value }),
+            }, M.BADGE_STAT_DEFS.map((sd) => el('option', { value: sd.key, text: sd.label, selected: sd.key === b.statKey ? 'selected' : null }))),
+            b.statKey === 'ruleCount'
+              ? el('select', {
+                  class: 'select', style: { width: '150px' },
+                  onchange: (e) => update({ ruleId: e.target.value }),
+                }, ruleOptions.map((r) => el('option', { value: r.id, text: r.icon + ' ' + r.label, selected: r.id === b.ruleId ? 'selected' : null })))
+              : null,
+            el('input', {
+              class: 'input', type: 'number', min: '0', style: { width: '90px' }, value: b.value,
+              onchange: (e) => update({ value: Math.max(0, Number(e.target.value) || 0) }),
+            }),
+            el('span', { class: 'pill', text: count + ' 人已解鎖' }),
+          ]),
+        ]),
+        el('button', { class: 'btn btn--danger btn--sm', text: '🗑️', title: '刪除這枚徽章', onclick: () => openDeleteBadge(b) }),
+      ]),
+    ]);
+  }
+
+  function badgeImageUploadButton(b, onUploaded) {
+    const fileInput = el('input', {
+      type: 'file', accept: 'image/*', class: 'hide',
+      onchange: (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        const cfg = S.getGithubConfig();
+        if (!cfg.owner || !cfg.repo || !cfg.token) {
+          U.toast('請先設定 GitHub 帳號、Repo 與 Token', 'warn');
+          openGithubSettings();
+          return;
+        }
+        const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+        const safeName = b.id.replace(/[^a-z0-9-]/gi, '');
+        const targetPath = 'assets/img/badges/' + safeName + '.' + ext;
+        U.toast('上傳中…');
+        S.githubUploadImage(file, targetPath)
+          .then((url) => { onUploaded(url); U.toast('已上傳並填入圖片！'); })
+          .catch((err) => U.toast('上傳失敗：' + err.message, 'error'));
+      },
+    });
+    return el('span', {}, [
+      fileInput,
+      el('button', { class: 'btn btn--ghost btn--sm', text: '📤 上傳圖片', title: '上傳專屬圖片到 GitHub', onclick: () => fileInput.click() }),
+    ]);
+  }
+
+  function openAddBadge() {
+    const name = el('input', { class: 'input', placeholder: '徽章名稱' });
+    const emoji = el('input', { class: 'input', value: '🏅', placeholder: '一個 emoji，例如 🏅' });
+    const desc = el('input', { class: 'input', placeholder: '徽章說明（選填）' });
+    U.modal({
+      title: '新增徽章',
+      body: el('div', { class: 'stack' }, [
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '名稱' }), name]),
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '圖示 Emoji' }), emoji]),
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '說明' }), desc]),
+        el('p', { class: 'card__sub', text: '新增後可以在清單裡設定解鎖條件，或上傳專屬圖片。' }),
+      ]),
+      actions: [
+        { label: '取消' },
+        {
+          label: '新增', kind: 'primary',
+          onClick: () => {
+            const nm = name.value.trim();
+            if (!nm) { U.toast('請輸入徽章名稱', 'warn'); return true; }
+            const id = U.uid('badge');
+            S.commit((d) => {
+              d.badgeDefs = d.badgeDefs || [];
+              d.badgeDefs.push({ id, name: nm, emoji: emoji.value.trim() || '🏅', img: '', desc: desc.value.trim(), statKey: 'totalPoints', ruleId: '', value: 1 });
+            });
+          },
+        },
+      ],
+    });
+  }
+
+  function openDeleteBadge(b) {
+    U.confirmDialog('刪除「' + b.name + '」徽章', '已經解鎖過這枚徽章的學生，紀錄會一併移除。此動作無法復原（可以到「資料與同步」用備份檔還原）。', '刪除').then((ok) => {
+      if (!ok) return;
+      S.commit((d) => {
+        d.badgeDefs = (d.badgeDefs || []).filter((x) => x.id !== b.id);
+        d.students.forEach((st) => { st.badges = (st.badges || []).filter((x) => x !== b.id); });
+      });
+      U.toast('已刪除「' + b.name + '」', 'warn');
+    });
   }
 
   function openAddPet() {
@@ -2799,7 +2920,8 @@
       ['⭐', '批次加點', '一次選整班或整組學生，套用同一個規則或自訂點數。'],
       ['👥', '學生與小組', '管理學生名單、分組，或用文字批次匯入整班名單。'],
       ['🎲', '課堂小工具', '隨機抽點與課堂計時器，適合投影在教室螢幕上。'],
-      ['🐾', '寵物與徽章', '查看全班寵物的種類分布，以及徽章解鎖情況。'],
+      ['🐾', '寵物', '查看全班寵物的種類分布，管理寵物種類、造型與收藏設定。'],
+      ['🏅', '徽章管理', '設定徽章的名稱、圖片與解鎖條件，查看全班解鎖情況。'],
       ['⏱️', '點數紀錄', '每一筆加扣點都有紀錄，加錯了可以撤銷或直接編輯。'],
       ['🎁', '兌換管理', '學生在前台用點數兌換獎勵後，在這裡確認發放。'],
       ['🏆', '排行榜', '課堂點數、本週進步、寵物等級與小隊總點數排行。'],
@@ -2826,9 +2948,9 @@
       ])
     ));
 
-    const badgeGrid = el('div', { class: 'guide-mini-grid' }, M.BADGES.map((b) =>
+    const badgeGrid = el('div', { class: 'guide-mini-grid' }, (s.badgeDefs || []).map((b) =>
       el('div', { class: 'guide-mini-item' }, [
-        el('span', { style: { fontSize: '20px' }, text: b.emoji }),
+        M.badgeFace(b, 20),
         el('div', { class: 'grow' }, [
           el('div', { style: { fontWeight: 700, fontSize: '13.5px' }, text: b.name }),
           el('div', { class: 'muted', style: { fontSize: '12px' }, text: b.desc }),
@@ -2922,7 +3044,7 @@
   /* ---------- 路由 ---------- */
   const PAGES = {
     guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
-    pets: pagePets, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
+    pets: pagePets, badges: pageBadges, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
     storyline: pageStoryline,
   };
