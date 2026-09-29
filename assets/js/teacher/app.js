@@ -14,6 +14,9 @@
   let batchTab = 'students';
   let multiMode = false;
   let toolbarExpanded = false;
+  let msgSelected = new Set();
+  let msgTab = 'students';
+  let msgRecipientMode = 'all';
 
   /* ---------- 共用元件 ---------- */
   function pageHead(title, sub, right) {
@@ -1563,6 +1566,119 @@
     });
   }
 
+  /* ================= 訊息管理 ================= */
+  function pageMessages() {
+    const s = S.get();
+    const messages = s.messages || [];
+
+    const titleInput = el('input', { class: 'input', placeholder: '標題，例如：表現優異獎勵' });
+    const bodyInput = el('textarea', { class: 'textarea', placeholder: '訊息內容' });
+    const iconInput = el('input', { class: 'input', value: '📣', style: { width: '80px', textAlign: 'center' }, placeholder: 'emoji' });
+    const coinsInput = el('input', { class: 'input', type: 'number', min: '0', value: '0' });
+    const pointsInput = el('input', { class: 'input', type: 'number', min: '0', value: '0' });
+
+    const modeToggle = el('div', { class: 'seg-toggle' }, [
+      el('button', { class: 'seg-toggle__btn' + (msgRecipientMode === 'all' ? ' is-active' : ''), text: '📢 全班', onclick: () => { msgRecipientMode = 'all'; render(); } }),
+      el('button', { class: 'seg-toggle__btn' + (msgRecipientMode === 'specific' ? ' is-active' : ''), text: '🎯 指定對象', onclick: () => { msgRecipientMode = 'specific'; render(); } }),
+    ]);
+
+    let recipientPicker = null;
+    if (msgRecipientMode === 'specific') {
+      const seg = el('div', { class: 'seg-toggle' }, [
+        el('button', { class: 'seg-toggle__btn' + (msgTab === 'students' ? ' is-active' : ''), text: '👥 學生', onclick: () => { msgTab = 'students'; render(); } }),
+        el('button', { class: 'seg-toggle__btn' + (msgTab === 'groups' ? ' is-active' : ''), text: '🚩 小組', onclick: () => { msgTab = 'groups'; render(); } }),
+      ]);
+      const grid = msgTab === 'groups'
+        ? el('div', { class: 'avatar-grid' }, s.groups.map((g) => {
+            const ids = s.students.filter((x) => x.groupId === g.id).map((x) => x.id);
+            const allOn = ids.length > 0 && ids.every((id) => msgSelected.has(id));
+            return avatarCard(
+              el('span', { class: 'avatar-card__emoji', text: g.emoji }),
+              g.name, ids.length + ' 人', allOn, false,
+              () => { ids.forEach((id) => (allOn ? msgSelected.delete(id) : msgSelected.add(id))); render(); }
+            );
+          }))
+        : el('div', { class: 'avatar-grid' }, sortStudents(s.students, s).map((st) => {
+            const on = msgSelected.has(st.id);
+            return avatarCard(
+              M.petFace(M.petById(st.petId), 34, M.levelFromXp(st.xp).level, st.petPathId),
+              U.pad2(st.no) + ' ' + st.name, null, on, false,
+              () => { on ? msgSelected.delete(st.id) : msgSelected.add(st.id); render(); }
+            );
+          }));
+      recipientPicker = el('div', { class: 'stack', style: { marginTop: '10px' } }, [
+        el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' } }, [
+          seg,
+          el('span', { class: 'pill pill--gold', text: '已選 ' + msgSelected.size + ' 位' }),
+        ]),
+        grid,
+      ]);
+    }
+
+    return el('div', {}, [
+      pageHead('💬 訊息管理', '發送公告或獎勵訊息給全班、小組或指定學生；附加的金幣、星光要學生自己在訊息中心按「領取」才會真的入帳。'),
+      card('發送新訊息', null, [
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '標題' }), titleInput]),
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '內容' }), bodyInput]),
+        el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
+          el('div', { class: 'field', style: { width: '90px' } }, [el('label', { class: 'field__label', text: '圖示' }), iconInput]),
+          el('div', { class: 'field', style: { width: '150px' } }, [el('label', { class: 'field__label', text: '附加金幣（選填）' }), coinsInput]),
+          el('div', { class: 'field', style: { width: '150px' } }, [el('label', { class: 'field__label', text: '附加星光／點數（選填）' }), pointsInput]),
+        ]),
+        el('div', { class: 'field', style: { marginTop: '4px' } }, [el('label', { class: 'field__label', text: '發送對象' }), modeToggle]),
+        recipientPicker,
+        el('button', {
+          class: 'btn btn--primary', style: { width: '100%', marginTop: '14px' }, text: '📨 發送',
+          onclick: () => {
+            const title = titleInput.value.trim();
+            const body = bodyInput.value.trim();
+            if (!title && !body) return U.toast('請輸入標題或內容', 'warn');
+            const ids = msgRecipientMode === 'all' ? [] : Array.from(msgSelected);
+            if (msgRecipientMode === 'specific' && !ids.length) return U.toast('請選擇至少一位發送對象', 'warn');
+            S.sendMessage(ids, title, body, iconInput.value.trim() || '📣', {
+              coins: Number(coinsInput.value) || 0, points: Number(pointsInput.value) || 0,
+            });
+            U.toast('已發送！');
+            msgSelected = new Set();
+            render();
+          },
+        }),
+      ]),
+      card('已發送訊息', null, messages.length
+        ? [el('div', { class: 'stack' }, messages.slice(0, 30).map(messageHistoryRow))]
+        : [el('div', { class: 'empty', text: '還沒有發送過任何訊息。' })]),
+    ]);
+  }
+
+  function messageHistoryRow(m) {
+    const target = !m.studentIds.length ? '全班' : m.studentIds.length + ' 位指定對象';
+    const readCount = (m.readBy || []).length;
+    const hasReward = (m.rewardCoins || 0) > 0 || (m.rewardPoints || 0) > 0;
+    const claimCount = (m.claimedBy || []).length;
+    return el('div', { class: 'log-row' }, [
+      el('span', { style: { fontSize: '20px' }, text: m.icon || '📣' }),
+      el('div', { class: 'grow' }, [
+        el('div', { style: { fontWeight: 700 }, text: m.title || '(無標題)' }),
+        el('div', { class: 'log-row__meta', text: U.fmtDateTime(m.ts) + ' · ' + target + ' · 已讀 ' + readCount + (m.studentIds.length ? '/' + m.studentIds.length : '') }),
+        hasReward
+          ? el('div', {
+              class: 'log-row__meta',
+              text: '🎁 ' + [m.rewardCoins ? '🪙' + m.rewardCoins : '', m.rewardPoints ? '⭐' + m.rewardPoints : ''].filter(Boolean).join(' ') + '　已領取 ' + claimCount,
+            })
+          : null,
+      ]),
+      el('button', { class: 'btn btn--danger btn--sm', text: '🗑️', title: '刪除這則訊息', onclick: () => openDeleteMessage(m) }),
+    ]);
+  }
+
+  function openDeleteMessage(m) {
+    U.confirmDialog('刪除這則訊息', '刪除後學生就看不到這則訊息了（已經領過的獎勵不會收回）。', '刪除').then((ok) => {
+      if (!ok) return;
+      S.commit((d) => { d.messages = (d.messages || []).filter((x) => x.id !== m.id); });
+      U.toast('已刪除', 'warn');
+    });
+  }
+
   function openAddPet() {
     const name = el('input', { class: 'input', placeholder: '寵物名稱，例如：柴語錄' });
     const emoji = el('input', { class: 'input', value: '🐾', placeholder: '一個 emoji，例如 🐕' });
@@ -2920,6 +3036,7 @@
       ['⭐', '批次加點', '一次選整班或整組學生，套用同一個規則或自訂點數。'],
       ['👥', '學生與小組', '管理學生名單、分組，或用文字批次匯入整班名單。'],
       ['🎲', '課堂小工具', '隨機抽點與課堂計時器，適合投影在教室螢幕上。'],
+      ['💬', '訊息管理', '發公告或獎勵訊息給全班、小組或指定學生，附加的金幣星光要學生自己按領取。'],
       ['🐾', '寵物', '查看全班寵物的種類分布，管理寵物種類、造型與收藏設定。'],
       ['🏅', '徽章管理', '設定徽章的名稱、圖片與解鎖條件，查看全班解鎖情況。'],
       ['⏱️', '點數紀錄', '每一筆加扣點都有紀錄，加錯了可以撤銷或直接編輯。'],
@@ -3044,7 +3161,7 @@
   /* ---------- 路由 ---------- */
   const PAGES = {
     guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
-    pets: pagePets, badges: pageBadges, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
+    pets: pagePets, badges: pageBadges, messages: pageMessages, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
     storyline: pageStoryline,
   };

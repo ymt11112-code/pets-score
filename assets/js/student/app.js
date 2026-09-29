@@ -1074,26 +1074,52 @@
 
   /* 訊息中心：列出這個學生看得到的所有訊息（新的在前面），打開時全部標記已讀 */
   function openMessageCenter() {
-    const st = me();
-    if (!st) { U.toast('選擇身分後，才能看訊息。', 'warn'); return openIdentityPicker(); }
-    const list = S.studentMessages(st.id);
-    S.markMessagesRead(st.id);
+    const st0 = me();
+    if (!st0) { U.toast('選擇身分後，才能看訊息。', 'warn'); return openIdentityPicker(); }
+    const studentId = st0.id;
+    S.markMessagesRead(studentId);
     renderMsgBadge();
-    U.modal({
-      title: '🔔 訊息',
-      wide: true,
-      body: list.length
-        ? el('div', { class: 'stack' }, list.map((m) => el('div', { class: 'log-row' }, [
-            el('span', { style: { fontSize: '22px' }, text: m.icon || '📣' }),
-            el('div', { class: 'grow' }, [
-              el('div', { style: { fontWeight: 800 }, text: m.title }),
-              el('div', { class: 'muted', style: { fontSize: '13px', marginTop: '2px' }, text: m.body }),
-              el('div', { class: 'log-row__meta', style: { marginTop: '4px' }, text: U.fmtDateTime(m.ts) }),
-            ]),
-          ])))
-        : el('div', { class: 'empty', style: { padding: '20px' }, text: '目前還沒有任何訊息。' }),
-      actions: [{ label: '關閉' }],
-    });
+
+    const bodyEl = el('div', { class: 'stack' });
+    function paint() {
+      const list = S.studentMessages(studentId);
+      bodyEl.innerHTML = '';
+      if (!list.length) {
+        bodyEl.appendChild(el('div', { class: 'empty', style: { padding: '20px' }, text: '目前還沒有任何訊息。' }));
+        return;
+      }
+      list.forEach((m) => {
+        const hasReward = (m.rewardCoins || 0) > 0 || (m.rewardPoints || 0) > 0;
+        const claimed = (m.claimedBy || []).indexOf(studentId) >= 0;
+        const rewardText = [m.rewardCoins ? '🪙 ' + m.rewardCoins : '', m.rewardPoints ? '⭐ ' + m.rewardPoints : ''].filter(Boolean).join('　');
+        bodyEl.appendChild(el('div', { class: 'log-row' }, [
+          el('span', { style: { fontSize: '22px' }, text: m.icon || '📣' }),
+          el('div', { class: 'grow' }, [
+            el('div', { style: { fontWeight: 800 }, text: m.title }),
+            el('div', { class: 'muted', style: { fontSize: '13px', marginTop: '2px' }, text: m.body }),
+            el('div', { class: 'log-row__meta', style: { marginTop: '4px' }, text: U.fmtDateTime(m.ts) }),
+            hasReward
+              ? el('div', { class: 'row', style: { gap: '8px', marginTop: '8px', alignItems: 'center' } }, [
+                  el('span', { class: 'pill pill--gold', text: rewardText }),
+                  claimed
+                    ? el('span', { class: 'pill', text: '已領取' })
+                    : el('button', {
+                        class: 'btn btn--primary btn--sm', text: '🎁 領取',
+                        onclick: () => {
+                          const r = S.claimMessageReward(studentId, m.id);
+                          if (!r.ok) return U.toast(r.msg, 'warn');
+                          U.toast('🎉 領到了！' + [r.coins ? '🪙 ' + r.coins : '', r.points ? '⭐ ' + r.points : ''].filter(Boolean).join('　'), 'ok');
+                        },
+                      }),
+                ])
+              : null,
+          ]),
+        ]));
+      });
+    }
+    paint();
+    const unsub = S.subscribe(paint);
+    U.modal({ title: '🔔 訊息', wide: true, body: bodyEl, actions: [{ label: '關閉' }], onClose: unsub });
   }
 
   function goTo(viewName) {

@@ -531,7 +531,7 @@
           id: U.uid('msg'), ts: Date.now(), studentIds: granted, icon: '🌟',
           title: '解鎖了新的身分路線！',
           body: '恭喜通過「' + c.name + '」，獲得一條還沒解鎖過的身分路線，到「我的寵物」看看吧！',
-          readBy: [],
+          readBy: [], rewardCoins: 0, rewardPoints: 0, claimedBy: [],
         });
       }
       result = { ok: true, grantedCount: granted.length };
@@ -1170,15 +1170,20 @@
   }
 
   /* ---------- 訊息中心 ---------- */
-  /* 給某些學生（或全班，studentIds 留空陣列）發一則系統訊息；目前用在星野主線發放路線獎勵，
-     之後也可以用同一套機制發其他公告。readBy 記錄「誰已經看過」，每個學生看到的已讀狀態互不影響。 */
-  function sendMessage(studentIds, title, body, icon) {
+  /* 給某些學生（或全班，studentIds 留空陣列）發一則系統訊息，可以附加金幣／星光（點數）當獎勵；
+     reward 是 { coins, points }，留空或都是 0 就是純公告。獎勵不會發送當下就自動入帳，要學生自己在
+     訊息中心按「領取」才會真的加進帳號（claimMessageReward），這樣老師可以先預告、學生自己按下去確認。
+     readBy 記錄「誰已經看過」、claimedBy 記錄「誰已經領過獎勵」，每個學生互不影響。 */
+  function sendMessage(studentIds, title, body, icon, reward) {
     commit((s) => {
       s.messages = s.messages || [];
       s.messages.unshift({
         id: U.uid('msg'), ts: Date.now(),
         studentIds: Array.isArray(studentIds) ? studentIds.slice() : [],
         icon: icon || '📣', title: title || '', body: body || '', readBy: [],
+        rewardCoins: Math.max(0, Math.round((reward && reward.coins) || 0)),
+        rewardPoints: Math.max(0, Math.round((reward && reward.points) || 0)),
+        claimedBy: [],
       });
     });
   }
@@ -1192,7 +1197,7 @@
     return studentMessages(studentId).filter((m) => (m.readBy || []).indexOf(studentId) < 0).length;
   }
 
-  /* 學生打開訊息中心時呼叫：把他看得到的訊息全部標記已讀 */
+  /* 學生打開訊息中心時呼叫：把他看得到的訊息全部標記已讀（不影響獎勵是否已領取，那是分開的動作） */
   function markMessagesRead(studentId) {
     commit((s) => {
       (s.messages || []).forEach((m) => {
@@ -1202,6 +1207,42 @@
         if (m.readBy.indexOf(studentId) < 0) m.readBy.push(studentId);
       });
     }, { silent: true });
+  }
+
+  /* 學生按「領取」才會真的把訊息附加的金幣／星光加進帳號，同一則訊息每人只能領一次。
+     星光其實就是點數：直接加 points／totalPoints／classStars，星野主線的星光是從點數紀錄即時算出來的，
+     所以只要這裡補一筆點數為正的 ledger 紀錄，星光自然就會算進去，不用另外處理。 */
+  function claimMessageReward(studentId, messageId) {
+    let result = { ok: false, msg: '找不到這則訊息' };
+    commit((s) => {
+      const m = (s.messages || []).find((x) => x.id === messageId);
+      if (!m) return;
+      const relevant = !m.studentIds.length || m.studentIds.indexOf(studentId) >= 0;
+      if (!relevant) { result = { ok: false, msg: '這則訊息不是給你的' }; return; }
+      if (!m.rewardCoins && !m.rewardPoints) { result = { ok: false, msg: '這則訊息沒有附加獎勵' }; return; }
+      m.claimedBy = m.claimedBy || [];
+      if (m.claimedBy.indexOf(studentId) >= 0) { result = { ok: false, msg: '已經領取過了' }; return; }
+      const st = s.students.find((x) => x.id === studentId);
+      if (!st) return;
+      if (m.rewardCoins) st.coins = Math.max(0, (st.coins || 0) + m.rewardCoins);
+      if (m.rewardPoints) {
+        st.points = Math.max(0, (st.points || 0) + m.rewardPoints);
+        st.totalPoints = (st.totalPoints || 0) + m.rewardPoints;
+        s.classInfo.classStars = (s.classInfo.classStars || 0) + m.rewardPoints;
+        if (s.classMission) s.classMission.progress = Math.min(s.classMission.target, (s.classMission.progress || 0) + m.rewardPoints);
+      }
+      m.claimedBy.push(studentId);
+      m.readBy = m.readBy || [];
+      if (m.readBy.indexOf(studentId) < 0) m.readBy.push(studentId);
+      refreshBadges(st);
+      s.ledger.unshift({
+        id: U.uid('lg'), ts: Date.now(), studentIds: [studentId], ruleId: 'message',
+        label: '領取訊息獎勵：' + (m.title || '訊息'), points: m.rewardPoints || 0, xp: 0, coins: m.rewardCoins || 0,
+        note: '', by: s.classInfo.teacher, undone: false,
+      });
+      result = { ok: true, coins: m.rewardCoins || 0, points: m.rewardPoints || 0 };
+    });
+    return result;
   }
 
   /* 「造型收藏」讓學生自由穿回任何一個已經達到過的造型階段，純粹是外觀選擇，
@@ -1350,7 +1391,7 @@
     award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
     canCollectPets, adoptPet, drawPetGacha, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
-    sendMessage, studentMessages, unreadMessageCount, markMessagesRead,
+    sendMessage, studentMessages, unreadMessageCount, markMessagesRead, claimMessageReward,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,
     exportJson, importJson, resetAll,
