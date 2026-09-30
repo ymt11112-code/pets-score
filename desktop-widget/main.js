@@ -6,19 +6,29 @@
    視窗本身是「橫幅」造型，靠左上角的小把手（-webkit-app-region:drag）拖曳。
    拖到螢幕邊緣放開，會自動貼齊變成直的（靠左右）或橫的（靠上下），
    節省空間的邏輯（貼邊判斷＋依貼邊方向重新定位）都在這個檔案；
-   實際要縮多大則是 renderer 量完自己的排版之後回報過來的（見 resize-to）。 */
+   實際要縮多大則是 renderer 量完自己的排版之後回報過來的（見 resize-to）。
+
+   「選人」是另外開一個小視窗（並排貼在主視窗旁邊），不是塞進主視窗裡面往下長——
+   貼邊變成窄直幅時，主視窗如果連學生清單一起往下長，很容易長到超出螢幕還被裁掉、
+   點不到；獨立成一個視窗就不受主視窗大小限制，且主視窗完全不用跟著變形。
+   兩個視窗是各自獨立的 renderer process，選取狀態（哪些學生被選起來了）在這裡
+   （main process）統一保管，兩邊各自的畫面只是訂閱這份狀態、不會各自為政。 */
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 const POS_FILE = path.join(app.getPath('userData'), 'window-pos.json');
-const DEFAULT_SIZE = { width: 360, height: 50 };
+const DEFAULT_SIZE = { width: 320, height: 50 };
+const PICKER_SIZE = { width: 190, height: 380 };
 const DOCK_THRESHOLD = 24; // 離螢幕邊緣多近算「貼邊」（px）
+const PICKER_GAP = 8; // 選人小視窗跟主視窗之間留的間距
 
 let win = null;
+let pickerWin = null;
 let tray = null;
 let dockSide = 'none'; // 'none' | 'left' | 'right' | 'top' | 'bottom'
 let ignoreNextMove = false; // resize-to 自己造成的 setBounds 移動，不要被當成使用者拖曳
+let selectedIds = []; // 目前選取的學生 id，主視窗／選人視窗共用同一份
 
 function loadSavedBounds() {
   try {
@@ -49,6 +59,48 @@ function computeDockSide(bounds) {
   if (min === distLeft) return 'left';
   if (min === distTop) return 'top';
   return 'bottom';
+}
+
+/* 選人小視窗永遠緊貼主視窗：優先放右邊，右邊空間不夠就放左邊，
+   上下位置盡量對齊主視窗頂端，超出螢幕範圍就夾回可用範圍內。 */
+function positionPickerWindow() {
+  if (!win || !pickerWin) return;
+  const mb = win.getBounds();
+  const pb = pickerWin.getBounds();
+  const display = screen.getDisplayNearestPoint({ x: mb.x, y: mb.y });
+  const area = display.workArea;
+  let x = mb.x + mb.width + PICKER_GAP;
+  if (x + pb.width > area.x + area.width) x = mb.x - pb.width - PICKER_GAP;
+  x = Math.min(Math.max(x, area.x), area.x + area.width - pb.width);
+  let y = Math.min(Math.max(mb.y, area.y), area.y + area.height - pb.height);
+  pickerWin.setPosition(Math.round(x), Math.round(y));
+}
+
+function openPickerWindow() {
+  if (pickerWin) { pickerWin.show(); positionPickerWindow(); return; }
+  pickerWin = new BrowserWindow({
+    x: 0, y: 0, width: PICKER_SIZE.width, height: PICKER_SIZE.height,
+    frame: false, transparent: true, resizable: false, movable: false,
+    minimizable: false, maximizable: false, skipTaskbar: true, alwaysOnTop: true, hasShadow: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
+  });
+  pickerWin.setAlwaysOnTop(true, 'screen-saver');
+  pickerWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  pickerWin.loadFile(path.join(__dirname, 'renderer', 'picker.html'));
+  pickerWin.on('closed', () => {
+    pickerWin = null;
+    if (win) win.webContents.send('picker-closed');
+  });
+  positionPickerWindow();
+}
+
+function closePickerWindow() {
+  if (pickerWin) pickerWin.close(); // 觸發上面的 'closed'，會自動通知主視窗
+}
+
+function broadcastSelection() {
+  if (win) win.webContents.send('selection-changed', selectedIds);
+  if (pickerWin) pickerWin.webContents.send('selection-changed', selectedIds);
 }
 
 function createWindow() {
@@ -87,6 +139,7 @@ function createWindow() {
      拖曳把手」造成的 move 才需要重新判斷貼邊。 */
   let settleTimer = null;
   win.on('move', () => {
+    if (pickerWin) positionPickerWindow(); // 選人視窗要立刻跟著移動，不用等 150ms settle
     if (ignoreNextMove) { ignoreNextMove = false; return; }
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
@@ -117,7 +170,7 @@ function createTray() {
 
 ipcMain.handle('get-dock-side', () => dockSide);
 
-/* renderer 每次排版變動（切分類、展開學生名單、展開點數紀錄……）都會量出自己實際需要的大小，
+/* renderer 每次排版變動（切分類、展開/收起點數紀錄……）都會量出自己實際需要的大小，
    呼叫這個把視窗實際尺寸調整過去；同時依照目前貼邊方向決定要固定住哪一邊
    （貼右邊就固定右邊界、視窗往左長大；貼下面就固定下邊界、往上長大……以此類推），
    這樣長大縮小的時候才不會整個從貼著的那條邊跑掉。 */
@@ -128,8 +181,8 @@ ipcMain.handle('resize-to', (evt, width, height) => {
   const cur = win.getBounds();
   const display = screen.getDisplayNearestPoint({ x: cur.x, y: cur.y });
   const area = display.workArea;
-  // 面板內容如果一次全部展開（規則很多＋選人＋紀錄都打開），量出來的高度可能超過整個螢幕，
-  // 這裡先把整個視窗夾在螢幕可用範圍內，超出的部分交給面板自己的 max-height/overflow 去捲動
+  // 內容如果一次全部展開，量出來的高度可能超過整個螢幕，這裡先把整個視窗夾在螢幕可用範圍內，
+  // 超出的部分交給面板自己的 max-height/overflow 去捲動
   width = Math.min(width, area.width);
   height = Math.min(height, area.height);
   let x = cur.x;
@@ -147,7 +200,38 @@ ipcMain.handle('resize-to', (evt, width, height) => {
   setTimeout(() => { ignoreNextMove = false; }, 60);
 });
 
-ipcMain.handle('hide-window', () => { if (win) win.hide(); });
+/* 選人小視窗量完自己的內容高度後回報過來，主視窗位置不變，只調整選人視窗的大小＋重新貼齊 */
+ipcMain.handle('resize-picker', (evt, width, height) => {
+  if (!pickerWin) return;
+  width = Math.max(80, Math.round(width));
+  height = Math.max(80, Math.round(height));
+  const cur = pickerWin.getBounds();
+  if (width === cur.width && height === cur.height) return;
+  pickerWin.setBounds({ x: cur.x, y: cur.y, width, height });
+  positionPickerWindow();
+});
+
+ipcMain.handle('open-picker', () => openPickerWindow());
+ipcMain.handle('close-picker', () => closePickerWindow());
+
+ipcMain.handle('get-selection', () => selectedIds);
+ipcMain.handle('toggle-student', (evt, id) => {
+  const i = selectedIds.indexOf(id);
+  if (i >= 0) selectedIds.splice(i, 1); else selectedIds.push(id);
+  broadcastSelection();
+});
+/* 一次選取／取消多個 id（全班、整組用）：on=true 是「加進選取」，on=false 是「移出選取」 */
+ipcMain.handle('select-many', (evt, ids, on) => {
+  (ids || []).forEach((id) => {
+    const i = selectedIds.indexOf(id);
+    if (on && i < 0) selectedIds.push(id);
+    if (!on && i >= 0) selectedIds.splice(i, 1);
+  });
+  broadcastSelection();
+});
+ipcMain.handle('clear-selection', () => { selectedIds = []; broadcastSelection(); });
+
+ipcMain.handle('hide-window', () => { if (win) win.hide(); if (pickerWin) pickerWin.hide(); });
 ipcMain.handle('quit-app', () => app.quit());
 
 app.whenReady().then(() => {

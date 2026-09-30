@@ -2,7 +2,13 @@
    只要設定跟網頁版「資料與同步」頁一樣的 Google Sheets 網址，兩邊看到的就是同一份資料。
 
    介面是一條可以拖著移動的橫幅（貼到螢幕左右邊會變成直幅），平常只顯示「選人／分類規則／
-   紀錄」幾個按鈕，點開才會展開對應的面板——盡量節省桌面空間，需要的時候再點開。 */
+   紀錄」幾個按鈕，點開才會展開對應的面板——盡量節省桌面空間，需要的時候再點開。
+
+   「選人」不是塞進這個視窗裡面展開，而是另外開一個並排的小視窗（見 picker.js）：
+   貼邊變直幅時，如果連學生清單都塞進同一個視窗往下長，很容易長到超出螢幕、學生選不到，
+   獨立成另一個視窗就不受這裡的大小限制。兩邊的「已選學生」狀態是 main process 統一保管的
+   （見 preload.js 的 toggleStudent/selectMany/onSelectionChanged），這裡的 selected
+   只是即時鏡射，不是本地自己管的狀態。 */
 (function () {
   'use strict';
   const U = window.PetUtil;
@@ -16,9 +22,8 @@
   const TOAST_RESERVE = 70;
 
   let dockSide = 'none'; // 'none' | 'left' | 'right' | 'top' | 'bottom'
-  let selected = new Set();
-  let pickerOpen = false;
-  let pickerTab = 'students'; // 'students' | 'groups'
+  let selected = new Set(); // 由 main process 統一保管，這裡只是鏡射（見 onSelectionChanged）
+  let pickerOpen = false; // 選人是另一個視窗，這裡只記著「現在是不是開著」，用來讓按鈕顯示反白
   let ledgerOpen = false;
   let activeCategory = 'class';
 
@@ -89,48 +94,6 @@
     ])));
   }
 
-  function pickerPanel(s) {
-    if (!pickerOpen) return null;
-    const searchInput = el('input', { class: 'input dw-picker__search', placeholder: '搜尋姓名或座號…' });
-    const listEl = el('div', { class: 'dw-picker__list' });
-
-    function paintList() {
-      listEl.innerHTML = '';
-      if (pickerTab === 'groups') {
-        (s.groups || []).forEach((g) => {
-          const ids = s.students.filter((x) => x.groupId === g.id && !S.isAbsent(x.id)).map((x) => x.id);
-          const allOn = ids.length > 0 && ids.every((id) => selected.has(id));
-          listEl.appendChild(el('button', {
-            class: 'dw-chip' + (allOn ? ' is-on' : ''), text: g.emoji + ' ' + g.name + '（' + ids.length + '）',
-            onclick: () => { ids.forEach((id) => (allOn ? selected.delete(id) : selected.add(id))); paint(); },
-          }));
-        });
-        if (!s.groups || !s.groups.length) listEl.appendChild(el('div', { class: 'dw-rules-empty', text: '還沒有設定小組。' }));
-      } else {
-        const q = searchInput.value.trim();
-        s.students.slice().sort((a, b) => a.no - b.no)
-          .filter((st) => !q || (String(st.no).padStart(2, '0') + st.name).indexOf(q) >= 0)
-          .forEach((st) => {
-            const absent = S.isAbsent(st.id);
-            const on = selected.has(st.id);
-            listEl.appendChild(el('button', {
-              class: 'dw-chip' + (on ? ' is-on' : '') + (absent ? ' is-off-disabled' : ''),
-              text: String(st.no).padStart(2, '0') + ' ' + st.name + (absent ? '（請假）' : ''),
-              onclick: () => { if (absent) return; on ? selected.delete(st.id) : selected.add(st.id); paint(); },
-            }));
-          });
-      }
-    }
-    searchInput.addEventListener('input', paintList);
-    paintList();
-
-    const tabs = el('div', { class: 'dw-seg', style: { marginBottom: '6px' } }, [
-      el('button', { class: 'dw-seg__btn' + (pickerTab === 'students' ? ' is-active' : ''), text: '學生', onclick: () => { pickerTab = 'students'; paint(); } }),
-      el('button', { class: 'dw-seg__btn' + (pickerTab === 'groups' ? ' is-active' : ''), text: '小組', onclick: () => { pickerTab = 'groups'; paint(); } }),
-    ]);
-    return el('div', { class: 'dw-picker' }, [tabs, pickerTab === 'students' ? searchInput : null, listEl]);
-  }
-
   function ledgerPanel(s) {
     if (!ledgerOpen) return null;
     const rows = (s.ledger || []).slice(0, 50);
@@ -144,11 +107,19 @@
     return el('div', { class: 'dw-ledger' }, [el('div', { class: 'dw-ledger__body' }, body)]);
   }
 
+  function togglePicker() {
+    pickerOpen = !pickerOpen;
+    if (!window.desktopWidget) return;
+    if (pickerOpen) window.desktopWidget.openPicker();
+    else window.desktopWidget.closePicker();
+    paint();
+  }
+
   function mainBody(s) {
     const bar = el('div', { class: 'dw-bar' }, [
       gripEl(),
       el('span', { class: 'dw-pill', text: '已選 ' + selected.size + ' 位' }),
-      el('button', { class: 'dw-btn' + (pickerOpen ? ' is-active' : ''), onclick: () => { pickerOpen = !pickerOpen; paint(); } }, [
+      el('button', { class: 'dw-btn' + (pickerOpen ? ' is-active' : ''), onclick: togglePicker }, [
         el('span', { text: '👥' }), el('span', { text: '選人' }),
       ]),
       categoryTabs(),
@@ -161,7 +132,6 @@
       el('div', { class: 'dw-syncline' }, [syncDot(), el('span', { text: S.getSync().message || '' })]),
       bar,
       ruleChips(s),
-      pickerPanel(s),
       ledgerPanel(s),
     ];
     return nodes.filter(Boolean);
@@ -194,8 +164,15 @@
     window.desktopWidget.onDockChanged((side) => { dockSide = side; paint(); });
   }
 
+  async function initSelection() {
+    if (!window.desktopWidget) return;
+    try { selected = new Set((await window.desktopWidget.getSelection()) || []); } catch (e) { /* 拿不到就從空的開始 */ }
+    window.desktopWidget.onSelectionChanged((ids) => { selected = new Set(ids || []); paint(); });
+    window.desktopWidget.onPickerClosed(() => { pickerOpen = false; paint(); });
+  }
+
   S.init().then(() => {
     S.subscribe(paint);
-    initDock().then(paint);
+    Promise.all([initDock(), initSelection()]).then(paint);
   });
 })();

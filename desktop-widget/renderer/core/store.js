@@ -264,8 +264,13 @@
         if (def) out.rules.push(Object.assign({}, def));
       }
     });
-    /* 規則分類是後來才加的欄位，舊規則沒有這個欄位就預設歸到「上課用」，老師可以之後自己改 */
-    out.rules.forEach((r) => { if (!r.category) r.category = 'class'; });
+    /* 規則分類是後來才加的欄位：舊規則沒有這個欄位時，先用預設規則表的 id 反查應該歸哪一類
+       （例如 id='homework' 要歸「作業類」、warmth/initiative/courage/revise 要歸「星野主線」），
+       這樣舊存檔升級後分類才會跟新安裝的一樣正確；只有老師自己新增、預設表裡查不到的規則，
+       才 fallback 歸到「上課用」，老師可以之後自己改。 */
+    const defaultCategoryById = {};
+    (base.rules || []).forEach((r) => { defaultCategoryById[r.id] = r.category; });
+    out.rules.forEach((r) => { if (!r.category) r.category = defaultCategoryById[r.id] || 'class'; });
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     if (!out.pathCapacity || typeof out.pathCapacity !== 'object') out.pathCapacity = {};
