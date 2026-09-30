@@ -3221,6 +3221,169 @@
     document.addEventListener('petsync', (e) => paint(e.detail));
   }
 
+  /* ---------- 漂浮快速加點小工具 ----------
+     網頁沒辦法真的飄在瀏覽器之外、疊在其他 App 上面（瀏覽器安全限制），這裡做兩層：
+     1) 頁內漂浮的小圓鈕，點開是「選學生＋規則按鈕」的精簡面板，拖曳可以換位置、翻頁也不會消失。
+     2) 有支援 Document Picture-in-Picture 的瀏覽器（目前是 Chrome／Edge）可以再彈成一個真正
+        獨立、會一直浮在最上層（包含蓋在其他 App 上面）的小視窗，效果最接近 HiTeach 那種工具列。 */
+  let floatOpen = false;
+  let floatSelected = new Set();
+  let floatPipWin = null;
+
+  function loadFloatPos() {
+    try {
+      const raw = localStorage.getItem('classpet.floatPos');
+      const p = raw ? JSON.parse(raw) : null;
+      if (p && typeof p.x === 'number' && typeof p.y === 'number') return p;
+    } catch (e) { /* 忽略壞掉的存檔 */ }
+    return { x: window.innerWidth - 80, y: window.innerHeight - 100 };
+  }
+  function saveFloatPos(pos) {
+    try { localStorage.setItem('classpet.floatPos', JSON.stringify(pos)); } catch (e) { /* 無痕模式略過 */ }
+  }
+
+  /* 幫一個元素加上「按住拖曳」的能力；用 pointer event 一套處理滑鼠與觸控。
+     拖曳距離很小就當作是「點擊」，避免手抖一下就誤判成拖曳而吃掉點擊事件。 */
+  function makeDraggable(handleEl, moveEl, onDrop, onClick) {
+    let dragging = false;
+    let startX = 0, startY = 0, baseX = 0, baseY = 0, moved = false;
+    handleEl.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      moved = false;
+      startX = e.clientX; startY = e.clientY;
+      const rect = moveEl.getBoundingClientRect();
+      baseX = rect.left; baseY = rect.top;
+      try { handleEl.setPointerCapture(e.pointerId); } catch (err) { /* 部分瀏覽器／測試環境沒有這個 API */ }
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+      if (!moved) return;
+      const w = moveEl.offsetWidth, h = moveEl.offsetHeight;
+      const x = Math.min(Math.max(0, baseX + dx), window.innerWidth - w);
+      const y = Math.min(Math.max(0, baseY + dy), window.innerHeight - h);
+      moveEl.style.left = x + 'px';
+      moveEl.style.top = y + 'px';
+      moveEl.style.right = 'auto';
+    });
+    handleEl.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { handleEl.releasePointerCapture(e.pointerId); } catch (err) { /* 同上 */ }
+      if (moved) {
+        const rect = moveEl.getBoundingClientRect();
+        onDrop({ x: rect.left, y: rect.top });
+      } else if (onClick) {
+        onClick();
+      }
+    });
+  }
+
+  function documentPipSupported() {
+    return typeof window !== 'undefined' && 'documentPictureInPicture' in window;
+  }
+
+  function floatPanelBody() {
+    const s = S.get();
+    const searchInput = el('input', { class: 'input', placeholder: '搜尋姓名或座號…' });
+    const listEl = el('div', { class: 'float-list' });
+    const dockEl = el('div', { class: 'float-dock' });
+    const countEl = el('b', { text: '已選 ' + floatSelected.size });
+
+    function paintList() {
+      listEl.innerHTML = '';
+      const q = searchInput.value.trim();
+      sortStudents(s.students, s)
+        .filter((st) => !q || (U.pad2(st.no) + st.name).indexOf(q) >= 0)
+        .forEach((st) => {
+          const on = floatSelected.has(st.id);
+          listEl.appendChild(el('button', {
+            class: 'float-chip' + (on ? ' is-on' : ''), text: U.pad2(st.no) + ' ' + st.name,
+            onclick: () => { on ? floatSelected.delete(st.id) : floatSelected.add(st.id); paintList(); countEl.textContent = '已選 ' + floatSelected.size; },
+          }));
+        });
+    }
+    searchInput.addEventListener('input', paintList);
+    paintList();
+
+    (s.rules || []).filter((r) => r.id).forEach((r) => {
+      dockEl.appendChild(el('button', {
+        class: 'float-rulebtn',
+        onclick: () => {
+          if (!floatSelected.size) return U.toast('請先點選學生', 'warn');
+          applyRule(Array.from(floatSelected), r);
+        },
+      }, [el('span', { text: r.icon }), el('span', { text: r.label }), el('span', { text: (r.points >= 0 ? '+' : '') + r.points })]));
+    });
+
+    return el('div', { class: 'float-panel__body' }, [
+      el('div', { class: 'row', style: { justifyContent: 'space-between', marginBottom: '6px' } }, [countEl]),
+      searchInput,
+      listEl,
+      dockEl,
+      documentPipSupported() && !floatPipWin
+        ? el('button', { class: 'btn btn--ghost btn--sm', style: { width: '100%', marginTop: '10px' }, text: '🪟 彈出獨立小視窗', onclick: openFloatPip })
+        : null,
+    ]);
+  }
+
+  function renderFloatWidget() {
+    if (floatPipWin) {
+      // 彈出視窗那邊也要能即時反映規則、名單異動，所以每次資料變動都重畫一次內容
+      floatPipWin.document.body.innerHTML = '';
+      const panel = el('div', {
+        class: 'float-panel',
+        style: { position: 'static', width: '100%', maxHeight: 'none', boxShadow: 'none', borderRadius: 0 },
+      }, [floatPanelBody()]);
+      floatPipWin.document.body.appendChild(panel);
+      return;
+    }
+    const host = $('#floatWidget');
+    if (!host) return;
+    host.innerHTML = '';
+    const pos = loadFloatPos();
+    if (!floatOpen) {
+      const fab = el('span', { class: 'float-fab', text: '⭐', style: { left: pos.x + 'px', top: pos.y + 'px' } });
+      makeDraggable(fab, fab, saveFloatPos, () => { floatOpen = true; renderFloatWidget(); });
+      host.appendChild(fab);
+      return;
+    }
+    const panelHead = el('div', { class: 'float-panel__head' }, [
+      el('span', { text: '⭐ 快速加點' }),
+      el('button', { class: 'float-panel__close', text: '✕', onclick: () => { floatOpen = false; renderFloatWidget(); } }),
+    ]);
+    const panel = el('div', { class: 'float-panel', style: { left: pos.x + 'px', top: pos.y + 'px' } }, [panelHead, floatPanelBody()]);
+    makeDraggable(panelHead, panel, saveFloatPos, null);
+    host.appendChild(panel);
+  }
+
+  /* 彈出成真正的獨立小視窗（Document Picture-in-Picture），會一直浮在所有視窗最上層，
+     包含蓋在其他 App 上面——效果最接近 HiTeach 的浮動工具列。只有 Chrome／Edge 系列支援；
+     視窗內容跟主頁面共用同一個 JavaScript，所以按鈕點了一樣會即時加點、即時看到結果。 */
+  async function openFloatPip() {
+    if (!documentPipSupported()) return U.toast('這個瀏覽器不支援彈出小視窗，請用 Chrome 或 Edge', 'warn');
+    try {
+      floatPipWin = await window.documentPictureInPicture.requestWindow({ width: 300, height: 420 });
+      Array.from(document.styleSheets).forEach((sheet) => {
+        try {
+          if (sheet.href) {
+            const link = floatPipWin.document.createElement('link');
+            link.rel = 'stylesheet'; link.href = sheet.href;
+            floatPipWin.document.head.appendChild(link);
+          }
+        } catch (e) { /* 跨網域樣式表讀不到就略過 */ }
+      });
+      floatPipWin.document.body.style.margin = '0';
+      floatOpen = false;
+      $('#floatWidget').innerHTML = '';
+      floatPipWin.addEventListener('pagehide', () => { floatPipWin = null; renderFloatWidget(); });
+      renderFloatWidget();
+    } catch (e) {
+      U.toast('彈出小視窗失敗：' + e.message, 'error');
+    }
+  }
+
   /* ---------- 側邊欄收合 ---------- */
   function bindSideToggle() {
     const btn = $('#sideToggle');
@@ -3247,7 +3410,9 @@
       if (PAGES[h] && h !== page) { page = h; render(); }
     });
     S.subscribe(render);
+    S.subscribe(renderFloatWidget);
     bindSync();
     render();
+    renderFloatWidget();
   });
 })();
