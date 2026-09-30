@@ -1,0 +1,28 @@
+{
+  "name": "classpet-float-widget",
+  "version": "1.0.0",
+  "description": "班級寵物加分系統 - 桌面漂浮加點小工具（跟網頁版共用同一份 Google Sheets 資料）",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.classpet.floatwidget",
+    "productName": "班級加點小工具",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  }
+}

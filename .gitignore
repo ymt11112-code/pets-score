@@ -1,3 +1,7 @@
 .claude/
 .DS_Store
 Thumbs.db
+
+# 桌面小工具（Electron）build 產物與依賴套件，不進版控
+desktop-widget/node_modules/
+desktop-widget/dist/

@@ -1,0 +1,49 @@
+/* 視窗本身在 main.js 設成透明無邊框，這裡只需要把「看得到的部分」畫出來，
+   其他地方保持透明，看起來就像真的只有一個圓鈕或一張小面板飄在桌面上。 */
+html, body { width: 100%; height: 100%; margin: 0; background: transparent; overflow: hidden; }
+
+/* 圓鈕（收合狀態）：整顆都可以拖曳，因為裡面沒有需要另外點擊的元件 */
+.w-fab {
+  width: 64px; height: 64px; border-radius: 50%; background: var(--gold);
+  color: #4a3405; font-size: 26px; display: grid; place-items: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35); cursor: grab;
+  -webkit-app-region: drag;
+}
+
+/* 面板（展開狀態） */
+.w-panel {
+  width: 320px; height: 460px; background: #fff; border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35); display: flex; flex-direction: column;
+  overflow: hidden; border: 1px solid var(--line);
+}
+.w-panel__head {
+  background: var(--brand); color: #fff; padding: 10px 12px; display: flex; align-items: center; gap: 8px;
+  font-weight: 800; font-size: 13.5px; -webkit-app-region: drag; cursor: grab;
+}
+.w-panel__head button { -webkit-app-region: no-drag; }
+.w-iconbtn {
+  width: 24px; height: 24px; border-radius: 8px; background: rgba(255, 255, 255, .16); color: #fff;
+  margin-left: auto;
+}
+.w-panel__body { padding: 10px 12px; overflow-y: auto; flex: 1; -webkit-app-region: no-drag; }
+
+.w-syncline { font-size: 11.5px; color: var(--ink-mute); margin: 4px 0 8px; display: flex; align-items: center; gap: 6px; }
+.w-dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5c9; }
+.w-dot.is-ok { background: #2fbf71; }
+.w-dot.is-error { background: #ff5a4e; }
+
+.w-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 160px; overflow-y: auto; margin: 6px 0; }
+.w-chip {
+  padding: 5px 10px; border-radius: 999px; background: var(--bg-soft); border: 1.5px solid var(--line);
+  font-size: 12.5px; font-weight: 700; white-space: nowrap;
+}
+.w-chip.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
+
+.w-dock { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.w-rulebtn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border-radius: 999px;
+  background: var(--bg-soft); border: 1.5px solid transparent; font-size: 12.5px; font-weight: 800;
+}
+.w-rulebtn:hover { border-color: var(--green); background: #fff; }
+
+.w-setup { display: flex; flex-direction: column; gap: 8px; }
