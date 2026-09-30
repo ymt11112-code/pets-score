@@ -3317,14 +3317,18 @@
       }, [el('span', { text: r.icon }), el('span', { text: r.label }), el('span', { text: (r.points >= 0 ? '+' : '') + r.points })]));
     });
 
+    const pipRow = floatPipWin
+      ? null
+      : documentPipSupported()
+        ? el('button', { class: 'btn btn--ghost btn--sm', style: { width: '100%', marginTop: '10px' }, text: '🪟 彈出獨立小視窗', onclick: openFloatPip })
+        : el('p', { class: 'muted', style: { fontSize: '12px', marginTop: '10px', textAlign: 'center' }, text: '這個瀏覽器不支援「彈出獨立小視窗」，請改用 Chrome 或 Edge。' });
+
     return el('div', { class: 'float-panel__body' }, [
       el('div', { class: 'row', style: { justifyContent: 'space-between', marginBottom: '6px' } }, [countEl]),
+      pipRow,
       searchInput,
       listEl,
       dockEl,
-      documentPipSupported() && !floatPipWin
-        ? el('button', { class: 'btn btn--ghost btn--sm', style: { width: '100%', marginTop: '10px' }, text: '🪟 彈出獨立小視窗', onclick: openFloatPip })
-        : null,
     ]);
   }
 
