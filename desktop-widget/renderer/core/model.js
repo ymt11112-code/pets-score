@@ -582,10 +582,14 @@
         petCollectUnlockLevel: 10,
         gachaCost: 50,
         /* 全班加分：班級分數（classStars）的增減量是老師另外指定的獨立數字，
-           這三個開關決定「同一次全班加分」要不要也連動每個學生自己的點數/XP/金幣 */
+           這三組「開關＋數量」決定「同一次全班加分」要不要也連動每個學生自己的
+           點數/XP/金幣，連動的話每次固定加多少（像規則一樣，先設定好、之後重複套用）。 */
         classScoreLinkPoints: false,
+        classScoreLinkPointsAmount: 1,
         classScoreLinkXp: false,
+        classScoreLinkXpAmount: 2,
         classScoreLinkCoins: false,
+        classScoreLinkCoinsAmount: 1,
       },
     };
   }

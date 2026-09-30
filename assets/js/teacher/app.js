@@ -237,9 +237,10 @@
     const anyLink = linkPoints || linkXp || linkCoins;
 
     const classInput = el('input', { class: 'input', type: 'number', value: '10', style: { maxWidth: '100px' } });
-    const pointsInput = el('input', { class: 'input', type: 'number', value: '1', style: { maxWidth: '90px' } });
-    const xpInput = el('input', { class: 'input', type: 'number', value: '2', style: { maxWidth: '90px' } });
-    const coinsInput = el('input', { class: 'input', type: 'number', value: '1', style: { maxWidth: '90px' } });
+    /* 三個連動數量預設帶入「系統設定」裡設好的固定值，套用前也還能臨時改成別的數字 */
+    const pointsInput = el('input', { class: 'input', type: 'number', value: String(s.settings.classScoreLinkPointsAmount != null ? s.settings.classScoreLinkPointsAmount : 1), style: { maxWidth: '90px' } });
+    const xpInput = el('input', { class: 'input', type: 'number', value: String(s.settings.classScoreLinkXpAmount != null ? s.settings.classScoreLinkXpAmount : 2), style: { maxWidth: '90px' } });
+    const coinsInput = el('input', { class: 'input', type: 'number', value: String(s.settings.classScoreLinkCoinsAmount != null ? s.settings.classScoreLinkCoinsAmount : 1), style: { maxWidth: '90px' } });
     const noteInput = el('input', { class: 'input grow', placeholder: '備註（選填，例如：秩序整潔比賽第一名）' });
 
     const field = (label, input) => el('div', { class: 'field', style: { minWidth: '0' } }, [el('label', { class: 'field__label', text: label }), input]);
@@ -2875,6 +2876,25 @@
       ]);
     }
 
+    /* 一個開關搭配一個數量：開關決定要不要連動，數量決定連動時固定加多少
+       （像規則一樣先設定好，之後「全班加分」重複套用，不用每次重新輸入） */
+    function linkRow(boolKey, amountKey, label, unit, defaultAmount) {
+      const boolCurrent = s.settings && boolKey in s.settings ? s.settings[boolKey] : false;
+      const amountCurrent = s.settings && s.settings[amountKey] != null ? s.settings[amountKey] : defaultAmount;
+      return el('div', { class: 'row', style: { gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' } }, [
+        el('label', { class: 'row', style: { gap: '8px', cursor: 'pointer', margin: 0 } }, [
+          el('input', { class: 'checkbox', type: 'checkbox', checked: boolCurrent ? 'checked' : null, onchange: (e) => setUpd(boolKey, e.target.checked) }),
+          el('span', { style: { fontSize: '13.5px' }, text: label }),
+        ]),
+        el('span', { class: 'muted', style: { fontSize: '12px' }, text: '每次' }),
+        el('input', {
+          class: 'input', type: 'number', value: amountCurrent, style: { maxWidth: '80px' },
+          onchange: (e) => setUpd(amountKey, Number(e.target.value) || 0),
+        }),
+        el('span', { class: 'muted', style: { fontSize: '12px' }, text: unit }),
+      ]);
+    }
+
     /* 多選標籤：可以同時勾選好幾個選項；選「不顯示」會清空其他選項，反之亦然 */
     function multiCheckRow(key, options, defaultArr) {
       const current = (s.settings && Array.isArray(s.settings[key]) && s.settings[key].length) ? s.settings[key] : defaultArr;
@@ -2943,10 +2963,10 @@
         ]),
         el('div', { class: 'field' }, [
           el('label', { class: 'field__label', text: '全班加分是否連動個人數值' }),
-          el('p', { class: 'card__sub', style: { marginTop: '0' }, text: '「班級總覽」的全班加分卡片，班級分數一律是獨立的數字；這裡勾選的項目，加全班分數時會「額外」同時套用到每位沒請假的學生身上。' }),
-          checkRow('classScoreLinkPoints', '同時連動每位學生的課堂點數', false),
-          checkRow('classScoreLinkXp', '同時連動每位學生的寵物 XP', false),
-          checkRow('classScoreLinkCoins', '同時連動每位學生的金幣', false),
+          el('p', { class: 'card__sub', style: { marginTop: '0' }, text: '「班級總覽」的全班加分卡片，班級分數一律是獨立的數字；勾選以下項目，加全班分數時會「額外」用這裡設定的數量，同時套用到每位沒請假的學生身上。' }),
+          linkRow('classScoreLinkPoints', 'classScoreLinkPointsAmount', '同時連動每位學生的課堂點數', '點', 1),
+          linkRow('classScoreLinkXp', 'classScoreLinkXpAmount', '同時連動每位學生的寵物 XP', 'XP', 2),
+          linkRow('classScoreLinkCoins', 'classScoreLinkCoinsAmount', '同時連動每位學生的金幣', '枚', 1),
         ]),
       ]),
     ]);
