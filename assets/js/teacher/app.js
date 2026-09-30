@@ -2923,13 +2923,25 @@
       });
     }
 
-    const toolbarCard = sectionCard('toolbar', '⭐ 批次加點的底部工具列', '前 6 個項目會排在第一排，其餘收在「更多」裡；可以隱藏、加入或調整順序。', [
+    /* 規則的分類（上課用／作業類／星野主線）決定桌面小工具要把這顆按鈕分到哪一頁，
+       順便放在這裡編輯，不用跑去「規則設定」找；util: 開頭的內建工具沒有分類可選。 */
+    function categorySelect(id) {
+      const rule = s.rules.find((r) => r.id === id);
+      if (!rule) return null;
+      return el('select', {
+        class: 'input rule-edit__cat', title: '桌面小工具的分類（上課用／作業類／星野主線）',
+        onchange: (e) => S.commit((d) => { const rr = d.rules.find((x) => x.id === id); if (rr) rr.category = e.target.value; }, { silent: true }),
+      }, M.RULE_CATEGORIES.map((c) => el('option', { value: c.id, text: c.label, selected: (rule.category || 'class') === c.id })));
+    }
+
+    const toolbarCard = sectionCard('toolbar', '⭐ 批次加點的底部工具列', '前 6 個項目會排在第一排，其餘收在「更多」裡；可以隱藏、加入或調整順序。規則右邊的分類是給桌面小工具用的（上課用／作業類／星野主線）。', [
       el('div', { class: 'stack' }, order.map((id, idx) => {
         const tool = allTools.find((t) => t.id === id);
         if (!tool) return null;
         return el('div', { class: 'rule-edit' }, [
           el('span', { class: 'rule-edit__icon', text: tool.icon }),
           el('span', { class: 'grow', text: tool.label + (idx < 6 ? '' : '（第二排）') }),
+          categorySelect(id),
           el('button', { class: 'btn btn--ghost btn--sm', text: '▲', title: '上移', onclick: () => moveToolbar(idx, -1) }),
           el('button', { class: 'btn btn--ghost btn--sm', text: '▼', title: '下移', onclick: () => moveToolbar(idx, 1) }),
           el('button', { class: 'btn btn--danger btn--sm', text: '隱藏', onclick: () => hideToolbarItem(idx) }),
@@ -2942,6 +2954,7 @@
         return el('div', { class: 'rule-edit' }, [
           el('span', { class: 'rule-edit__icon', text: tool.icon }),
           el('span', { class: 'grow', text: tool.label }),
+          categorySelect(id),
           el('button', { class: 'btn btn--green btn--sm', text: '＋ 加入面板', onclick: () => showToolbarItem(id) }),
         ]);
       })) : null,

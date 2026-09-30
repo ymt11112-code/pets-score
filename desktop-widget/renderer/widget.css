@@ -52,6 +52,11 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 .dw-root.is-vertical .dw-btn { justify-content: center; }
 .dw-root.is-vertical .dw-pill { text-align: center; }
 
+/* 純圖示工具鈕（紀錄／隱藏／結束）的小群組：永遠橫排在一起，不管主橫幅是橫是直，
+   避免直幅時每顆都各自撐成一整條、浪費一堆高度 */
+.dw-btnrow { display: flex; flex-direction: row; gap: 4px; }
+.dw-btnrow .dw-btn { flex: 1 1 0; }
+
 .dw-seg { display: inline-flex; background: var(--bg-soft); border-radius: 999px; padding: 3px; gap: 2px; flex-shrink: 0; }
 .dw-root.is-vertical .dw-seg { flex-direction: column; }
 .dw-seg__btn { padding: 5px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
@@ -84,9 +89,8 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
    （這條規則要蓋掉 .dw-root 的 width:max-content，所以特別把它放在後面。） */
 .dw-picker-win { width: 118px; }
 .dw-btn--block { width: 100%; justify-content: center; }
-.dw-picker__search { width: 100%; margin-bottom: 6px; }
 .dw-picker__list {
-  display: flex; flex-wrap: wrap; gap: 5px; max-height: 260px; overflow-y: auto;
+  display: flex; flex-wrap: wrap; gap: 5px;
 }
 .dw-chip {
   padding: 5px 9px; border-radius: 999px; background: #fff; border: 1.5px solid var(--line);
@@ -94,9 +98,11 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 }
 .dw-chip.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
 .dw-chip.is-off-disabled { opacity: .45; }
-/* 座號格：固定兩欄的格子（不是 flex-wrap 讓它自然換行），一排就是剛好 2 人 */
+/* 座號格：固定兩欄的格子（不是 flex-wrap 讓它自然換行），一排就是剛好 2 人；
+   故意不設 max-height/overflow，讓視窗直接長高顯示全部學生，不用捲動
+   （main.js 的 resize-picker 還是會把視窗整體夾在螢幕高度內，當安全網）。 */
 .dw-num-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; max-height: 320px; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
 }
 .dw-chip--num {
   padding: 8px 4px; text-align: center; border-radius: 10px;

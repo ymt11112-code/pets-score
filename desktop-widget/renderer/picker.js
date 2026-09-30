@@ -41,28 +41,18 @@
       text: allSelected ? '☑️ 取消全班' : '☑️ 全班',
       onclick: () => window.desktopWidget && window.desktopWidget.selectMany(activeIds, !allSelected),
     });
-    const searchInput = el('input', { class: 'input dw-picker__search', placeholder: '搜尋姓名或座號…' });
     const listEl = el('div', { class: 'dw-num-grid' });
-
-    function paintList() {
-      listEl.innerHTML = '';
-      const q = searchInput.value.trim();
-      s.students.slice().sort((a, b) => a.no - b.no)
-        .filter((st) => !q || (String(st.no).padStart(2, '0') + st.name).indexOf(q) >= 0)
-        .forEach((st) => {
-          const absent = S.isAbsent(st.id);
-          const on = selected.has(st.id);
-          listEl.appendChild(el('button', {
-            class: 'dw-chip--num' + (on ? ' is-on' : '') + (absent ? ' is-off-disabled' : ''),
-            title: st.name + (absent ? '（請假）' : ''),
-            text: String(st.no).padStart(2, '0'),
-            onclick: () => { if (absent) return; window.desktopWidget && window.desktopWidget.toggleStudent(st.id); },
-          }));
-        });
-    }
-    searchInput.addEventListener('input', paintList);
-    paintList();
-    return [allBtn, searchInput, listEl];
+    s.students.slice().sort((a, b) => a.no - b.no).forEach((st) => {
+      const absent = S.isAbsent(st.id);
+      const on = selected.has(st.id);
+      listEl.appendChild(el('button', {
+        class: 'dw-chip--num' + (on ? ' is-on' : '') + (absent ? ' is-off-disabled' : ''),
+        title: st.name + (absent ? '（請假）' : ''),
+        text: String(st.no).padStart(2, '0'),
+        onclick: () => { if (absent) return; window.desktopWidget && window.desktopWidget.toggleStudent(st.id); },
+      }));
+    });
+    return [allBtn, listEl];
   }
 
   function paint() {

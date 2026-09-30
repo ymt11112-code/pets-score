@@ -135,9 +135,13 @@
         el('span', { text: '👥' }), el('span', { text: '選人' }),
       ]),
       categoryTabs(),
-      el('button', { class: 'dw-btn is-icon-only' + (ledgerOpen ? ' is-active' : ''), title: '近 50 筆點數紀錄', onclick: () => { ledgerOpen = !ledgerOpen; paint(); } }, [el('span', { text: '📜' })]),
-      el('button', { class: 'dw-btn is-icon-only', title: '隱藏到系統匣', onclick: () => window.desktopWidget && window.desktopWidget.hideWindow() }, [el('span', { text: '－' })]),
-      el('button', { class: 'dw-btn is-icon-only', title: '結束程式', onclick: () => window.desktopWidget && window.desktopWidget.quitApp() }, [el('span', { text: '✕' })]),
+      /* 這三個純圖示的工具鈕故意包成一個橫排小群組（dw-btnrow），
+         不管主橫幅是橫是直，它們都並排在一起，不會直幅時各自撐成一整條、浪費空間 */
+      el('div', { class: 'dw-btnrow' }, [
+        el('button', { class: 'dw-btn is-icon-only' + (ledgerOpen ? ' is-active' : ''), title: '近 50 筆點數紀錄', onclick: () => { ledgerOpen = !ledgerOpen; paint(); } }, [el('span', { text: '📜' })]),
+        el('button', { class: 'dw-btn is-icon-only', title: '隱藏到系統匣', onclick: () => window.desktopWidget && window.desktopWidget.hideWindow() }, [el('span', { text: '－' })]),
+        el('button', { class: 'dw-btn is-icon-only', title: '結束程式', onclick: () => window.desktopWidget && window.desktopWidget.quitApp() }, [el('span', { text: '✕' })]),
+      ]),
     ]);
 
     const nodes = [
