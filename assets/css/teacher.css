@@ -290,6 +290,7 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 .rule-edit .input { padding: 8px 10px; }
 .rule-edit__icon { width: 54px; text-align: center; font-size: 20px; }
 .rule-edit__num { width: 74px; }
+.rule-edit__cat { width: 106px; flex-shrink: 0; }
 
 .tag-toggle { display: flex; gap: 8px; flex-wrap: wrap; }
 .tag-toggle button {

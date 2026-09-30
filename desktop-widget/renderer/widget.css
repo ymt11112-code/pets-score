@@ -1,50 +1,100 @@
 /* 視窗本身在 main.js 設成透明無邊框，這裡只需要把「看得到的部分」畫出來，
-   其他地方保持透明，看起來就像真的只有一個圓鈕或一張小面板飄在桌面上。 */
+   其他地方保持透明，看起來就像真的只有一條橫幅（或直幅）飄在桌面上。 */
 html, body { width: 100%; height: 100%; margin: 0; background: transparent; overflow: hidden; }
 
-/* 圓鈕（收合狀態）：整顆都可以拖曳，因為裡面沒有需要另外點擊的元件 */
-.w-fab {
-  width: 64px; height: 64px; border-radius: 50%; background: var(--gold);
-  color: #4a3405; font-size: 26px; display: grid; place-items: center;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .35); cursor: grab;
-  touch-action: none; user-select: none;
+/* 整個小工具用 inline-flex，讓它的實際排版大小＝內容大小，不會被視窗目前的（可能還沒調整好的）
+   像素尺寸撐開或裁切；量到的大小會回報給 main.js 拿去 setBounds。 */
+.dw-root {
+  display: inline-flex; flex-direction: column; gap: 6px;
+  background: #fff; border: 1.5px solid var(--line); border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .28); padding: 7px;
+  max-width: 420px;
 }
-.w-fab:active { cursor: grabbing; }
+.dw-root.is-vertical { flex-direction: row; max-width: none; max-height: 78vh; }
 
-/* 面板（展開狀態） */
-.w-panel {
-  width: 320px; height: 460px; background: #fff; border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .35); display: flex; flex-direction: column;
-  overflow: hidden; border: 1px solid var(--line);
+/* ---------- 主橫幅（控制列） ---------- */
+.dw-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
 }
-.w-panel__head {
-  background: var(--brand); color: #fff; padding: 10px 12px; display: flex; align-items: center; gap: 8px;
-  font-weight: 800; font-size: 13.5px; -webkit-app-region: drag; cursor: grab;
-}
-.w-panel__head button { -webkit-app-region: no-drag; }
-.w-iconbtn {
-  width: 24px; height: 24px; border-radius: 8px; background: rgba(255, 255, 255, .16); color: #fff;
-  margin-left: auto;
-}
-.w-panel__body { padding: 10px 12px; overflow-y: auto; flex: 1; -webkit-app-region: no-drag; }
+.dw-root.is-vertical .dw-bar { flex-direction: column; align-items: stretch; }
 
-.w-syncline { font-size: 11.5px; color: var(--ink-mute); margin: 4px 0 8px; display: flex; align-items: center; gap: 6px; }
-.w-dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5c9; }
-.w-dot.is-ok { background: #2fbf71; }
-.w-dot.is-error { background: #ff5a4e; }
-
-.w-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 160px; overflow-y: auto; margin: 6px 0; }
-.w-chip {
-  padding: 5px 10px; border-radius: 999px; background: var(--bg-soft); border: 1.5px solid var(--line);
-  font-size: 12.5px; font-weight: 700; white-space: nowrap;
+.dw-grip {
+  width: 18px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: var(--bg-soft); display: grid; place-items: center;
+  color: var(--ink-mute); font-size: 12px; cursor: grab; letter-spacing: -1px;
+  -webkit-app-region: drag; user-select: none;
 }
-.w-chip.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
+.dw-root.is-vertical .dw-grip { width: 28px; height: 18px; }
+.dw-grip:active { cursor: grabbing; }
 
-.w-dock { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
-.w-rulebtn {
-  display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border-radius: 999px;
-  background: var(--bg-soft); border: 1.5px solid transparent; font-size: 12.5px; font-weight: 800;
+.dw-pill {
+  flex-shrink: 0; background: var(--gold-soft); color: var(--gold-deep); font-weight: 800;
+  font-size: 12px; padding: 6px 10px; border-radius: 999px; white-space: nowrap;
 }
-.w-rulebtn:hover { border-color: var(--green); background: #fff; }
 
-.w-setup { display: flex; flex-direction: column; gap: 8px; }
+.dw-btn {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  background: var(--bg-soft); border: 1.5px solid transparent; color: var(--ink);
+  border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.dw-btn:hover { border-color: var(--green); background: #fff; }
+.dw-btn.is-active { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
+.dw-btn.is-icon-only { padding: 6px; }
+
+.dw-seg { display: inline-flex; background: var(--bg-soft); border-radius: 999px; padding: 3px; gap: 2px; flex-shrink: 0; }
+.dw-root.is-vertical .dw-seg { flex-direction: column; }
+.dw-seg__btn { padding: 5px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+.dw-seg__btn.is-active { background: #fff; color: var(--brand); box-shadow: var(--shadow-sm); }
+
+/* ---------- 規則按鈕（依分類篩選後顯示） ---------- */
+.dw-rules {
+  display: flex; flex-wrap: wrap; gap: 5px; max-width: 400px;
+}
+.dw-root.is-vertical .dw-rules {
+  flex-direction: column; flex-wrap: nowrap; max-width: none; width: 168px;
+  max-height: 260px; overflow-y: auto;
+}
+.dw-rule {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-soft); border: 1.5px solid transparent; border-radius: 999px;
+  padding: 6px 10px; font-size: 12px; font-weight: 800; white-space: nowrap;
+}
+.dw-rule:hover { border-color: var(--green); background: #fff; }
+.dw-rule__pts { color: var(--green); }
+.dw-rule__pts.is-minus { color: var(--red); }
+.dw-rules-empty { font-size: 11.5px; color: var(--ink-mute); padding: 4px 2px; }
+
+/* ---------- 選人面板 ---------- */
+.dw-picker {
+  background: var(--bg-soft); border-radius: 12px; padding: 8px; width: 340px;
+}
+.dw-root.is-vertical .dw-picker { width: 220px; }
+.dw-picker__search { width: 100%; margin-bottom: 6px; }
+.dw-picker__list {
+  display: flex; flex-wrap: wrap; gap: 5px; max-height: 220px; overflow-y: auto;
+}
+.dw-chip {
+  padding: 5px 9px; border-radius: 999px; background: #fff; border: 1.5px solid var(--line);
+  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+}
+.dw-chip.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
+.dw-chip.is-off-disabled { opacity: .45; }
+
+/* ---------- 點數紀錄（開闔卡片） ---------- */
+.dw-ledger { background: var(--bg-soft); border-radius: 12px; padding: 4px 4px; width: 340px; }
+.dw-root.is-vertical .dw-ledger { width: 220px; }
+.dw-ledger__body { max-height: 200px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
+.dw-ledger__row { display: flex; align-items: baseline; gap: 5px; font-size: 11px; padding: 3px 4px; }
+.dw-ledger__row-who { color: var(--ink-soft); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dw-ledger__row-pts { font-weight: 800; color: var(--green); flex-shrink: 0; }
+.dw-ledger__row-pts.is-minus { color: var(--red); }
+.dw-ledger__row.is-undone { opacity: .4; text-decoration: line-through; }
+.dw-ledger__empty { font-size: 11.5px; color: var(--ink-mute); padding: 6px; }
+
+/* ---------- 同步狀態 / 設定表單 ---------- */
+.dw-syncline { font-size: 11px; color: var(--ink-mute); display: flex; align-items: center; gap: 5px; padding: 0 2px; }
+.dw-dot { width: 7px; height: 7px; border-radius: 50%; background: #cbd5c9; flex-shrink: 0; }
+.dw-dot.is-ok { background: #2fbf71; }
+.dw-dot.is-error { background: #ff5a4e; }
+
+.dw-setup { display: flex; flex-direction: column; gap: 8px; width: 300px; padding: 4px; }

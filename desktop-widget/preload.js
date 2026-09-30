@@ -3,8 +3,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWidget', {
-  resizePanel: (expanded) => ipcRenderer.invoke('resize-panel', expanded),
+  getDockSide: () => ipcRenderer.invoke('get-dock-side'),
+  onDockChanged: (cb) => ipcRenderer.on('dock-changed', (evt, side) => cb(side)),
+  resizeTo: (width, height) => ipcRenderer.invoke('resize-to', width, height),
+  hideWindow: () => ipcRenderer.invoke('hide-window'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
-  getWindowBounds: () => ipcRenderer.invoke('get-window-bounds'),
-  moveWindowTo: (x, y) => ipcRenderer.send('move-window-to', x, y),
 });

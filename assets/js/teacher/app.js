@@ -2663,6 +2663,10 @@
         el('input', { class: 'input rule-edit__num', type: 'number', value: r.points, title: '課堂點數', onchange: (e) => upd({ points: Number(e.target.value) || 0 }) }),
         el('input', { class: 'input rule-edit__num', type: 'number', value: r.xp, title: '寵物 XP', onchange: (e) => upd({ xp: Number(e.target.value) || 0 }) }),
         el('input', { class: 'input rule-edit__num', type: 'number', value: r.coins, title: '金幣', onchange: (e) => upd({ coins: Number(e.target.value) || 0 }) }),
+        el('select', {
+          class: 'input rule-edit__cat', title: '分類（桌面小工具會依這個分類分區顯示）',
+          onchange: (e) => upd({ category: e.target.value }),
+        }, M.RULE_CATEGORIES.map((c) => el('option', { value: c.id, text: c.label, selected: (r.category || 'class') === c.id }))),
         el('button', { class: 'btn btn--danger btn--sm', text: '✕', onclick: () => {
           S.commit((d) => { d.rules = d.rules.filter((x) => x.id !== r.id); });
         } }),
@@ -2712,7 +2716,7 @@
         sectionCard('rules', '加分規則', '欄位依序為：圖示、名稱、點數、XP、金幣。', [
           el('div', {}, s.rules.map(ruleRow)),
           el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增規則', onclick: () => {
-            S.commit((d) => d.rules.push({ id: U.uid('r'), label: '新規則', icon: '⭐', points: 1, xp: 2, coins: 1, kind: 'add' }));
+            S.commit((d) => d.rules.push({ id: U.uid('r'), label: '新規則', icon: '⭐', points: 1, xp: 2, coins: 1, kind: 'add', category: 'class' }));
           } }),
         ]),
         sectionCard('shop', '兌換商店', '學生用課堂點數兌換。', [

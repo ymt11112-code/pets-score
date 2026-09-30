@@ -264,6 +264,8 @@
         if (def) out.rules.push(Object.assign({}, def));
       }
     });
+    /* 規則分類是後來才加的欄位，舊規則沒有這個欄位就預設歸到「上課用」，老師可以之後自己改 */
+    out.rules.forEach((r) => { if (!r.category) r.category = 'class'; });
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     if (!out.pathCapacity || typeof out.pathCapacity !== 'object') out.pathCapacity = {};

@@ -174,22 +174,29 @@
     return U.el('span', { text: b.emoji, style: { fontSize: Math.round(size * 0.82) + 'px' } });
   }
 
+  /* 規則分類（桌面小工具用這個把規則按鈕分區塊顯示；老師可以在「規則設定」改每條規則的分類） */
+  const RULE_CATEGORIES = [
+    { id: 'class',     label: '上課用' },
+    { id: 'homework',  label: '作業類' },
+    { id: 'storyline', label: '星野主線' },
+  ];
+
   /* 預設加分規則（老師可自訂） */
   const DEFAULT_RULES = [
-    { id: 'homework', label: '準時交作業', icon: '📚', points: 2, xp: 3, coins: 2, kind: 'add' },
-    { id: 'ontime',   label: '準時上課',   icon: '⏰', points: 1, xp: 2, coins: 1, kind: 'add' },
-    { id: 'help',     label: '主動幫忙',   icon: '❤️', points: 2, xp: 3, coins: 2, kind: 'add' },
-    { id: 'team',     label: '小組合作',   icon: '👥', points: 3, xp: 4, coins: 3, kind: 'add' },
-    { id: 'tidy',     label: '整理座位',   icon: '🌱', points: 1, xp: 2, coins: 1, kind: 'add' },
-    { id: 'focus',    label: '上課專注',   icon: '🔍', points: 1, xp: 2, coins: 1, kind: 'add' },
-    { id: 'cheer',    label: '鼓勵同學',   icon: '🏆', points: 2, xp: 3, coins: 2, kind: 'add' },
-    { id: 'mission',  label: '完成共同任務', icon: '🗺️', points: 3, xp: 5, coins: 3, kind: 'add' },
-    { id: 'remind',   label: '溫馨提醒',   icon: '💭', points: -1, xp: 0, coins: 0, kind: 'deduct' },
+    { id: 'homework', label: '準時交作業', icon: '📚', points: 2, xp: 3, coins: 2, kind: 'add', category: 'homework' },
+    { id: 'ontime',   label: '準時上課',   icon: '⏰', points: 1, xp: 2, coins: 1, kind: 'add', category: 'class' },
+    { id: 'help',     label: '主動幫忙',   icon: '❤️', points: 2, xp: 3, coins: 2, kind: 'add', category: 'class' },
+    { id: 'team',     label: '小組合作',   icon: '👥', points: 3, xp: 4, coins: 3, kind: 'add', category: 'class' },
+    { id: 'tidy',     label: '整理座位',   icon: '🌱', points: 1, xp: 2, coins: 1, kind: 'add', category: 'class' },
+    { id: 'focus',    label: '上課專注',   icon: '🔍', points: 1, xp: 2, coins: 1, kind: 'add', category: 'class' },
+    { id: 'cheer',    label: '鼓勵同學',   icon: '🏆', points: 2, xp: 3, coins: 2, kind: 'add', category: 'class' },
+    { id: 'mission',  label: '完成共同任務', icon: '🗺️', points: 3, xp: 5, coins: 3, kind: 'add', category: 'class' },
+    { id: 'remind',   label: '溫馨提醒',   icon: '💭', points: -1, xp: 0, coins: 0, kind: 'deduct', category: 'class' },
     /* 守護行動快捷規則：對應星野主線的行動進度統計，id 不要改（chapters 的 actionRuleIds 會用到） */
-    { id: 'warmth',     label: '傳遞暖光', icon: '🌞', points: 2, xp: 3, coins: 2, kind: 'add' },
-    { id: 'initiative', label: '主動爭取', icon: '🚀', points: 2, xp: 3, coins: 2, kind: 'add' },
-    { id: 'courage',    label: '勇敢試想', icon: '💡', points: 2, xp: 3, coins: 2, kind: 'add' },
-    { id: 'revise',     label: '修正再試', icon: '🔧', points: 2, xp: 3, coins: 2, kind: 'add' },
+    { id: 'warmth',     label: '傳遞暖光', icon: '🌞', points: 2, xp: 3, coins: 2, kind: 'add', category: 'storyline' },
+    { id: 'initiative', label: '主動爭取', icon: '🚀', points: 2, xp: 3, coins: 2, kind: 'add', category: 'storyline' },
+    { id: 'courage',    label: '勇敢試想', icon: '💡', points: 2, xp: 3, coins: 2, kind: 'add', category: 'storyline' },
+    { id: 'revise',     label: '修正再試', icon: '🔧', points: 2, xp: 3, coins: 2, kind: 'add', category: 'storyline' },
   ];
 
   /* 預設兌換商店 */
@@ -579,7 +586,7 @@
   }
 
   global.PetModel = {
-    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_SHOP, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, RULE_CATEGORIES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_IMAGE_ASSETS, DEFAULT_PET_RARITIES,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
