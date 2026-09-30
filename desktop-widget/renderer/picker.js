@@ -42,7 +42,7 @@
       onclick: () => window.desktopWidget && window.desktopWidget.selectMany(activeIds, !allSelected),
     });
     const searchInput = el('input', { class: 'input dw-picker__search', placeholder: '搜尋姓名或座號…' });
-    const listEl = el('div', { class: 'dw-picker__list' });
+    const listEl = el('div', { class: 'dw-num-grid' });
 
     function paintList() {
       listEl.innerHTML = '';
@@ -53,7 +53,7 @@
           const absent = S.isAbsent(st.id);
           const on = selected.has(st.id);
           listEl.appendChild(el('button', {
-            class: 'dw-chip dw-chip--num' + (on ? ' is-on' : '') + (absent ? ' is-off-disabled' : ''),
+            class: 'dw-chip--num' + (on ? ' is-on' : '') + (absent ? ' is-off-disabled' : ''),
             title: st.name + (absent ? '（請假）' : ''),
             text: String(st.no).padStart(2, '0'),
             onclick: () => { if (absent) return; window.desktopWidget && window.desktopWidget.toggleStudent(st.id); },

@@ -75,9 +75,21 @@
     ));
   }
 
+  /* 小工具要顯示哪些規則、順序怎麼排，直接沿用網頁版「系統設定→底部工具列」的設定
+     （state.toolbar），老師只要在網頁版那邊編輯過一次，桌面小工具就會跟著變；
+     util: 開頭的是網頁版專屬工具（出席、計時器…），這裡用不到所以過濾掉。 */
+  function toolbarRuleIds(s) {
+    const order = (s.toolbar && s.toolbar.length ? s.toolbar : M.DEFAULT_TOOLBAR);
+    return order.filter((id) => id.indexOf('util:') !== 0);
+  }
+
   function ruleChips(s) {
-    const rules = (s.rules || []).filter((r) => (r.category || 'class') === activeCategory);
-    if (!rules.length) return el('div', { class: 'dw-rules-empty', text: '這個分類還沒有規則，可以到網頁版「規則設定」新增或調整分類。' });
+    const byId = {};
+    (s.rules || []).forEach((r) => { byId[r.id] = r; });
+    const rules = toolbarRuleIds(s)
+      .map((id) => byId[id])
+      .filter((r) => r && (r.category || 'class') === activeCategory);
+    if (!rules.length) return el('div', { class: 'dw-rules-empty', text: '這個分類目前沒有規則顯示在工具列，可以到網頁版「系統設定→底部工具列」加入規則，或到「規則設定」調整規則的分類。' });
     return el('div', { class: 'dw-rules' }, rules.map((r) => el('button', {
       class: 'dw-rule',
       onclick: () => {

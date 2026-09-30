@@ -14,7 +14,7 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
   display: inline-flex; flex-direction: column; gap: 6px; width: max-content;
   background: #fff; border: 1.5px solid var(--line); border-radius: 16px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, .28); padding: 7px;
-  max-width: 340px;
+  max-width: 280px;
 }
 /* 貼邊變直幅時，所有東西（控制列＋規則按鈕＋面板）都疊成同一條窄窄的單排選單，
    不要分成「控制列一欄、規則按鈕另一欄」的兩欄並排，那樣反而佔比較多橫向空間。
@@ -59,11 +59,11 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 
 /* ---------- 規則按鈕（依分類篩選後顯示） ---------- */
 .dw-rules {
-  display: flex; flex-wrap: wrap; gap: 5px; max-width: 320px;
+  display: flex; flex-wrap: wrap; gap: 5px; max-width: 260px;
 }
 .dw-root.is-vertical .dw-rules {
   flex-direction: column; flex-wrap: nowrap; max-width: none; align-items: stretch;
-  max-height: 260px; overflow-y: auto;
+  max-height: 420px; overflow-y: auto;
 }
 .dw-rule {
   display: inline-flex; align-items: center; gap: 5px;
@@ -82,7 +82,7 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
    瀏覽器算「這個元素攤平不換行要多寬」當作它對外層的寬度貢獻，
    會把幾十個 chip 全部排成一整行去計算，導致整個視窗被撐成好幾千 px 寬。
    （這條規則要蓋掉 .dw-root 的 width:max-content，所以特別把它放在後面。） */
-.dw-picker-win { width: 176px; }
+.dw-picker-win { width: 118px; }
 .dw-btn--block { width: 100%; justify-content: center; }
 .dw-picker__search { width: 100%; margin-bottom: 6px; }
 .dw-picker__list {
@@ -94,12 +94,20 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 }
 .dw-chip.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
 .dw-chip.is-off-disabled { opacity: .45; }
-/* 座號 chip：只顯示兩位數字，故意縮小、置中，一排可以擠比較多個 */
-.dw-chip--num { min-width: 30px; text-align: center; padding: 6px 4px; }
+/* 座號格：固定兩欄的格子（不是 flex-wrap 讓它自然換行），一排就是剛好 2 人 */
+.dw-num-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; max-height: 320px; overflow-y: auto;
+}
+.dw-chip--num {
+  padding: 8px 4px; text-align: center; border-radius: 10px;
+  background: #fff; border: 1.5px solid var(--line); font-size: 13px; font-weight: 800;
+}
+.dw-chip--num.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
+.dw-chip--num.is-off-disabled { opacity: .45; }
 
 /* ---------- 點數紀錄（開闔卡片） ---------- */
-.dw-ledger { background: var(--bg-soft); border-radius: 12px; padding: 4px 4px; width: 300px; }
-.dw-root.is-vertical .dw-ledger { width: 210px; }
+.dw-ledger { background: var(--bg-soft); border-radius: 12px; padding: 4px 4px; width: 260px; }
+.dw-root.is-vertical .dw-ledger { width: 200px; }
 .dw-ledger__body { max-height: 200px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
 .dw-ledger__row { display: flex; align-items: baseline; gap: 5px; font-size: 11px; padding: 3px 4px; }
 .dw-ledger__row-who { color: var(--ink-soft); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
