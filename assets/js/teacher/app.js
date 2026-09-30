@@ -3343,6 +3343,10 @@
     let dragging = false;
     let startX = 0, startY = 0, baseX = 0, baseY = 0, moved = false;
     handleEl.addEventListener('pointerdown', (e) => {
+      /* 如果按下的其實是拖曳把手裡面的按鈕（例如面板頭上的關閉鈕），這裡要整個讓開，
+         不要搶走 pointer capture——setPointerCapture 一旦搶到把手身上，連帶會把
+         按鈕自己的 click 也吃掉（button 永遠收不到 pointerup/click），關閉鈕就會變成點了沒反應。 */
+      if (e.target !== handleEl && e.target.closest('button, input, select, textarea, a')) return;
       dragging = true;
       moved = false;
       startX = e.clientX; startY = e.clientY;
