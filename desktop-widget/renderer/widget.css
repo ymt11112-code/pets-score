@@ -10,7 +10,10 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
   box-shadow: 0 10px 28px rgba(0, 0, 0, .28); padding: 7px;
   max-width: 420px;
 }
-.dw-root.is-vertical { flex-direction: row; max-width: none; max-height: 78vh; }
+/* 貼邊變直幅時，所有東西（控制列＋規則按鈕＋面板）都疊成同一條窄窄的單排選單，
+   不要分成「控制列一欄、規則按鈕另一欄」的兩欄並排，那樣反而佔比較多橫向空間。
+   靠 align-items:stretch 讓每一列都撐成跟最寬的那個按鈕一樣寬，寬度統一好看。 */
+.dw-root.is-vertical { flex-direction: column; align-items: stretch; max-width: none; }
 
 /* ---------- 主橫幅（控制列） ---------- */
 .dw-bar {
@@ -40,6 +43,8 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 .dw-btn:hover { border-color: var(--green); background: #fff; }
 .dw-btn.is-active { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
 .dw-btn.is-icon-only { padding: 6px; }
+.dw-root.is-vertical .dw-btn { justify-content: center; }
+.dw-root.is-vertical .dw-pill { text-align: center; }
 
 .dw-seg { display: inline-flex; background: var(--bg-soft); border-radius: 999px; padding: 3px; gap: 2px; flex-shrink: 0; }
 .dw-root.is-vertical .dw-seg { flex-direction: column; }
@@ -51,7 +56,7 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
   display: flex; flex-wrap: wrap; gap: 5px; max-width: 400px;
 }
 .dw-root.is-vertical .dw-rules {
-  flex-direction: column; flex-wrap: nowrap; max-width: none; width: 168px;
+  flex-direction: column; flex-wrap: nowrap; max-width: none; align-items: stretch;
   max-height: 260px; overflow-y: auto;
 }
 .dw-rule {
@@ -60,6 +65,7 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
   padding: 6px 10px; font-size: 12px; font-weight: 800; white-space: nowrap;
 }
 .dw-rule:hover { border-color: var(--green); background: #fff; }
+.dw-root.is-vertical .dw-rule { justify-content: space-between; }
 .dw-rule__pts { color: var(--green); }
 .dw-rule__pts.is-minus { color: var(--red); }
 .dw-rules-empty { font-size: 11.5px; color: var(--ink-mute); padding: 4px 2px; }
@@ -68,7 +74,7 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 .dw-picker {
   background: var(--bg-soft); border-radius: 12px; padding: 8px; width: 340px;
 }
-.dw-root.is-vertical .dw-picker { width: 220px; }
+.dw-root.is-vertical .dw-picker { width: auto; }
 .dw-picker__search { width: 100%; margin-bottom: 6px; }
 .dw-picker__list {
   display: flex; flex-wrap: wrap; gap: 5px; max-height: 220px; overflow-y: auto;
@@ -82,7 +88,7 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 
 /* ---------- 點數紀錄（開闔卡片） ---------- */
 .dw-ledger { background: var(--bg-soft); border-radius: 12px; padding: 4px 4px; width: 340px; }
-.dw-root.is-vertical .dw-ledger { width: 220px; }
+.dw-root.is-vertical .dw-ledger { width: auto; }
 .dw-ledger__body { max-height: 200px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
 .dw-ledger__row { display: flex; align-items: baseline; gap: 5px; font-size: 11px; padding: 3px 4px; }
 .dw-ledger__row-who { color: var(--ink-soft); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
