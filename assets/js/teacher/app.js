@@ -176,6 +176,7 @@
         noteCard('🏆', (s.classInfo.badgeCount || 0) + ' 枚', '班級徽章已解鎖'),
       ]),
 
+      awardClassCard(),
       storylineOverviewCard(),
 
       el('div', { class: 'cols' }, [
@@ -223,6 +224,56 @@
         ]),
       ],
       el('button', { class: 'btn btn--ghost btn--sm', text: '管理星野主線 →', onclick: () => go('storyline') }));
+  }
+
+  /* 全班加分：跟一般加點不同，不用先選學生，班級分數是老師直接指定的獨立數字；
+     是否「同時」也給每位沒請假的學生加點數/XP/金幣，看「系統設定」裡的三個開關，
+     每個數字都可以跟班級分數不一樣（像規則一樣分開設定）。 */
+  function awardClassCard() {
+    const s = S.get();
+    const linkPoints = !!(s.settings && s.settings.classScoreLinkPoints);
+    const linkXp = !!(s.settings && s.settings.classScoreLinkXp);
+    const linkCoins = !!(s.settings && s.settings.classScoreLinkCoins);
+    const anyLink = linkPoints || linkXp || linkCoins;
+
+    const classInput = el('input', { class: 'input', type: 'number', value: '10', style: { maxWidth: '100px' } });
+    const pointsInput = el('input', { class: 'input', type: 'number', value: '1', style: { maxWidth: '90px' } });
+    const xpInput = el('input', { class: 'input', type: 'number', value: '2', style: { maxWidth: '90px' } });
+    const coinsInput = el('input', { class: 'input', type: 'number', value: '1', style: { maxWidth: '90px' } });
+    const noteInput = el('input', { class: 'input grow', placeholder: '備註（選填，例如：秩序整潔比賽第一名）' });
+
+    const field = (label, input) => el('div', { class: 'field', style: { minWidth: '0' } }, [el('label', { class: 'field__label', text: label }), input]);
+    const fields = [field('班級分數', classInput)];
+    if (linkPoints) fields.push(field('同時給每位學生點數', pointsInput));
+    if (linkXp) fields.push(field('同時給每位學生 XP', xpInput));
+    if (linkCoins) fields.push(field('同時給每位學生金幣', coinsInput));
+
+    const applyBtn = el('button', {
+      class: 'btn btn--primary', text: '套用到全班',
+      onclick: () => {
+        const classPoints = Number(classInput.value) || 0;
+        const p = linkPoints ? Number(pointsInput.value) || 0 : 0;
+        const x = linkXp ? Number(xpInput.value) || 0 : 0;
+        const c = linkCoins ? Number(coinsInput.value) || 0 : 0;
+        if (!classPoints && !p && !x && !c) return U.toast('至少要輸入一個不是 0 的數字', 'warn');
+        const ups = S.awardClass({
+          classPoints, points: p, xp: x, coins: c, linkPoints, linkXp, linkCoins,
+          label: '全班加分', note: noteInput.value.trim(),
+        });
+        U.toast('已套用到全班' + (classPoints ? '，班級分數 ' + (classPoints >= 0 ? '+' : '') + classPoints : ''));
+        if (ups.length) U.toast('🎉 ' + ups.map((u) => u.name + ' Lv.' + u.level).join('、') + ' 升級了！');
+        render();
+      },
+    });
+
+    const sub = anyLink
+      ? '班級分數是獨立數字；目前設定會「同時」連動每位沒請假學生的' + [linkPoints && '點數', linkXp && 'XP', linkCoins && '金幣'].filter(Boolean).join('、') + '（可以到「系統設定」調整）。'
+      : '班級分數是獨立數字，不會影響任何學生個人的點數/XP/金幣（可以到「系統設定」開啟連動）。';
+
+    return card('🌟 全班加分', sub, [
+      el('div', { class: 'row', style: { gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' } }, fields),
+      el('div', { class: 'row', style: { gap: '10px', marginTop: '10px' } }, [noteInput, applyBtn]),
+    ]);
   }
 
   function kpi(icon, label, value, note) {
@@ -2889,6 +2940,13 @@
         el('div', { class: 'field' }, [
           el('label', { class: 'field__label', text: '浮動加點選單' }),
           checkRow('showBatchBar', '在批次加點頁選了學生後，切到其他頁面時，畫面下方顯示浮動的快速加點選單', true),
+        ]),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '全班加分是否連動個人數值' }),
+          el('p', { class: 'card__sub', style: { marginTop: '0' }, text: '「班級總覽」的全班加分卡片，班級分數一律是獨立的數字；這裡勾選的項目，加全班分數時會「額外」同時套用到每位沒請假的學生身上。' }),
+          checkRow('classScoreLinkPoints', '同時連動每位學生的課堂點數', false),
+          checkRow('classScoreLinkXp', '同時連動每位學生的寵物 XP', false),
+          checkRow('classScoreLinkCoins', '同時連動每位學生的金幣', false),
         ]),
       ]),
     ]);

@@ -581,6 +581,11 @@
         pathUnlockCost: 50,
         petCollectUnlockLevel: 10,
         gachaCost: 50,
+        /* 全班加分：班級分數（classStars）的增減量是老師另外指定的獨立數字，
+           這三個開關決定「同一次全班加分」要不要也連動每個學生自己的點數/XP/金幣 */
+        classScoreLinkPoints: false,
+        classScoreLinkXp: false,
+        classScoreLinkCoins: false,
       },
     };
   }

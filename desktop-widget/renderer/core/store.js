@@ -790,6 +790,54 @@
     return levelUps;
   }
 
+  /* 全班加分：不用先選學生，直接對整個班級套用。跟 award() 最大的不同是，班級分數
+     （classStars）的增減量是老師直接指定的獨立數字（opts.classPoints），不是「這次
+     點數 × 選取人數」自動算出來的——這樣才能做到「班級分數要不要連動個人點數/XP/金幣」
+     可以分開設定，甚至可以只加班級分數、完全不影響任何學生個人的點數/XP/金幣。
+     ledger 的 studentIds 固定放「目前沒請假的學生」，方便紀錄頁面顯示是對誰套用的；
+     沒連動的欄位一律是 0，對學生 applyDelta 等於沒做事，撤銷/編輯都是安全的。 */
+  function awardClass(opts) {
+    const o = opts || {};
+    const classPoints = Number(o.classPoints) || 0;
+    const delta = {
+      points: o.linkPoints ? (Number(o.points) || 0) : 0,
+      xp: o.linkXp ? (Number(o.xp) || 0) : 0,
+      coins: o.linkCoins ? (Number(o.coins) || 0) : 0,
+    };
+    const ts = Date.now();
+    const levelUps = [];
+    commit((s) => {
+      s.classInfo.classStars = Math.max(0, (s.classInfo.classStars || 0) + classPoints);
+      if (s.classMission && classPoints > 0) {
+        s.classMission.progress = Math.min(s.classMission.target, (s.classMission.progress || 0) + classPoints);
+      }
+      const activeIds = [];
+      s.students.forEach((st) => {
+        if (isAbsent(st.id)) return;
+        activeIds.push(st.id);
+        const before = M.levelFromXp(st.xp).level;
+        applyDelta(st, delta);
+        if (delta.points > 0) {
+          bumpStreak(st, ts);
+          st.ruleCount = st.ruleCount || {};
+          st.ruleCount.classScore = (st.ruleCount.classScore || 0) + 1;
+        }
+        st.petLevel = M.levelFromXp(st.xp).level;
+        refreshBadges(st);
+        if (st.petLevel > before) levelUps.push({ id: st.id, name: st.name, level: st.petLevel });
+      });
+      s.ledger.unshift({
+        id: U.uid('lg'), ts, studentIds: activeIds,
+        ruleId: 'classScore', label: o.label || '全班加分',
+        points: delta.points, xp: delta.xp, coins: delta.coins,
+        note: o.note || '', by: o.by || s.classInfo.teacher, undone: false,
+        classPoints,
+      });
+      if (s.ledger.length > 2000) s.ledger.length = 2000;
+    });
+    return levelUps;
+  }
+
   /* 撤銷一筆紀錄（把點數、XP、金幣回沖） */
   function undoEntry(entryId) {
     commit((s) => {
@@ -807,10 +855,14 @@
         }
         st.petLevel = M.levelFromXp(st.xp).level;
       });
-      if ((e.points || 0) > 0) {
-        s.classInfo.classStars = Math.max(0, (s.classInfo.classStars || 0) - e.points * e.studentIds.length);
+      /* 一般規則的班級分數是從「這次點數 × 選取人數」自動算出來的；
+         全班加分（awardClass）的班級分數則是老師直接指定的獨立數字，存在 e.classPoints
+         裡，兩種紀錄要用不同公式回沖，不能都套用 points × studentIds.length。 */
+      const classDelta = e.classPoints != null ? e.classPoints : ((e.points || 0) > 0 ? e.points * e.studentIds.length : 0);
+      if (classDelta) {
+        s.classInfo.classStars = Math.max(0, (s.classInfo.classStars || 0) - classDelta);
         if (s.classMission) {
-          s.classMission.progress = Math.max(0, (s.classMission.progress || 0) - e.points * e.studentIds.length);
+          s.classMission.progress = Math.max(0, (s.classMission.progress || 0) - classDelta);
         }
       }
     });
@@ -845,13 +897,17 @@
         refreshBadges(st);
       });
 
-      const oldClass = oldPoints > 0 ? oldPoints * e.studentIds.length : 0;
-      const newClass = newPoints > 0 ? newPoints * e.studentIds.length : 0;
-      const dClass = newClass - oldClass;
-      if (dClass !== 0) {
-        s.classInfo.classStars = Math.max(0, (s.classInfo.classStars || 0) + dClass);
-        if (s.classMission) {
-          s.classMission.progress = U.clamp((s.classMission.progress || 0) + dClass, 0, s.classMission.target);
+      /* 全班加分（e.classPoints 有值）的班級分數是獨立指定的數字，不是從 points 換算來的，
+         這裡編輯的是連動個人的點數，不會連帶改班級分數——要調班級分數請直接撤銷重加。 */
+      if (e.classPoints == null) {
+        const oldClass = oldPoints > 0 ? oldPoints * e.studentIds.length : 0;
+        const newClass = newPoints > 0 ? newPoints * e.studentIds.length : 0;
+        const dClass = newClass - oldClass;
+        if (dClass !== 0) {
+          s.classInfo.classStars = Math.max(0, (s.classInfo.classStars || 0) + dClass);
+          if (s.classMission) {
+            s.classMission.progress = U.clamp((s.classMission.progress || 0) + dClass, 0, s.classMission.target);
+          }
         }
       }
 
@@ -1395,7 +1451,7 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
-    award, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
+    award, awardClass, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
     canCollectPets, adoptPet, drawPetGacha, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
     sendMessage, studentMessages, unreadMessageCount, markMessagesRead, claimMessageReward,
