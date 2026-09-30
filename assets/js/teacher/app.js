@@ -1229,14 +1229,14 @@
     [0, 260, 520].forEach((delay) => setTimeout(() => { try { playTone(1046); } catch (e) { /* 忽略 */ } }, delay));
   }
 
-  /* ================= 寵物 ================= */
+  /* ================= 寵物總覽 ================= */
   function pagePets() {
     const s = S.get();
     const byPet = {};
     s.students.forEach((st) => { byPet[st.petId] = (byPet[st.petId] || 0) + 1; });
 
     return el('div', {}, [
-      pageHead('寵物', '看看全班的寵物分布，管理寵物種類、造型與收藏設定。'),
+      pageHead('寵物總覽', '看看全班的寵物分布與成長狀況；改寵物種類、造型或收藏設定請到「紀錄與設定」的「寵物設定」。'),
       el('div', { class: 'kpi-grid' }, [
         kpi('🐾', '寵物種類', Object.keys(byPet).length + ' / ' + M.allPets().length),
         kpi('👑', '完全體以上', s.students.filter((x) => M.levelFromXp(x.xp).level >= 10).length + ' 隻'),
@@ -1259,6 +1259,34 @@
                 ]);
               })),
           ]),
+        ]),
+        el('div', { class: 'stack' }, [
+          card('寵物分布', null, [
+            el('div', {}, M.allPets().map((p) => {
+              const n = byPet[p.id] || 0;
+              return el('div', { class: 'log-row' }, [
+                M.petFace(p, 24, 1),
+                el('div', { class: 'grow' }, [
+                  el('div', { style: { fontWeight: 700, fontSize: '13.5px' }, text: p.name }),
+                  el('div', { style: { marginTop: '4px' } }, [bar(s.students.length ? (n / s.students.length) * 100 * 3 : 0, true)]),
+                ]),
+                el('b', { text: n + ' 人' }),
+              ]);
+            })),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  /* ================= 寵物設定 ================= */
+  function pagePetSettings() {
+    const s = S.get();
+
+    return el('div', {}, [
+      pageHead('寵物設定', '寵物種類、造型圖片、等級門檻、身分路線與收藏設定都在這裡，改完立即套用到老師後台與學生前台。'),
+      el('div', { class: 'cols' }, [
+        el('div', { class: 'stack' }, [
           card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
             el('div', { class: 'stack' }, M.allPets().map((p) => {
               const images = (s.petImages || {})[p.id] || [];
@@ -1308,19 +1336,6 @@
           ]),
         ]),
         el('div', { class: 'stack' }, [
-          card('寵物分布', null, [
-            el('div', {}, M.allPets().map((p) => {
-              const n = byPet[p.id] || 0;
-              return el('div', { class: 'log-row' }, [
-                M.petFace(p, 24, 1),
-                el('div', { class: 'grow' }, [
-                  el('div', { style: { fontWeight: 700, fontSize: '13.5px' }, text: p.name }),
-                  el('div', { style: { marginTop: '4px' } }, [bar(s.students.length ? (n / s.students.length) * 100 * 3 : 0, true)]),
-                ]),
-                el('b', { text: n + ' 人' }),
-              ]);
-            })),
-          ]),
           card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
             el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
               el('div', { class: 'rule-edit' }, [
@@ -3035,15 +3050,18 @@
       ['🗺️', '班級總覽', '看今日加點、班級動態，直接勾選學生用常用規則加點。'],
       ['⭐', '批次加點', '一次選整班或整組學生，套用同一個規則或自訂點數。'],
       ['👥', '學生與小組', '管理學生名單、分組，或用文字批次匯入整班名單。'],
-      ['🎲', '課堂小工具', '隨機抽點與課堂計時器，適合投影在教室螢幕上。'],
+      ['🐾', '寵物總覽', '查看全班寵物的種類分布與成長狀況。'],
       ['💬', '訊息管理', '發公告或獎勵訊息給全班、小組或指定學生，附加的金幣星光要學生自己按領取。'],
-      ['🐾', '寵物', '查看全班寵物的種類分布，管理寵物種類、造型與收藏設定。'],
-      ['🏅', '徽章管理', '設定徽章的名稱、圖片與解鎖條件，查看全班解鎖情況。'],
+      ['🏆', '排行榜', '課堂點數、本週進步、寵物等級與小隊總點數排行。'],
+      ['🎲', '課堂小工具', '隨機抽點與課堂計時器，適合投影在教室螢幕上。'],
+      ['⚙️', '班級設定', '顯示樣式、班級資訊、批次加點工具列、重設點數都在這裡。'],
+      ['🌟', '星野主線', '設定合作闖關的故事關卡，發放身分路線獎勵。'],
       ['⏱️', '點數紀錄', '每一筆加扣點都有紀錄，加錯了可以撤銷或直接編輯。'],
       ['🎁', '兌換管理', '學生在前台用點數兌換獎勵後，在這裡確認發放。'],
-      ['🏆', '排行榜', '課堂點數、本週進步、寵物等級與小隊總點數排行。'],
       ['🛡️', '規則設定', '自訂加分規則、兌換商店與每日任務，改完立即生效。'],
-      ['⚙️', '班級設定', '顯示樣式、班級資訊、批次加點工具列、重設點數都在這裡。'],
+      ['🐾', '寵物設定', '寵物種類、造型圖片、等級門檻、身分路線與收藏設定都在這裡。'],
+      ['🏅', '徽章管理', '設定徽章的名稱、圖片與解鎖條件，查看全班解鎖情況。'],
+      ['🛠️', '系統設定', '顯示樣式與批次加點的底部工具列都在這裡。'],
       ['☁️', '資料與同步', '選擇資料存在本機或同步到 Google 試算表，並可備份。'],
     ];
 
@@ -3161,7 +3179,7 @@
   /* ---------- 路由 ---------- */
   const PAGES = {
     guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
-    pets: pagePets, badges: pageBadges, messages: pageMessages, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
+    pets: pagePets, 'pet-settings': pagePetSettings, badges: pageBadges, messages: pageMessages, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
     storyline: pageStoryline,
   };
