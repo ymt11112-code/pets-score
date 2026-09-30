@@ -52,9 +52,14 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  let saveTimer = null;
   win.on('move', () => {
-    const b = win.getBounds();
-    savePos(b.x, b.y);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      if (!win) return;
+      const b = win.getBounds();
+      savePos(b.x, b.y);
+    }, 150);
   });
 
   win.on('closed', () => { win = null; });
@@ -89,6 +94,16 @@ ipcMain.handle('resize-panel', (evt, expanded) => {
 });
 
 ipcMain.handle('quit-app', () => app.quit());
+
+/* 收合圓鈕同時要能「點擊展開」又要能「拖曳移動」，但 CSS 的 -webkit-app-region:drag
+   會讓 Chromium 直接把 mousedown 吃掉去做原生視窗拖曳，click 事件永遠不會發生
+   （這是 Electron 的已知限制）。所以圓鈕改用 JS 自己算拖曳位移，
+   讓視窗跟著游標移動，藉此讓同一顆按鈕同時支援點擊與拖曳。 */
+ipcMain.handle('get-window-bounds', () => (win ? win.getBounds() : null));
+ipcMain.on('move-window-to', (evt, x, y) => {
+  if (!win) return;
+  win.setPosition(Math.round(x), Math.round(y));
+});
 
 app.whenReady().then(() => {
   createWindow();

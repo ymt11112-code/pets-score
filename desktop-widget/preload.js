@@ -5,4 +5,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('desktopWidget', {
   resizePanel: (expanded) => ipcRenderer.invoke('resize-panel', expanded),
   quitApp: () => ipcRenderer.invoke('quit-app'),
+  getWindowBounds: () => ipcRenderer.invoke('get-window-bounds'),
+  moveWindowTo: (x, y) => ipcRenderer.send('move-window-to', x, y),
 });

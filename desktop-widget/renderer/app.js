@@ -17,6 +17,43 @@
     paint();
   }
 
+  /* 圓鈕要同時支援「點一下展開」跟「拖著移動」：視窗跟著游標的螢幕座標移動，
+     游標在視窗裡的相對位置全程不變，所以不會有拖曳中途游標「跑出視窗」的問題。
+     移動超過 4px 才算拖曳，放開時沒拖曳就當作是點擊。 */
+  function attachFabDrag(fabEl) {
+    let dragging = false;
+    let moved = false;
+    let offsetX = 0, offsetY = 0;
+    let startX = 0, startY = 0;
+
+    fabEl.addEventListener('pointerdown', async (e) => {
+      dragging = true;
+      moved = false;
+      startX = e.screenX;
+      startY = e.screenY;
+      try { fabEl.setPointerCapture(e.pointerId); } catch (err) {}
+      if (window.desktopWidget) {
+        const b = await window.desktopWidget.getWindowBounds();
+        if (b) { offsetX = startX - b.x; offsetY = startY - b.y; }
+      }
+    });
+    fabEl.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.screenX - startX;
+      const dy = e.screenY - startY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+      if (moved && window.desktopWidget) {
+        window.desktopWidget.moveWindowTo(e.screenX - offsetX, e.screenY - offsetY);
+      }
+    });
+    fabEl.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { fabEl.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (!moved) setExpanded(true);
+    });
+  }
+
   function syncDot() {
     const s = S.getSync();
     return el('span', { class: 'w-dot is-' + (s.state === 'ok' ? 'ok' : s.state === 'error' ? 'error' : '') });
@@ -92,8 +129,9 @@
   function paint() {
     root.innerHTML = '';
     if (!expanded) {
-      const fab = el('div', { class: 'w-fab', text: '⭐', onclick: () => setExpanded(true) });
+      const fab = el('div', { class: 'w-fab', text: '⭐' });
       root.appendChild(fab);
+      attachFabDrag(fab);
       return;
     }
     const cfg = S.getConfig();

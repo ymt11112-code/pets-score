@@ -7,8 +7,9 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
   width: 64px; height: 64px; border-radius: 50%; background: var(--gold);
   color: #4a3405; font-size: 26px; display: grid; place-items: center;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35); cursor: grab;
-  -webkit-app-region: drag;
+  touch-action: none; user-select: none;
 }
+.w-fab:active { cursor: grabbing; }
 
 /* 面板（展開狀態） */
 .w-panel {
