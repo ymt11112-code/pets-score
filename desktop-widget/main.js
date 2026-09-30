@@ -18,6 +18,7 @@ const DOCK_THRESHOLD = 24; // 離螢幕邊緣多近算「貼邊」（px）
 let win = null;
 let tray = null;
 let dockSide = 'none'; // 'none' | 'left' | 'right' | 'top' | 'bottom'
+let ignoreNextMove = false; // resize-to 自己造成的 setBounds 移動，不要被當成使用者拖曳
 
 function loadSavedBounds() {
   try {
@@ -25,8 +26,10 @@ function loadSavedBounds() {
     const pos = JSON.parse(raw);
     if (typeof pos.x === 'number' && typeof pos.y === 'number') return pos;
   } catch (e) { /* 第一次執行還沒有存檔，用預設位置 */ }
+  // 邊界留寬一點（超過 DOCK_THRESHOLD），避免第一次開啟就卡在「算不算貼邊」的模糊地帶
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  return { x: width - DEFAULT_SIZE.width - 24, y: height - DEFAULT_SIZE.height - 24 };
+  const margin = DOCK_THRESHOLD + 20;
+  return { x: width - DEFAULT_SIZE.width - margin, y: height - DEFAULT_SIZE.height - margin };
 }
 
 function savePos(x, y) {
@@ -75,9 +78,16 @@ function createWindow() {
   dockSide = computeDockSide(win.getBounds());
 
   /* 拖曳中每個 'move' 事件都只做「存檔＋重新判斷貼邊」，不會在拖曳過程中順便改視窗大小/位置，
-     避免跟系統原生的拖曳動作互相打架；等放開滑鼠、事件停下來 150ms 後才真的套用貼邊效果。 */
+     避免跟系統原生的拖曳動作互相打架；等放開滑鼠、事件停下來 150ms 後才真的套用貼邊效果。
+
+     這裡的 ignoreNextMove 很重要：resize-to 為了「貼右邊時固定右邊界」會連位置一起
+     setBounds，這本身也會觸發 'move' 事件——如果不擋掉，就會變成「resize 觸發 move
+     → 150ms 後重新判斷貼邊 → 送 dock-changed → renderer 重新排版 → 又呼叫 resize-to
+     → 又觸發 move → ……」的無窮迴圈，畫面就會一直抖動、按鈕點不到。只有「使用者自己
+     拖曳把手」造成的 move 才需要重新判斷貼邊。 */
   let settleTimer = null;
   win.on('move', () => {
+    if (ignoreNextMove) { ignoreNextMove = false; return; }
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
       if (!win) return;
@@ -118,6 +128,10 @@ ipcMain.handle('resize-to', (evt, width, height) => {
   const cur = win.getBounds();
   const display = screen.getDisplayNearestPoint({ x: cur.x, y: cur.y });
   const area = display.workArea;
+  // 面板內容如果一次全部展開（規則很多＋選人＋紀錄都打開），量出來的高度可能超過整個螢幕，
+  // 這裡先把整個視窗夾在螢幕可用範圍內，超出的部分交給面板自己的 max-height/overflow 去捲動
+  width = Math.min(width, area.width);
+  height = Math.min(height, area.height);
   let x = cur.x;
   let y = cur.y;
   if (dockSide === 'right') x = cur.x + cur.width - width;
@@ -126,7 +140,11 @@ ipcMain.handle('resize-to', (evt, width, height) => {
   x = Math.min(Math.max(x, area.x), area.x + area.width - width);
   y = Math.min(Math.max(y, area.y), area.y + area.height - height);
   if (x === cur.x && y === cur.y && width === cur.width && height === cur.height) return;
+  ignoreNextMove = true;
   win.setBounds({ x, y, width, height });
+  // 保險：如果這次位置其實沒變（只有大小變），Windows 可能根本不會發出 'move' 事件，
+  // 那 ignoreNextMove 就永遠不會被消掉，會誤擋到使用者下一次真正的拖曳，所以設一個逾時保底重置
+  setTimeout(() => { ignoreNextMove = false; }, 60);
 });
 
 ipcMain.handle('hide-window', () => { if (win) win.hide(); });
