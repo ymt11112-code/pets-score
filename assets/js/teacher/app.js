@@ -2807,7 +2807,7 @@
 
       return el('div', {}, [
         el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' } }, [catChips, posNegTabs]),
-        el('div', { class: 'rule-grid rule-grid--dense' }, cards),
+        el('div', { class: 'rule-grid rule-grid--cols5' }, cards),
       ]);
     }
 

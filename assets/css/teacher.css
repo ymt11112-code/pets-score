@@ -181,6 +181,10 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 .rule-grid--dense .rule-btn__emoji { font-size: 16px; }
 .rule-grid--dense .rule-btn__pts { font-size: 14px; }
 .rule-grid--dense .rule-btn__label { font-size: 11px; margin-top: 2px; }
+/* 「規則設定」頁的規則卡片格線：固定 5 個一排（跟批次加點用的 4 欄 --dense 分開一組，
+   避免改了這裡連帶影響到批次加點視窗的格線） */
+.rule-grid--cols5 { grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.rule-grid--cols5 .rule-btn { padding: 12px 8px; }
 /* 「規則設定」頁的新增規則卡片：虛線框，跟其他實際規則的卡片做出區別 */
 .rule-btn--add { background: transparent; border-style: dashed; color: var(--ink-mute); }
 .rule-btn--add:hover { color: var(--green); }
