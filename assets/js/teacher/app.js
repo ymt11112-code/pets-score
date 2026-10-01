@@ -2706,6 +2706,23 @@
     ]);
   }
 
+  /* 規則設定頁幾個編輯視窗共用的圖示選擇格：點了直接把選到的 emoji 填進對應的輸入框，
+     輸入框本身還是可以手動打字/貼上，點選只是比較快的捷徑。 */
+  const ICON_PICKER_EMOJIS = [
+    '⭐', '🌟', '✨', '🏆', '🥇', '🎖️', '👍', '👏', '❤️', '💪', '🔥', '🎯',
+    '📚', '📖', '✏️', '📝', '🎓', '🧠', '💡', '🔍', '🧩', '🎨', '🎵', '🎤',
+    '👥', '🤝', '🌱', '🧹', '⏰', '✅', '📌', '🎁', '🪑', '🎲', '🧑‍🏫', '🌈',
+    '🐶', '🐱', '🐹', '🦊', '🐸', '🦉', '🐢', '🐝', '🦄', '🐧',
+    '🍎', '🍪', '🍬', '🎂', '⚽', '🏀', '🎮', '🚀', '🛡️', '⚡',
+    '💭', '😊', '😢', '⚠️', '🚫', '🔧', '📋', '🙌',
+  ];
+  function iconPicker(iconInput) {
+    return el('div', { class: 'emoji-picker' }, ICON_PICKER_EMOJIS.map((em) => el('button', {
+      class: 'emoji-picker__btn', text: em, type: 'button',
+      onclick: () => { iconInput.value = em; },
+    })));
+  }
+
   /* ================= 規則設定 ================= */
   function pageRules() {
     /* 加分規則改成格子卡片（像 ClassDojo 的 Skills 編輯畫面）：點卡片開編輯視窗，
@@ -2762,6 +2779,7 @@
         title: isNew ? '新增規則' : '編輯規則',
         body: el('div', { class: 'stack' }, [
           el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
+          iconPicker(iconInput),
           el('div', { class: 'row', style: { gap: '10px' } }, [field('課堂點數', ptsInput), field('寵物 XP', xpInput), field('金幣', coinsInput)]),
           field('分類', catSelect),
         ]),
@@ -2830,6 +2848,10 @@
         el('div', { class: 'rule-btn__emoji', text: r.icon }),
         el('div', { class: 'rule-btn__pts' + (r.points < 0 ? ' is-minus' : ''), text: (r.points > 0 ? '+' : '') + r.points }),
         el('div', { class: 'rule-btn__label', text: r.label }),
+        (r.xp || r.coins) ? el('div', {
+          class: 'rule-btn__sub',
+          text: [r.xp ? 'XP+' + r.xp : null, r.coins ? '🪙' + (r.coins >= 0 ? '+' : '') + r.coins : null].filter(Boolean).join(' ・ '),
+        }) : null,
       ])).concat([
         el('button', {
           class: 'rule-btn rule-btn--add', title: '新增規則',
@@ -2946,6 +2968,7 @@
         title: isNew ? '新增商品' : '編輯商品',
         body: el('div', { class: 'stack' }, [
           el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
+          iconPicker(iconInput),
           field('說明', descInput),
           el('div', { class: 'row', style: { gap: '10px' } }, [field('需要點數', costInput), field('數量', stockInput)]),
         ]),
@@ -3011,6 +3034,7 @@
         title: isNew ? '新增任務' : '編輯任務',
         body: el('div', { class: 'stack' }, [
           el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
+          iconPicker(iconInput),
           el('div', { class: 'row', style: { gap: '10px' } }, [field('已完成', doneInput), field('全班目標', targetInput), field('達成後的 XP', xpInput)]),
           el('p', { class: 'card__sub', text: 'XP 目前僅顯示於學生前台，尚未自動加總發放。' }),
         ]),
