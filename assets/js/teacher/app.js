@@ -2709,6 +2709,7 @@
 
     function ruleRow(r) {
       const upd = (patch) => S.commit((d) => Object.assign(d.rules.find((x) => x.id === r.id), patch), { silent: true });
+      const cats = s.ruleCategories && s.ruleCategories.length ? s.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
       return el('div', { class: 'rule-edit' }, [
         el('input', { class: 'input rule-edit__icon', value: r.icon, onchange: (e) => upd({ icon: e.target.value }) }),
         el('input', { class: 'input grow', value: r.label, onchange: (e) => upd({ label: e.target.value }) }),
@@ -2716,13 +2717,46 @@
         el('input', { class: 'input rule-edit__num', type: 'number', value: r.xp, title: '寵物 XP', onchange: (e) => upd({ xp: Number(e.target.value) || 0 }) }),
         el('input', { class: 'input rule-edit__num', type: 'number', value: r.coins, title: '金幣', onchange: (e) => upd({ coins: Number(e.target.value) || 0 }) }),
         el('select', {
-          class: 'input rule-edit__cat', title: '分類（桌面小工具會依這個分類分區顯示）',
+          class: 'input rule-edit__cat', title: '分類（桌面小工具會依這個分類分區顯示，分類項目可以在上面「規則分類」調整）',
           onchange: (e) => upd({ category: e.target.value }),
-        }, M.RULE_CATEGORIES.map((c) => el('option', { value: c.id, text: c.label, selected: (r.category || 'class') === c.id }))),
+        }, cats.map((c) => el('option', { value: c.id, text: c.label, selected: (r.category || cats[0].id) === c.id }))),
         el('button', { class: 'btn btn--danger btn--sm', text: '✕', onclick: () => {
           S.commit((d) => { d.rules = d.rules.filter((x) => x.id !== r.id); });
         } }),
       ]);
+    }
+
+    /* ---- 規則分類（上課用／作業類／星野主線……）老師可以自己新增、改名、排序、刪除 ---- */
+    function categoryRow(c, idx, total) {
+      const upd = (patch) => S.commit((d) => Object.assign(d.ruleCategories.find((x) => x.id === c.id), patch), { silent: true });
+      return el('div', { class: 'rule-edit' }, [
+        el('input', { class: 'input grow', value: c.label, onchange: (e) => upd({ label: e.target.value }) }),
+        el('button', { class: 'btn btn--ghost btn--sm', text: '▲', title: '上移', onclick: () => moveCategory(idx, -1) }),
+        el('button', { class: 'btn btn--ghost btn--sm', text: '▼', title: '下移', onclick: () => moveCategory(idx, 1) }),
+        el('button', {
+          class: 'btn btn--danger btn--sm', text: '刪除', title: total <= 1 ? '至少要保留一個分類' : '刪除這個分類',
+          onclick: () => deleteCategory(c.id),
+        }),
+      ]);
+    }
+    function moveCategory(idx, dir) {
+      S.commit((d) => {
+        const arr = d.ruleCategories;
+        const j = idx + dir;
+        if (j < 0 || j >= arr.length) return;
+        const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+      });
+    }
+    function deleteCategory(id) {
+      if (S.get().ruleCategories.length <= 1) return U.toast('至少要保留一個分類', 'warn');
+      U.confirmDialog('刪除這個分類？', '這個分類底下的規則會自動改歸類到第一個分類，規則本身不會被刪除。', '刪除').then((ok) => {
+        if (!ok) return;
+        S.commit((d) => {
+          d.ruleCategories = d.ruleCategories.filter((x) => x.id !== id);
+          const fallback = d.ruleCategories[0].id;
+          d.rules.forEach((r) => { if (r.category === id) r.category = fallback; });
+        });
+      });
     }
 
     function shopRow(i) {
@@ -2755,6 +2789,7 @@
       pageHead('規則設定', '自訂加分規則、兌換商店與每日任務，改完立即生效。',
         sectionJumpBar([
           { id: 'tasks', label: '📗 今日任務' },
+          { id: 'categories', label: '🏷️ 規則分類' },
           { id: 'rules', label: '⭐ 加分規則' },
           { id: 'shop', label: '🎁 兌換商店' },
         ])),
@@ -2765,7 +2800,13 @@
             S.commit((d) => d.dailyTasks.push({ id: U.uid('dt'), title: '新任務', icon: '📌', xp: 2, target: d.students.length, done: 0 }));
           } }),
         ]),
-        sectionCard('rules', '加分規則', '欄位依序為：圖示、名稱、點數、XP、金幣。', [
+        sectionCard('categories', '規則分類', '桌面小工具用這些分類把規則按鈕分區塊顯示；項目、名稱、順序都可以自己調整。', [
+          el('div', {}, (s.ruleCategories || []).map((c, idx) => categoryRow(c, idx, s.ruleCategories.length))),
+          el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增分類', onclick: () => {
+            S.commit((d) => d.ruleCategories.push({ id: U.uid('cat'), label: '新分類' }));
+          } }),
+        ]),
+        sectionCard('rules', '加分規則', '欄位依序為：圖示、名稱、點數、XP、金幣、分類。', [
           el('div', {}, s.rules.map(ruleRow)),
           el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增規則', onclick: () => {
             S.commit((d) => d.rules.push({ id: U.uid('r'), label: '新規則', icon: '⭐', points: 1, xp: 2, coins: 1, kind: 'add', category: 'class' }));
@@ -3001,15 +3042,17 @@
       });
     }
 
-    /* 規則的分類（上課用／作業類／星野主線）決定桌面小工具要把這顆按鈕分到哪一頁，
-       順便放在這裡編輯，不用跑去「規則設定」找；util: 開頭的內建工具沒有分類可選。 */
+    /* 規則的分類決定桌面小工具要把這顆按鈕分到哪一頁，順便放在這裡編輯，不用跑去「規則設定」
+       找；分類項目本身（新增/改名/刪除/排序）在「規則設定→規則分類」管理。
+       util: 開頭的內建工具沒有分類可選。 */
     function categorySelect(id) {
       const rule = s.rules.find((r) => r.id === id);
       if (!rule) return null;
+      const cats = s.ruleCategories && s.ruleCategories.length ? s.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
       return el('select', {
-        class: 'input rule-edit__cat', title: '桌面小工具的分類（上課用／作業類／星野主線）',
+        class: 'input rule-edit__cat', title: '桌面小工具的分類（項目可以到「規則設定→規則分類」調整）',
         onchange: (e) => S.commit((d) => { const rr = d.rules.find((x) => x.id === id); if (rr) rr.category = e.target.value; }, { silent: true }),
-      }, M.RULE_CATEGORIES.map((c) => el('option', { value: c.id, text: c.label, selected: (rule.category || 'class') === c.id })));
+      }, cats.map((c) => el('option', { value: c.id, text: c.label, selected: (rule.category || cats[0].id) === c.id })));
     }
 
     const toolbarCard = sectionCard('toolbar', '⭐ 批次加點的底部工具列', '前 6 個項目會排在第一排，其餘收在「更多」裡；可以隱藏、加入或調整順序。規則右邊的分類是給桌面小工具用的（上課用／作業類／星野主線）。', [

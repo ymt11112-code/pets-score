@@ -174,8 +174,10 @@
     return U.el('span', { text: b.emoji, style: { fontSize: Math.round(size * 0.82) + 'px' } });
   }
 
-  /* 規則分類（桌面小工具用這個把規則按鈕分區塊顯示；老師可以在「規則設定」改每條規則的分類） */
-  const RULE_CATEGORIES = [
+  /* 規則分類（桌面小工具用這個把規則按鈕分區塊顯示；老師可以在「規則設定」改每條規則的分類）。
+     這份只是「第一次使用時」的預設清單，實際清單存在 state.ruleCategories，老師可以自己
+     在「系統設定」新增/改名/刪除/排序，不是寫死的三個。 */
+  const DEFAULT_RULE_CATEGORIES = [
     { id: 'class',     label: '上課用' },
     { id: 'homework',  label: '作業類' },
     { id: 'storyline', label: '星野主線' },
@@ -541,6 +543,7 @@
       petRarityOverrides: {},
       pathCapacity: {},
       badgeDefs: U.deepClone(DEFAULT_BADGES),
+      ruleCategories: U.deepClone(DEFAULT_RULE_CATEGORIES),
       petNames: {},
       customPets: [],
       deletedPetIds: [],
@@ -595,7 +598,7 @@
   }
 
   global.PetModel = {
-    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, RULE_CATEGORIES, DEFAULT_SHOP, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_IMAGE_ASSETS, DEFAULT_PET_RARITIES,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,

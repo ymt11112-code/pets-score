@@ -66,8 +66,11 @@
     ]);
   }
 
-  function categoryTabs() {
-    return el('div', { class: 'dw-seg' }, M.RULE_CATEGORIES.map((c) =>
+  function categoryTabs(s) {
+    const cats = s.ruleCategories && s.ruleCategories.length ? s.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
+    // 老師可能在網頁版改名/刪除/重排過分類，如果目前選到的分類已經不存在了，退回第一個分類
+    if (!cats.some((c) => c.id === activeCategory)) activeCategory = cats[0].id;
+    return el('div', { class: 'dw-seg' }, cats.map((c) =>
       el('button', {
         class: 'dw-seg__btn' + (activeCategory === c.id ? ' is-active' : ''), text: c.label,
         onclick: () => { activeCategory = c.id; paint(); },
@@ -130,11 +133,19 @@
   function mainBody(s) {
     const bar = el('div', { class: 'dw-bar' }, [
       gripEl(),
-      el('span', { class: 'dw-pill', text: '已選 ' + selected.size + ' 位' }),
+      el('div', { class: 'dw-btnrow' }, [
+        el('span', { class: 'dw-pill', text: '已選 ' + selected.size + ' 位' }),
+        selected.size
+          ? el('button', {
+              class: 'dw-btn is-icon-only', title: '取消選取',
+              onclick: () => window.desktopWidget && window.desktopWidget.clearSelection(),
+            }, [el('span', { text: '✕' })])
+          : null,
+      ]),
       el('button', { class: 'dw-btn' + (pickerOpen ? ' is-active' : ''), onclick: togglePicker }, [
         el('span', { text: '👥' }), el('span', { text: '選人' }),
       ]),
-      categoryTabs(),
+      categoryTabs(s),
       /* 這三個純圖示的工具鈕故意包成一個橫排小群組（dw-btnrow），
          不管主橫幅是橫是直，它們都並排在一起，不會直幅時各自撐成一整條、浪費空間 */
       el('div', { class: 'dw-btnrow' }, [

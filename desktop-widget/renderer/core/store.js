@@ -284,6 +284,9 @@
     /* 徽章定義：只有在存檔裡完全沒有這個欄位時（第一次從舊版存檔升級）才套用預設徽章清單；
        只要老師存檔裡已經有這個欄位（就算刪到只剩幾枚），就完全尊重老師的版本，不會把刪掉的徽章救回來。 */
     out.badgeDefs = Array.isArray(s.badgeDefs) ? s.badgeDefs : base.badgeDefs;
+    /* 規則分類清單：同樣的邏輯，老師只要存檔裡已經有這個欄位就完全尊重老師自己改過的版本
+       （改名、新增、刪除、排序都算），只有舊存檔完全沒有這個欄位時才套用預設三個分類。 */
+    out.ruleCategories = Array.isArray(s.ruleCategories) && s.ruleCategories.length ? s.ruleCategories : base.ruleCategories;
     migratePetStages(out, s, base);
     migratePetPaths(out, s, base);
     migratePetImageAssets(out);
