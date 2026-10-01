@@ -171,6 +171,7 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
   text-align: center; transition: .14s;
 }
 .rule-btn:hover { border-color: var(--green); background: #fff; transform: translateY(-2px); }
+.rule-btn.is-dragging { opacity: .35; }
 .rule-btn__pts { font-weight: 900; font-size: 17px; color: var(--green); }
 .rule-btn__pts.is-minus { color: var(--red); }
 .rule-btn__label { font-size: 13px; font-weight: 700; margin-top: 3px; }

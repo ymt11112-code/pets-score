@@ -19,6 +19,7 @@
   let msgRecipientMode = 'all';
   let ruleEditTab = 'pos'; // 規則設定頁「加分規則」格線：'pos' 加分 / 'neg' 扣分
   let ruleEditCategory = 'all'; // 'all' 或某個分類 id
+  let dragRuleId = null; // 規則卡片拖曳排序中，正在拖的規則 id
 
   /* ---------- 共用元件 ---------- */
   function pageHead(title, sub, right) {
@@ -2770,6 +2771,21 @@
       });
     }
 
+    /* 卡片拖曳排序：把 srcId 這條規則移到 targetId 原本的位置。直接在完整的 d.rules
+       陣列裡搬動，不是只在目前篩選出來的這幾張卡片裡排序，所以不會影響到其他分類/
+       加扣分規則原本的相對順序。 */
+    function reorderRule(srcId, targetId) {
+      if (srcId === targetId) return;
+      S.commit((d) => {
+        const from = d.rules.findIndex((x) => x.id === srcId);
+        let to = d.rules.findIndex((x) => x.id === targetId);
+        if (from < 0 || to < 0) return;
+        const [item] = d.rules.splice(from, 1);
+        if (from < to) to -= 1;
+        d.rules.splice(to, 0, item);
+      });
+    }
+
     function ruleCardGrid() {
       const s2 = S.get();
       const cats = s2.ruleCategories && s2.ruleCategories.length ? s2.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
@@ -2792,7 +2808,19 @@
         .filter((r) => (ruleEditTab === 'pos' ? r.points >= 0 : r.points < 0))
         .filter((r) => ruleEditCategory === 'all' || (r.category || cats[0].id) === ruleEditCategory);
 
-      const cards = rules.map((r) => el('button', { class: 'rule-btn', onclick: () => openEditRule(r, false) }, [
+      const cards = rules.map((r) => el('button', {
+        class: 'rule-btn', onclick: () => openEditRule(r, false),
+        draggable: 'true',
+        ondragstart: (e) => { dragRuleId = r.id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.classList.add('is-dragging'); },
+        ondragend: (e) => { dragRuleId = null; e.currentTarget.classList.remove('is-dragging'); },
+        ondragover: (e) => { if (dragRuleId && dragRuleId !== r.id) e.preventDefault(); },
+        ondrop: (e) => {
+          e.preventDefault();
+          if (!dragRuleId || dragRuleId === r.id) return;
+          reorderRule(dragRuleId, r.id);
+          dragRuleId = null;
+        },
+      }, [
         el('div', { class: 'rule-btn__emoji', text: r.icon }),
         el('div', { class: 'rule-btn__pts' + (r.points < 0 ? ' is-minus' : ''), text: (r.points > 0 ? '+' : '') + r.points }),
         el('div', { class: 'rule-btn__label', text: r.label }),
