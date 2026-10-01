@@ -145,7 +145,7 @@
     ]);
 
     const nodes = [
-      el('div', { class: 'dw-syncline' }, [syncDot(), el('span', { text: S.getSync().message || '' })]),
+      el('div', { class: 'dw-syncline' }, [syncDot(), el('span', { class: 'dw-syncline__msg', text: S.getSync().message || '' })]),
       bar,
       ruleChips(s),
       ledgerPanel(s),

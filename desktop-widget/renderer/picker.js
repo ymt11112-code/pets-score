@@ -41,6 +41,12 @@
       text: allSelected ? '☑️ 取消全班' : '☑️ 全班',
       onclick: () => window.desktopWidget && window.desktopWidget.selectMany(activeIds, !allSelected),
     });
+    const invertBtn = el('button', {
+      class: 'dw-btn dw-btn--block',
+      title: '把現在有選的人變沒選、沒選的人變有選',
+      text: '🔄 反選',
+      onclick: () => window.desktopWidget && window.desktopWidget.invertSelection(activeIds),
+    });
     const listEl = el('div', { class: 'dw-num-grid' });
     s.students.slice().sort((a, b) => a.no - b.no).forEach((st) => {
       const absent = S.isAbsent(st.id);
@@ -52,7 +58,7 @@
         onclick: () => { if (absent) return; window.desktopWidget && window.desktopWidget.toggleStudent(st.id); },
       }));
     });
-    return [allBtn, listEl];
+    return [allBtn, invertBtn, listEl];
   }
 
   function paint() {

@@ -79,7 +79,10 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 .dw-root.is-vertical .dw-rule { justify-content: space-between; }
 .dw-rule__pts { color: var(--green); }
 .dw-rule__pts.is-minus { color: var(--red); }
-.dw-rules-empty { font-size: 11.5px; color: var(--ink-mute); padding: 4px 2px; }
+/* max-width 這裡不能省：.dw-root 是 width:max-content，純文字沒有寬度上限的話，
+   瀏覽器會把這整句不換行的寬度當作「自然寬度」去算，一句長一點的提示文字就能把
+   整個小工具撐得很寬（例如切到還沒加進底部工具列的分類時顯示的提示語）。 */
+.dw-rules-empty { font-size: 11.5px; color: var(--ink-mute); padding: 4px 2px; max-width: 240px; }
 
 /* ---------- 選人小視窗（picker.html/picker.js，跟主視窗是各自獨立的視窗） ---------- */
 /* 這裡故意用明確的固定寬度，不能靠 width:max-content/auto 自動算——
@@ -124,6 +127,9 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 
 /* ---------- 同步狀態 / 設定表單 ---------- */
 .dw-syncline { font-size: 11px; color: var(--ink-mute); display: flex; align-items: center; gap: 5px; padding: 0 2px; }
+/* 同步失敗時 message 可能是一串很長的錯誤訊息；跟 .dw-rules-empty 同樣的理由，
+   沒有寬度上限的文字會把整個 width:max-content 的小工具撐寬，這裡直接截斷顯示省略號。 */
+.dw-syncline__msg { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dw-dot { width: 7px; height: 7px; border-radius: 50%; background: #cbd5c9; flex-shrink: 0; }
 .dw-dot.is-ok { background: #2fbf71; }
 .dw-dot.is-error { background: #ff5a4e; }

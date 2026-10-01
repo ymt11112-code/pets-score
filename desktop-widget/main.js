@@ -230,6 +230,14 @@ ipcMain.handle('select-many', (evt, ids, on) => {
   broadcastSelection();
 });
 ipcMain.handle('clear-selection', () => { selectedIds = []; broadcastSelection(); });
+/* 反選：給定的名單裡，原本有選的變沒選、原本沒選的變有選，一次做完廣播一次，避免中間閃一下 */
+ipcMain.handle('invert-selection', (evt, ids) => {
+  (ids || []).forEach((id) => {
+    const i = selectedIds.indexOf(id);
+    if (i >= 0) selectedIds.splice(i, 1); else selectedIds.push(id);
+  });
+  broadcastSelection();
+});
 
 ipcMain.handle('hide-window', () => { if (win) win.hide(); if (pickerWin) pickerWin.hide(); });
 ipcMain.handle('quit-app', () => app.quit());
