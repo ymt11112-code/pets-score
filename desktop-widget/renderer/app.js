@@ -137,9 +137,9 @@
         el('span', { class: 'dw-pill', text: '已選 ' + selected.size + ' 位' }),
         selected.size
           ? el('button', {
-              class: 'dw-btn is-icon-only', title: '取消選取',
+              class: 'dw-btn', title: '取消選取',
               onclick: () => window.desktopWidget && window.desktopWidget.clearSelection(),
-            }, [el('span', { text: '✕' })])
+            }, [el('span', { text: '取消選取' })])
           : null,
       ]),
       el('button', { class: 'dw-btn' + (pickerOpen ? ' is-active' : ''), onclick: togglePicker }, [

@@ -181,6 +181,10 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 .rule-grid--dense .rule-btn__emoji { font-size: 16px; }
 .rule-grid--dense .rule-btn__pts { font-size: 14px; }
 .rule-grid--dense .rule-btn__label { font-size: 11px; margin-top: 2px; }
+/* 「規則設定」頁的新增規則卡片：虛線框，跟其他實際規則的卡片做出區別 */
+.rule-btn--add { background: transparent; border-style: dashed; color: var(--ink-mute); }
+.rule-btn--add:hover { color: var(--green); }
+.rule-btn--add .rule-btn__emoji { font-size: 22px; }
 
 .log-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
 .log-row:last-child { border-bottom: none; }

@@ -17,6 +17,8 @@
   let msgSelected = new Set();
   let msgTab = 'students';
   let msgRecipientMode = 'all';
+  let ruleEditTab = 'pos'; // 規則設定頁「加分規則」格線：'pos' 加分 / 'neg' 扣分
+  let ruleEditCategory = 'all'; // 'all' 或某個分類 id
 
   /* ---------- 共用元件 ---------- */
   function pageHead(title, sub, right) {
@@ -2707,22 +2709,105 @@
   function pageRules() {
     const s = S.get();
 
-    function ruleRow(r) {
-      const upd = (patch) => S.commit((d) => Object.assign(d.rules.find((x) => x.id === r.id), patch), { silent: true });
-      const cats = s.ruleCategories && s.ruleCategories.length ? s.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
-      return el('div', { class: 'rule-edit' }, [
-        el('input', { class: 'input rule-edit__icon', value: r.icon, onchange: (e) => upd({ icon: e.target.value }) }),
-        el('input', { class: 'input grow', value: r.label, onchange: (e) => upd({ label: e.target.value }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: r.points, title: '課堂點數', onchange: (e) => upd({ points: Number(e.target.value) || 0 }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: r.xp, title: '寵物 XP', onchange: (e) => upd({ xp: Number(e.target.value) || 0 }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: r.coins, title: '金幣', onchange: (e) => upd({ coins: Number(e.target.value) || 0 }) }),
-        el('select', {
-          class: 'input rule-edit__cat', title: '分類（桌面小工具會依這個分類分區顯示，分類項目可以在上面「規則分類」調整）',
-          onchange: (e) => upd({ category: e.target.value }),
-        }, cats.map((c) => el('option', { value: c.id, text: c.label, selected: (r.category || cats[0].id) === c.id }))),
-        el('button', { class: 'btn btn--danger btn--sm', text: '✕', onclick: () => {
-          S.commit((d) => { d.rules = d.rules.filter((x) => x.id !== r.id); });
-        } }),
+    /* 加分規則改成格子卡片（像 ClassDojo 的 Skills 編輯畫面）：點卡片開編輯視窗，
+       不用卷軸式長條列表；上面可以切「加分／扣分」跟分類篩選，比較省空間也好找。 */
+    function openEditRule(r, isNew) {
+      const s2 = S.get();
+      const cats = s2.ruleCategories && s2.ruleCategories.length ? s2.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
+      const iconInput = el('input', { class: 'input', value: r.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
+      const nameInput = el('input', { class: 'input grow', value: r.label, placeholder: '規則名稱' });
+      const ptsInput = el('input', { class: 'input', type: 'number', value: r.points });
+      const xpInput = el('input', { class: 'input', type: 'number', value: r.xp });
+      const coinsInput = el('input', { class: 'input', type: 'number', value: r.coins });
+      const catSelect = el('select', { class: 'input' }, cats.map((c) => el('option', { value: c.id, text: c.label, selected: (r.category || cats[0].id) === c.id })));
+      const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
+
+      const actions = [
+        { label: '取消' },
+        {
+          label: '儲存', kind: 'primary',
+          onClick: () => {
+            const nm = nameInput.value.trim();
+            if (!nm) { U.toast('請輸入規則名稱', 'warn'); return true; }
+            const patch = {
+              icon: iconInput.value.trim() || '⭐', label: nm,
+              points: Number(ptsInput.value) || 0, xp: Number(xpInput.value) || 0, coins: Number(coinsInput.value) || 0,
+              category: catSelect.value,
+            };
+            if (isNew) {
+              S.commit((d) => d.rules.push(Object.assign({ id: U.uid('r'), kind: patch.points >= 0 ? 'add' : 'deduct' }, patch)));
+              U.toast('已新增規則');
+            } else {
+              S.commit((d) => Object.assign(d.rules.find((x) => x.id === r.id), patch));
+              U.toast('已更新規則');
+            }
+          },
+        },
+      ];
+      if (!isNew) {
+        actions.unshift({
+          label: '刪除', kind: 'danger',
+          onClick: (close) => {
+            close();
+            U.confirmDialog('刪除這條規則？', '「' + r.label + '」會從規則清單、批次加點、桌面小工具一起移除。', '刪除').then((ok) => {
+              if (!ok) return;
+              S.commit((d) => { d.rules = d.rules.filter((x) => x.id !== r.id); });
+              U.toast('已刪除規則', 'warn');
+            });
+            return true;
+          },
+        });
+      }
+
+      U.modal({
+        title: isNew ? '新增規則' : '編輯規則',
+        body: el('div', { class: 'stack' }, [
+          el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
+          el('div', { class: 'row', style: { gap: '10px' } }, [field('課堂點數', ptsInput), field('寵物 XP', xpInput), field('金幣', coinsInput)]),
+          field('分類', catSelect),
+        ]),
+        actions,
+      });
+    }
+
+    function ruleCardGrid() {
+      const s2 = S.get();
+      const cats = s2.ruleCategories && s2.ruleCategories.length ? s2.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
+      if (ruleEditCategory !== 'all' && !cats.some((c) => c.id === ruleEditCategory)) ruleEditCategory = 'all';
+
+      const catChips = el('div', { class: 'tag-toggle' }, [
+        el('button', { class: ruleEditCategory === 'all' ? 'is-on' : '', text: '全部', onclick: () => { ruleEditCategory = 'all'; render(); } }),
+      ].concat(cats.map((c) => el('button', {
+        class: ruleEditCategory === c.id ? 'is-on' : '', text: c.label,
+        onclick: () => { ruleEditCategory = c.id; render(); },
+      }))));
+
+      const posNegTabs = el('div', { class: 'seg-toggle' }, [
+        el('button', { class: 'seg-toggle__btn' + (ruleEditTab === 'pos' ? ' is-active' : ''), text: '加分', onclick: () => { ruleEditTab = 'pos'; render(); } }),
+        el('button', { class: 'seg-toggle__btn' + (ruleEditTab === 'neg' ? ' is-active' : ''), text: '扣分', onclick: () => { ruleEditTab = 'neg'; render(); } }),
+      ]);
+
+      const defaultCat = ruleEditCategory === 'all' ? cats[0].id : ruleEditCategory;
+      const rules = s2.rules
+        .filter((r) => (ruleEditTab === 'pos' ? r.points >= 0 : r.points < 0))
+        .filter((r) => ruleEditCategory === 'all' || (r.category || cats[0].id) === ruleEditCategory);
+
+      const cards = rules.map((r) => el('button', { class: 'rule-btn', onclick: () => openEditRule(r, false) }, [
+        el('div', { class: 'rule-btn__emoji', text: r.icon }),
+        el('div', { class: 'rule-btn__pts' + (r.points < 0 ? ' is-minus' : ''), text: (r.points > 0 ? '+' : '') + r.points }),
+        el('div', { class: 'rule-btn__label', text: r.label }),
+      ])).concat([
+        el('button', {
+          class: 'rule-btn rule-btn--add', title: '新增規則',
+          onclick: () => openEditRule({
+            icon: '⭐', label: '', points: ruleEditTab === 'pos' ? 1 : -1, xp: ruleEditTab === 'pos' ? 2 : 0, coins: 0, category: defaultCat,
+          }, true),
+        }, [el('div', { class: 'rule-btn__emoji', text: '＋' }), el('div', { class: 'rule-btn__label', text: '新增' })]),
+      ]);
+
+      return el('div', {}, [
+        el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' } }, [catChips, posNegTabs]),
+        el('div', { class: 'rule-grid rule-grid--dense' }, cards),
       ]);
     }
 
@@ -2806,11 +2891,8 @@
             S.commit((d) => d.ruleCategories.push({ id: U.uid('cat'), label: '新分類' }));
           } }),
         ]),
-        sectionCard('rules', '加分規則', '欄位依序為：圖示、名稱、點數、XP、金幣、分類。', [
-          el('div', {}, s.rules.map(ruleRow)),
-          el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增規則', onclick: () => {
-            S.commit((d) => d.rules.push({ id: U.uid('r'), label: '新規則', icon: '⭐', points: 1, xp: 2, coins: 1, kind: 'add', category: 'class' }));
-          } }),
+        sectionCard('rules', '加分規則', '點卡片可以編輯；上面可以切換加分／扣分，也可以依分類篩選。', [
+          ruleCardGrid(),
         ]),
         sectionCard('shop', '兌換商店', '學生用課堂點數兌換。', [
           el('div', {}, s.shop.map(shopRow)),
