@@ -19,7 +19,7 @@
   let msgRecipientMode = 'all';
   let ruleEditTab = 'pos'; // 規則設定頁「加分規則」格線：'pos' 加分 / 'neg' 扣分
   let ruleEditCategory = 'all'; // 'all' 或某個分類 id
-  let dragRuleId = null; // 規則卡片拖曳排序中，正在拖的規則 id
+  let dragCardId = null; // 規則設定頁卡片拖曳排序中，正在拖的項目 id（規則／分類共用）
 
   /* ---------- 共用元件 ---------- */
   function pageHead(title, sub, right) {
@@ -2708,8 +2708,6 @@
 
   /* ================= 規則設定 ================= */
   function pageRules() {
-    const s = S.get();
-
     /* 加分規則改成格子卡片（像 ClassDojo 的 Skills 編輯畫面）：點卡片開編輯視窗，
        不用卷軸式長條列表；上面可以切「加分／扣分」跟分類篩選，比較省空間也好找。 */
     function openEditRule(r, isNew) {
@@ -2771,19 +2769,36 @@
       });
     }
 
-    /* 卡片拖曳排序：把 srcId 這條規則移到 targetId 原本的位置。直接在完整的 d.rules
-       陣列裡搬動，不是只在目前篩選出來的這幾張卡片裡排序，所以不會影響到其他分類/
-       加扣分規則原本的相對順序。 */
+    /* 卡片拖曳排序共用小工具：把 srcId 這個項目移到 targetId 原本的位置。reorderFn 自己
+       決定要在哪個陣列裡搬（規則、分類都用這個），直接在完整陣列裡操作，不是只在目前
+       篩選出來的這幾張卡片裡排序，所以不會影響到沒顯示出來的項目原本的相對順序。 */
+    function dragHandlers(id, reorderFn) {
+      return {
+        draggable: 'true',
+        ondragstart: (e) => { dragCardId = id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.classList.add('is-dragging'); },
+        ondragend: (e) => { dragCardId = null; e.currentTarget.classList.remove('is-dragging'); },
+        ondragover: (e) => { if (dragCardId && dragCardId !== id) e.preventDefault(); },
+        ondrop: (e) => {
+          e.preventDefault();
+          if (!dragCardId || dragCardId === id) return;
+          reorderFn(dragCardId, id);
+          dragCardId = null;
+        },
+      };
+    }
+    function reorderInArray(arr, srcId, targetId) {
+      const from = arr.findIndex((x) => x.id === srcId);
+      let to = arr.findIndex((x) => x.id === targetId);
+      if (from < 0 || to < 0) return;
+      const [item] = arr.splice(from, 1);
+      if (from < to) to -= 1;
+      arr.splice(to, 0, item);
+    }
     function reorderRule(srcId, targetId) {
-      if (srcId === targetId) return;
-      S.commit((d) => {
-        const from = d.rules.findIndex((x) => x.id === srcId);
-        let to = d.rules.findIndex((x) => x.id === targetId);
-        if (from < 0 || to < 0) return;
-        const [item] = d.rules.splice(from, 1);
-        if (from < to) to -= 1;
-        d.rules.splice(to, 0, item);
-      });
+      S.commit((d) => reorderInArray(d.rules, srcId, targetId));
+    }
+    function reorderCategory(srcId, targetId) {
+      S.commit((d) => reorderInArray(d.ruleCategories, srcId, targetId));
     }
 
     function ruleCardGrid() {
@@ -2808,19 +2823,10 @@
         .filter((r) => (ruleEditTab === 'pos' ? r.points >= 0 : r.points < 0))
         .filter((r) => ruleEditCategory === 'all' || (r.category || cats[0].id) === ruleEditCategory);
 
-      const cards = rules.map((r) => el('button', {
-        class: 'rule-btn', onclick: () => openEditRule(r, false),
-        draggable: 'true',
-        ondragstart: (e) => { dragRuleId = r.id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.classList.add('is-dragging'); },
-        ondragend: (e) => { dragRuleId = null; e.currentTarget.classList.remove('is-dragging'); },
-        ondragover: (e) => { if (dragRuleId && dragRuleId !== r.id) e.preventDefault(); },
-        ondrop: (e) => {
-          e.preventDefault();
-          if (!dragRuleId || dragRuleId === r.id) return;
-          reorderRule(dragRuleId, r.id);
-          dragRuleId = null;
-        },
-      }, [
+      const cards = rules.map((r) => el('button', Object.assign(
+        { class: 'rule-btn', onclick: () => openEditRule(r, false) },
+        dragHandlers(r.id, reorderRule),
+      ), [
         el('div', { class: 'rule-btn__emoji', text: r.icon }),
         el('div', { class: 'rule-btn__pts' + (r.points < 0 ? ' is-minus' : ''), text: (r.points > 0 ? '+' : '') + r.points }),
         el('div', { class: 'rule-btn__label', text: r.label }),
@@ -2839,63 +2845,192 @@
       ]);
     }
 
-    /* ---- 規則分類（上課用／作業類／星野主線……）老師可以自己新增、改名、排序、刪除 ---- */
-    function categoryRow(c, idx, total) {
-      const upd = (patch) => S.commit((d) => Object.assign(d.ruleCategories.find((x) => x.id === c.id), patch), { silent: true });
-      return el('div', { class: 'rule-edit' }, [
-        el('input', { class: 'input grow', value: c.label, onchange: (e) => upd({ label: e.target.value }) }),
-        el('button', { class: 'btn btn--ghost btn--sm', text: '▲', title: '上移', onclick: () => moveCategory(idx, -1) }),
-        el('button', { class: 'btn btn--ghost btn--sm', text: '▼', title: '下移', onclick: () => moveCategory(idx, 1) }),
-        el('button', {
-          class: 'btn btn--danger btn--sm', text: '刪除', title: total <= 1 ? '至少要保留一個分類' : '刪除這個分類',
-          onclick: () => deleteCategory(c.id),
-        }),
-      ]);
-    }
-    function moveCategory(idx, dir) {
-      S.commit((d) => {
-        const arr = d.ruleCategories;
-        const j = idx + dir;
-        if (j < 0 || j >= arr.length) return;
-        const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
-      });
-    }
-    function deleteCategory(id) {
-      if (S.get().ruleCategories.length <= 1) return U.toast('至少要保留一個分類', 'warn');
-      U.confirmDialog('刪除這個分類？', '這個分類底下的規則會自動改歸類到第一個分類，規則本身不會被刪除。', '刪除').then((ok) => {
-        if (!ok) return;
-        S.commit((d) => {
-          d.ruleCategories = d.ruleCategories.filter((x) => x.id !== id);
-          const fallback = d.ruleCategories[0].id;
-          d.rules.forEach((r) => { if (r.category === id) r.category = fallback; });
+    /* ---- 規則分類：一樣改成格子卡片，拖曳排序，點卡片開編輯視窗 ---- */
+    function openEditCategory(c, isNew) {
+      const nameInput = el('input', { class: 'input grow', value: c.label || '', placeholder: '分類名稱' });
+      const actions = [
+        { label: '取消' },
+        {
+          label: '儲存', kind: 'primary',
+          onClick: () => {
+            const nm = nameInput.value.trim();
+            if (!nm) { U.toast('請輸入分類名稱', 'warn'); return true; }
+            if (isNew) { S.commit((d) => d.ruleCategories.push({ id: U.uid('cat'), label: nm })); U.toast('已新增分類'); }
+            else { S.commit((d) => { const cc = d.ruleCategories.find((x) => x.id === c.id); if (cc) cc.label = nm; }); U.toast('已更新分類'); }
+          },
+        },
+      ];
+      if (!isNew) {
+        actions.unshift({
+          label: '刪除', kind: 'danger',
+          onClick: (close) => {
+            if (S.get().ruleCategories.length <= 1) { U.toast('至少要保留一個分類', 'warn'); return true; }
+            close();
+            U.confirmDialog('刪除這個分類？', '這個分類底下的規則會自動改歸類到第一個分類，規則本身不會被刪除。', '刪除').then((ok) => {
+              if (!ok) return;
+              S.commit((d) => {
+                d.ruleCategories = d.ruleCategories.filter((x) => x.id !== c.id);
+                const fallback = d.ruleCategories[0].id;
+                d.rules.forEach((r) => { if (r.category === c.id) r.category = fallback; });
+              });
+              U.toast('已刪除分類', 'warn');
+            });
+            return true;
+          },
         });
+      }
+      U.modal({
+        title: isNew ? '新增分類' : '編輯分類',
+        body: el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '名稱' }), nameInput]),
+        actions,
       });
     }
 
-    function shopRow(i) {
-      const upd = (patch) => S.commit((d) => Object.assign(d.shop.find((x) => x.id === i.id), patch), { silent: true });
-      return el('div', { class: 'rule-edit' }, [
-        el('input', { class: 'input rule-edit__icon', value: i.icon, onchange: (e) => upd({ icon: e.target.value }) }),
-        el('div', { class: 'grow stack', style: { gap: '6px' } }, [
-          el('input', { class: 'input', value: i.name, onchange: (e) => upd({ name: e.target.value }) }),
-          el('input', { class: 'input', value: i.desc || '', placeholder: '說明', onchange: (e) => upd({ desc: e.target.value }) }),
-        ]),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: i.cost, title: '需要點數', onchange: (e) => upd({ cost: Number(e.target.value) || 0 }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: i.stock, title: '數量', onchange: (e) => upd({ stock: Number(e.target.value) || 0 }) }),
-        el('button', { class: 'btn btn--danger btn--sm', text: '✕', onclick: () => S.commit((d) => { d.shop = d.shop.filter((x) => x.id !== i.id); }) }),
+    function categoryCardGrid() {
+      const s2 = S.get();
+      const cards = (s2.ruleCategories || []).map((c) => el('button', Object.assign(
+        { class: 'rule-btn', onclick: () => openEditCategory(c, false) },
+        dragHandlers(c.id, reorderCategory),
+      ), [
+        el('div', { class: 'rule-btn__emoji', text: '🏷️' }),
+        el('div', { class: 'rule-btn__label', text: c.label }),
+      ])).concat([
+        el('button', {
+          class: 'rule-btn rule-btn--add', title: '新增分類',
+          onclick: () => openEditCategory({ label: '' }, true),
+        }, [el('div', { class: 'rule-btn__emoji', text: '＋' }), el('div', { class: 'rule-btn__label', text: '新增' })]),
       ]);
+      return el('div', { class: 'rule-grid rule-grid--cols5' }, cards);
     }
 
-    function taskRow(t) {
-      const upd = (patch) => S.commit((d) => Object.assign(d.dailyTasks.find((x) => x.id === t.id), patch), { silent: true });
-      return el('div', { class: 'rule-edit' }, [
-        el('input', { class: 'input rule-edit__icon', value: t.icon, onchange: (e) => upd({ icon: e.target.value }) }),
-        el('input', { class: 'input grow', value: t.title, onchange: (e) => upd({ title: e.target.value }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: t.done, title: '已完成', onchange: (e) => upd({ done: Number(e.target.value) || 0 }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: t.target, title: '全班目標', onchange: (e) => upd({ target: Number(e.target.value) || 0 }) }),
-        el('input', { class: 'input rule-edit__num', type: 'number', value: t.xp, title: '達成後的 XP（目前僅顯示於學生前台，尚未自動發放）', onchange: (e) => upd({ xp: Number(e.target.value) || 0 }) }),
-        el('button', { class: 'btn btn--danger btn--sm', text: '✕', onclick: () => S.commit((d) => { d.dailyTasks = d.dailyTasks.filter((x) => x.id !== t.id); }) }),
+    /* ---- 兌換商店：格子卡片，點卡片開編輯視窗（圖示、名稱、說明、點數、數量） ---- */
+    function openEditShopItem(i, isNew) {
+      const iconInput = el('input', { class: 'input', value: i.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
+      const nameInput = el('input', { class: 'input grow', value: i.name, placeholder: '商品名稱' });
+      const descInput = el('input', { class: 'input', value: i.desc || '', placeholder: '說明（選填）' });
+      const costInput = el('input', { class: 'input', type: 'number', value: i.cost });
+      const stockInput = el('input', { class: 'input', type: 'number', value: i.stock });
+      const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
+
+      const actions = [
+        { label: '取消' },
+        {
+          label: '儲存', kind: 'primary',
+          onClick: () => {
+            const nm = nameInput.value.trim();
+            if (!nm) { U.toast('請輸入商品名稱', 'warn'); return true; }
+            const patch = {
+              icon: iconInput.value.trim() || '🎁', name: nm, desc: descInput.value.trim(),
+              cost: Number(costInput.value) || 0, stock: Number(stockInput.value) || 0,
+            };
+            if (isNew) { S.commit((d) => d.shop.push(Object.assign({ id: U.uid('sh') }, patch))); U.toast('已新增商品'); }
+            else { S.commit((d) => Object.assign(d.shop.find((x) => x.id === i.id), patch)); U.toast('已更新商品'); }
+          },
+        },
+      ];
+      if (!isNew) {
+        actions.unshift({
+          label: '刪除', kind: 'danger',
+          onClick: (close) => {
+            close();
+            U.confirmDialog('刪除這項商品？', '「' + i.name + '」會從兌換商店移除。', '刪除').then((ok) => {
+              if (!ok) return;
+              S.commit((d) => { d.shop = d.shop.filter((x) => x.id !== i.id); });
+              U.toast('已刪除商品', 'warn');
+            });
+            return true;
+          },
+        });
+      }
+      U.modal({
+        title: isNew ? '新增商品' : '編輯商品',
+        body: el('div', { class: 'stack' }, [
+          el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
+          field('說明', descInput),
+          el('div', { class: 'row', style: { gap: '10px' } }, [field('需要點數', costInput), field('數量', stockInput)]),
+        ]),
+        actions,
+      });
+    }
+
+    function shopCardGrid() {
+      const s2 = S.get();
+      const cards = (s2.shop || []).map((i) => el('button', { class: 'rule-btn', onclick: () => openEditShopItem(i, false) }, [
+        el('div', { class: 'rule-btn__emoji', text: i.icon }),
+        el('div', { class: 'rule-btn__pts', text: i.cost + ' 點' }),
+        el('div', { class: 'rule-btn__label', text: i.name }),
+      ])).concat([
+        el('button', {
+          class: 'rule-btn rule-btn--add', title: '新增商品',
+          onclick: () => openEditShopItem({ icon: '🎁', name: '', desc: '', cost: 30, stock: 5 }, true),
+        }, [el('div', { class: 'rule-btn__emoji', text: '＋' }), el('div', { class: 'rule-btn__label', text: '新增' })]),
       ]);
+      return el('div', { class: 'rule-grid rule-grid--cols5' }, cards);
+    }
+
+    /* ---- 今日任務：格子卡片，點卡片開編輯視窗（圖示、名稱、已完成、全班目標、XP） ---- */
+    function openEditTask(t, isNew) {
+      const iconInput = el('input', { class: 'input', value: t.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
+      const nameInput = el('input', { class: 'input grow', value: t.title, placeholder: '任務名稱' });
+      const doneInput = el('input', { class: 'input', type: 'number', value: t.done });
+      const targetInput = el('input', { class: 'input', type: 'number', value: t.target });
+      const xpInput = el('input', { class: 'input', type: 'number', value: t.xp });
+      const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
+
+      const actions = [
+        { label: '取消' },
+        {
+          label: '儲存', kind: 'primary',
+          onClick: () => {
+            const nm = nameInput.value.trim();
+            if (!nm) { U.toast('請輸入任務名稱', 'warn'); return true; }
+            const patch = {
+              icon: iconInput.value.trim() || '📌', title: nm,
+              done: Number(doneInput.value) || 0, target: Number(targetInput.value) || 0, xp: Number(xpInput.value) || 0,
+            };
+            if (isNew) { S.commit((d) => d.dailyTasks.push(Object.assign({ id: U.uid('dt') }, patch))); U.toast('已新增任務'); }
+            else { S.commit((d) => Object.assign(d.dailyTasks.find((x) => x.id === t.id), patch)); U.toast('已更新任務'); }
+          },
+        },
+      ];
+      if (!isNew) {
+        actions.unshift({
+          label: '刪除', kind: 'danger',
+          onClick: (close) => {
+            close();
+            U.confirmDialog('刪除這項任務？', '「' + t.title + '」會從今日任務移除。', '刪除').then((ok) => {
+              if (!ok) return;
+              S.commit((d) => { d.dailyTasks = d.dailyTasks.filter((x) => x.id !== t.id); });
+              U.toast('已刪除任務', 'warn');
+            });
+            return true;
+          },
+        });
+      }
+      U.modal({
+        title: isNew ? '新增任務' : '編輯任務',
+        body: el('div', { class: 'stack' }, [
+          el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
+          el('div', { class: 'row', style: { gap: '10px' } }, [field('已完成', doneInput), field('全班目標', targetInput), field('達成後的 XP', xpInput)]),
+          el('p', { class: 'card__sub', text: 'XP 目前僅顯示於學生前台，尚未自動加總發放。' }),
+        ]),
+        actions,
+      });
+    }
+
+    function taskCardGrid() {
+      const s2 = S.get();
+      const cards = (s2.dailyTasks || []).map((t) => el('button', { class: 'rule-btn', onclick: () => openEditTask(t, false) }, [
+        el('div', { class: 'rule-btn__emoji', text: t.icon }),
+        el('div', { class: 'rule-btn__pts', text: (t.done || 0) + '/' + (t.target || 0) }),
+        el('div', { class: 'rule-btn__label', text: t.title }),
+      ])).concat([
+        el('button', {
+          class: 'rule-btn rule-btn--add', title: '新增任務',
+          onclick: () => openEditTask({ icon: '📌', title: '', xp: 2, target: S.get().students.length, done: 0 }, true),
+        }, [el('div', { class: 'rule-btn__emoji', text: '＋' }), el('div', { class: 'rule-btn__label', text: '新增' })]),
+      ]);
+      return el('div', { class: 'rule-grid rule-grid--cols5' }, cards);
     }
 
     return el('div', {}, [
@@ -2907,26 +3042,17 @@
           { id: 'shop', label: '🎁 兌換商店' },
         ])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [
-        sectionCard('tasks', '今日任務', '欄位依序為：圖示、名稱、已完成、全班目標、達成後的 XP（目前僅顯示於學生前台，尚未自動加總發放）。', [
-          el('div', {}, s.dailyTasks.map(taskRow)),
-          el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增任務', onclick: () => {
-            S.commit((d) => d.dailyTasks.push({ id: U.uid('dt'), title: '新任務', icon: '📌', xp: 2, target: d.students.length, done: 0 }));
-          } }),
+        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、已完成、全班目標、達成後的 XP（目前僅顯示於學生前台，尚未自動加總發放）。', [
+          taskCardGrid(),
         ]),
-        sectionCard('categories', '規則分類', '桌面小工具用這些分類把規則按鈕分區塊顯示；項目、名稱、順序都可以自己調整。', [
-          el('div', {}, (s.ruleCategories || []).map((c, idx) => categoryRow(c, idx, s.ruleCategories.length))),
-          el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增分類', onclick: () => {
-            S.commit((d) => d.ruleCategories.push({ id: U.uid('cat'), label: '新分類' }));
-          } }),
+        sectionCard('categories', '規則分類', '桌面小工具用這些分類把規則按鈕分區塊顯示；點卡片可以改名、刪除，拖曳可以排序。', [
+          categoryCardGrid(),
         ]),
         sectionCard('rules', '加分規則', '點卡片可以編輯；上面可以切換加分／扣分，也可以依分類篩選。', [
           ruleCardGrid(),
         ]),
-        sectionCard('shop', '兌換商店', '學生用課堂點數兌換。', [
-          el('div', {}, s.shop.map(shopRow)),
-          el('button', { class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增商品', onclick: () => {
-            S.commit((d) => d.shop.push({ id: U.uid('sh'), name: '新獎勵', icon: '🎁', cost: 30, stock: 5, desc: '' }));
-          } }),
+        sectionCard('shop', '兌換商店', '學生用課堂點數兌換；點卡片可以編輯。', [
+          shopCardGrid(),
         ]),
       ]),
     ]);
