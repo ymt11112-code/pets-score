@@ -211,10 +211,8 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
   text-align: center; transition: .14s; display: flex; flex-direction: column; align-items: center;
 }
 button.roster-card:hover { border-color: var(--green); background: #fff; transform: translateY(-2px); }
-.roster-card__face { margin-bottom: 4px; }
-.roster-card__name { font-weight: 800; font-size: 13.5px; }
+.roster-card__name { font-weight: 800; font-size: 13.5px; margin-top: 4px; }
 .roster-card__sub { font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
-.roster-card__stats { display: flex; justify-content: center; gap: 7px; margin-top: 6px; font-size: 11px; color: var(--ink-soft); flex-wrap: wrap; }
 .roster-card--group { cursor: default; }
 .roster-card--add { background: transparent; border-style: dashed; color: var(--ink-mute); justify-content: center; cursor: pointer; }
 .roster-card--add:hover { color: var(--green); border-color: var(--green); }

@@ -814,6 +814,16 @@
                     });
               })),
           ]),
+          el('button', {
+            class: 'btn btn--danger', style: { width: '100%', marginTop: '10px' }, text: '🗑️ 刪除這位學生',
+            onclick: () => U.confirmDialog('刪除學生', '確定要刪除「' + st.name + '」嗎？該生的紀錄會保留在點數紀錄中。', '刪除').then((ok) => {
+              if (!ok) return;
+              S.commit((d) => { d.students = d.students.filter((x) => x.id !== studentId); });
+              selected.delete(studentId);
+              U.toast('已刪除', 'warn');
+              modalHandle.close();
+            }),
+          }),
         ]));
       }
     }
@@ -822,7 +832,7 @@
     paintNav();
     paintContent();
 
-    U.modal({
+    const modalHandle = U.modal({
       title: '學生檔案',
       wide: true,
       body: el('div', {}, [headEl, el('div', { class: 'profile-layout' }, [navEl, contentEl])]),
@@ -1020,19 +1030,33 @@
 
   function pageRoster() {
     const s = S.get();
+    const cardSize = AVATAR_SIZES[(s.settings && s.settings.rosterCardSize) || 'md'];
+
+    /* 卡片大小決定格線 minmax 的下限，螢幕越寬一排自然擠進越多張（跟批次加點頁的
+       學生頭像格線同一套邏輯），不用另外做一個「每排幾張」的獨立設定。 */
+    function sizePicker() {
+      return el('div', { class: 'tag-toggle' }, Object.keys(AVATAR_SIZES).map((id) => {
+        const active = ((s.settings && s.settings.rosterCardSize) || 'md') === id;
+        return el('button', {
+          class: active ? 'is-on' : '',
+          text: AVATAR_SIZE_LABELS[id],
+          onclick: () => S.commit((d) => { d.settings = d.settings || {}; d.settings.rosterCardSize = id; }, { silent: true }),
+        });
+      }));
+    }
 
     function studentCard(st) {
       const g = s.groups.find((x) => x.id === st.groupId);
-      const lv = M.levelFromXp(st.xp).level;
-      return el('button', { class: 'roster-card', onclick: () => openStudentEdit(st) }, [
-        el('div', { class: 'roster-card__face' }, [M.petFace(M.petById(st.petId), 40, lv, st.petPathId)]),
-        el('div', { class: 'roster-card__name', text: U.pad2(st.no) + ' ' + st.name }),
-        el('div', { class: 'roster-card__sub', text: g ? g.name : '未分組' }),
-        el('div', { class: 'roster-card__stats' }, [
-          el('span', { title: '課堂點數', text: '⭐' + st.points }),
-          el('span', { title: '寵物等級', text: '🧪Lv.' + lv }),
-          el('span', { title: '金幣', text: '🪙' + st.coins }),
+      const lv = M.levelFromXp(st.xp);
+      const stage = M.stageOf(lv.level);
+      return el('button', { class: 'roster-card', onclick: () => openStudentProfile(st.id) }, [
+        el('div', { class: 'pet-avatar', style: { width: cardSize + 'px', height: cardSize + 'px' } }, [
+          M.petFace(M.petById(st.petId), Math.round(cardSize * 0.62), lv.level, st.petPathId),
+          el('span', { class: 'pet-avatar__badge', text: stage.badge }),
         ]),
+        el('div', { class: 'roster-card__name', text: U.pad2(st.no) + ' ' + st.name }),
+        el('div', { class: 'roster-card__sub', text: '寵物 Lv.' + lv.level + (g ? ' ・ ' + g.name : '') }),
+        el('div', { style: { width: '100%', marginTop: '6px' } }, [bar(lv.percent, true)]),
       ]);
     }
 
@@ -1070,7 +1094,8 @@
         ])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [
         sectionCard('roster', '班級名單', s.students.length + ' 位學生', [
-          el('div', { class: 'roster-grid' }, s.students.map(studentCard)),
+          el('div', { class: 'field', style: { marginBottom: '14px' } }, [el('label', { class: 'field__label', text: '卡片大小' }), sizePicker()]),
+          el('div', { class: 'roster-grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(' + (cardSize + 50) + 'px,1fr))' } }, s.students.map(studentCard)),
         ]),
         sectionCard('groups', '冒險小隊', '小隊點數會即時累積；點卡片可以改名／刪除，寶箱集滿時直接在卡片上開啟。', [
           el('div', { class: 'roster-grid' }, s.groups.map(groupCardTile).concat([
@@ -1119,21 +1144,6 @@
         },
       },
     ];
-    if (st) {
-      actions.unshift({
-        label: '刪除', kind: 'danger',
-        onClick: (close) => {
-          close();
-          U.confirmDialog('刪除學生', '確定要刪除「' + st.name + '」嗎？該生的紀錄會保留在點數紀錄中。', '刪除').then((ok) => {
-            if (!ok) return;
-            S.commit((d) => { d.students = d.students.filter((x) => x.id !== st.id); });
-            selected.delete(st.id);
-            U.toast('已刪除', 'warn');
-          });
-          return true;
-        },
-      });
-    }
 
     U.modal({
       title: st ? '編輯學生' : '新增學生',

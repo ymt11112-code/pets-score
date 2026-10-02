@@ -571,6 +571,7 @@
         showRank: true,
         allowStudentRename: true,
         avatarCardSize: 'md',
+        rosterCardSize: 'md',
         avatarFrame: true,
         studentOrder: 'no',
         showStudentNo: true,
