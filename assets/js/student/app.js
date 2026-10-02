@@ -527,12 +527,20 @@
       el('div', { class: 'cos-grid' }, paths.map((p) => {
         const unlocked = (inst.unlockedPaths || []).indexOf(p.id) >= 0;
         const active = inst.petPathId === p.id;
+        const doChoose = () => {
+          const r = S.choosePetPathFor(st.id, instanceKey || 'main', p.id);
+          if (!r.ok) return U.toast(r.msg, 'warn');
+          U.toast(r.unlocked ? '🎉 花費 ' + cost + ' 金幣解鎖了「' + M.petPathName(pet, p.id) + '」路線！' : '已切換成「' + M.petPathName(pet, p.id) + '」');
+        };
         return el('button', {
           class: 'cos' + (unlocked ? ' is-owned' : '') + (active ? ' is-equipped' : ''),
           onclick: () => {
-            const r = S.choosePetPathFor(st.id, instanceKey || 'main', p.id);
-            if (!r.ok) return U.toast(r.msg, 'warn');
-            U.toast(r.unlocked ? '🎉 花費 ' + cost + ' 金幣解鎖了「' + M.petPathName(pet, p.id) + '」路線！' : '已切換成「' + M.petPathName(pet, p.id) + '」');
+            // 已經解鎖過的路線免費切換，不用問；還沒解鎖、會真的扣金幣的才需要先確認
+            if (!unlocked && cost > 0) {
+              U.confirmDialog('花 ' + cost + ' 金幣解鎖「' + M.petPathName(pet, p.id) + '」？', '解鎖後可以隨時免費切換回來，但花掉的金幣不會退還。', '解鎖').then((ok) => { if (ok) doChoose(); });
+            } else {
+              doChoose();
+            }
           },
         }, [
           active ? el('span', { class: 'cos__tag', text: '使用中' }) : null,
