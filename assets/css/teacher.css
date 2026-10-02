@@ -204,6 +204,21 @@ body.no-avatar-frame .avatar-card.is-absent .avatar-card__face {
 }
 .emoji-picker__btn:hover { border-color: var(--green); background: var(--green-soft); }
 
+/* ---------- 「學生與小組」頁的學生/小隊卡片 ---------- */
+.roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.roster-card {
+  background: var(--bg-soft); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 10px;
+  text-align: center; transition: .14s; display: flex; flex-direction: column; align-items: center;
+}
+button.roster-card:hover { border-color: var(--green); background: #fff; transform: translateY(-2px); }
+.roster-card__face { margin-bottom: 4px; }
+.roster-card__name { font-weight: 800; font-size: 13.5px; }
+.roster-card__sub { font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+.roster-card__stats { display: flex; justify-content: center; gap: 7px; margin-top: 6px; font-size: 11px; color: var(--ink-soft); flex-wrap: wrap; }
+.roster-card--group { cursor: default; }
+.roster-card--add { background: transparent; border-style: dashed; color: var(--ink-mute); justify-content: center; cursor: pointer; }
+.roster-card--add:hover { color: var(--green); border-color: var(--green); }
+
 .log-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
 .log-row:last-child { border-bottom: none; }
 .log-row__no { width: 28px; height: 28px; border-radius: 9px; background: var(--bg-soft); display: grid; place-items: center; font-size: 12px; font-weight: 800; color: var(--ink-mute); }

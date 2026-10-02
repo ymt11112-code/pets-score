@@ -971,10 +971,96 @@
   }
 
   /* ================= 學生與小組 ================= */
+  /* 小隊編輯視窗：改名、換圖示、刪除；新增小隊也走這個（isNew=true）。
+     開寶箱是分開的按鈕，直接在卡片上就能按，不用先點開這個視窗。 */
+  function openEditGroup(g, isNew) {
+    const nameInput = el('input', { class: 'input grow', value: g.name || '', placeholder: '小隊名稱' });
+    const emojiInput = el('input', { class: 'input', value: g.emoji || '🚩', style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
+    const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
+
+    const actions = [
+      { label: '取消' },
+      {
+        label: '儲存', kind: 'primary',
+        onClick: () => {
+          const nm = nameInput.value.trim();
+          if (!nm) { U.toast('請輸入小隊名稱', 'warn'); return true; }
+          const patch = { name: nm, emoji: emojiInput.value.trim() || '🚩' };
+          if (isNew) { S.commit((d) => d.groups.push(Object.assign({ id: U.uid('g'), color: '#4aa3d8' }, patch))); U.toast('已新增小隊'); }
+          else { S.commit((d) => Object.assign(d.groups.find((x) => x.id === g.id), patch)); U.toast('已更新小隊'); }
+        },
+      },
+    ];
+    if (!isNew) {
+      actions.unshift({
+        label: '刪除', kind: 'danger',
+        onClick: (close) => {
+          close();
+          U.confirmDialog('刪除這個小隊？', '「' + g.name + '」的成員會變成未分組，隊員本身不會被刪除。', '刪除').then((ok) => {
+            if (!ok) return;
+            S.commit((d) => {
+              d.groups = d.groups.filter((x) => x.id !== g.id);
+              d.students.forEach((x) => { if (x.groupId === g.id) x.groupId = (d.groups[0] || {}).id || ''; });
+            });
+            U.toast('已刪除小隊', 'warn');
+          });
+          return true;
+        },
+      });
+    }
+    U.modal({
+      title: isNew ? '新增小隊' : '編輯小隊',
+      body: el('div', { class: 'stack' }, [
+        el('div', { class: 'row', style: { gap: '10px' } }, [emojiInput, field('名稱', nameInput)]),
+        iconPicker(emojiInput),
+      ]),
+      actions,
+    });
+  }
+
   function pageRoster() {
     const s = S.get();
+
+    function studentCard(st) {
+      const g = s.groups.find((x) => x.id === st.groupId);
+      const lv = M.levelFromXp(st.xp).level;
+      return el('button', { class: 'roster-card', onclick: () => openStudentEdit(st) }, [
+        el('div', { class: 'roster-card__face' }, [M.petFace(M.petById(st.petId), 40, lv, st.petPathId)]),
+        el('div', { class: 'roster-card__name', text: U.pad2(st.no) + ' ' + st.name }),
+        el('div', { class: 'roster-card__sub', text: g ? g.name : '未分組' }),
+        el('div', { class: 'roster-card__stats' }, [
+          el('span', { title: '課堂點數', text: '⭐' + st.points }),
+          el('span', { title: '寵物等級', text: '🧪Lv.' + lv }),
+          el('span', { title: '金幣', text: '🪙' + st.coins }),
+        ]),
+      ]);
+    }
+
+    function groupCardTile(g) {
+      const members = s.students.filter((x) => x.groupId === g.id);
+      const chest = S.groupChestInfo(g.id);
+      return el('div', { class: 'roster-card roster-card--group' }, [
+        el('div', { onclick: () => openEditGroup(g, false), style: { cursor: 'pointer' } }, [
+          el('div', { style: { fontSize: '28px' }, text: g.emoji }),
+          el('div', { class: 'roster-card__name', text: g.name }),
+          el('div', { class: 'roster-card__sub', text: members.length + ' 人 ・ ' + chest.pts + ' 點' }),
+        ]),
+        chest.pending > 0
+          ? el('button', {
+              class: 'btn btn--primary btn--sm', style: { marginTop: '8px', width: '100%' }, text: '🎁 開啟寶箱',
+              onclick: (e) => {
+                e.stopPropagation();
+                const r = S.openGroupChest(g.id);
+                if (!r.ok) return U.toast(r.msg, 'warn');
+                U.toast('🎉 開啟寶箱！全隊每人 +' + r.coins + ' 金幣' + (r.points ? '、+' + r.points + ' 點' : ''));
+              },
+            })
+          : el('div', { class: 'muted', style: { fontSize: '11px', marginTop: '6px' }, text: '還差 ' + Math.max(0, chest.nextTarget - chest.pts) + ' 點開箱' }),
+      ]);
+    }
+
     return el('div', {}, [
-      pageHead('學生與小組', '管理班級名單與分組，可批次匯入姓名。',
+      pageHead('學生與小組', '管理班級名單與分組，可批次匯入姓名；點卡片可以編輯。',
         el('div', { class: 'stack', style: { gap: '10px', alignItems: 'flex-end' } }, [
           el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, [
             el('button', { class: 'btn btn--ghost', text: '📋 批次匯入名單', onclick: openImportRoster }),
@@ -984,76 +1070,14 @@
         ])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [
         sectionCard('roster', '班級名單', s.students.length + ' 位學生', [
-          el('div', { class: 'tbl-wrap' }, [
-            el('table', { class: 'tbl' }, [
-              el('thead', {}, [el('tr', {}, [
-                el('th', { text: '座號' }), el('th', { text: '姓名' }),
-                el('th', { text: '小組' }), el('th', { class: 'col-hide-sm', text: '寵物' }),
-                el('th', { text: '點數' }), el('th', { text: 'XP' }), el('th', { text: '金幣' }),
-                el('th', { text: '寵物等級' }), el('th', { text: '操作' }),
-              ])]),
-              el('tbody', {}, s.students.map((st) => el('tr', {}, [
-                el('td', { text: U.pad2(st.no) }),
-                el('td', {}, [el('b', { text: st.name })]),
-                el('td', {}, [el('select', {
-                  class: 'select', style: { padding: '6px 8px' },
-                  onchange: (e) => S.commit((d) => { d.students.find((x) => x.id === st.id).groupId = e.target.value; }),
-                }, s.groups.map((g) => el('option', { value: g.id, text: g.name, selected: g.id === st.groupId ? 'selected' : null })))]),
-                el('td', { class: 'col-hide-sm' }, [el('div', { class: 'row', style: { gap: '8px' } }, [
-                  M.petFace(M.petById(st.petId), 24, M.levelFromXp(st.xp).level, st.petPathId),
-                  el('span', { text: st.petName || M.petById(st.petId).name }),
-                ])]),
-                el('td', { text: String(st.points) }),
-                el('td', { text: String(st.xp) }),
-                el('td', { text: String(st.coins) }),
-                el('td', { text: 'Lv.' + M.levelFromXp(st.xp).level }),
-                el('td', {}, [el('div', { class: 'row', style: { gap: '6px' } }, [
-                  el('button', { class: 'btn btn--ghost btn--sm', text: '編輯', onclick: () => openStudentEdit(st) }),
-                  el('button', {
-                    class: 'btn btn--danger btn--sm', text: '刪除',
-                    onclick: () => U.confirmDialog('刪除學生', '確定要刪除「' + st.name + '」嗎？該生的紀錄會保留在點數紀錄中。', '刪除').then((ok) => {
-                      if (!ok) return;
-                      S.commit((d) => { d.students = d.students.filter((x) => x.id !== st.id); });
-                      selected.delete(st.id);
-                      U.toast('已刪除', 'warn');
-                    }),
-                  }),
-                ])]),
-              ]))),
-            ]),
-          ]),
+          el('div', { class: 'roster-grid' }, s.students.map(studentCard)),
         ]),
-        sectionCard('groups', '冒險小隊', '小隊點數會即時累積。', [
-          el('div', { class: 'stack' }, s.groups.map((g) => {
-            const members = s.students.filter((x) => x.groupId === g.id);
-            return el('div', { class: 'rule-edit' }, [
-              el('span', { class: 'rule-edit__icon', text: g.emoji }),
-              el('input', {
-                class: 'input grow', value: g.name,
-                onchange: (e) => S.commit((d) => { d.groups.find((x) => x.id === g.id).name = e.target.value; }),
-              }),
-              el('span', { class: 'pill pill--gold nowrap', text: S.groupPoints(g.id) + ' 點' }),
-              el('span', { class: 'muted nowrap', style: { fontSize: '12.5px' }, text: members.length + ' 人' }),
-              el('button', {
-                class: 'btn btn--danger btn--sm', text: '✕',
-                onclick: () => U.confirmDialog('刪除小組', '「' + g.name + '」的成員會變成未分組。', '刪除').then((ok) => {
-                  if (!ok) return;
-                  S.commit((d) => {
-                    d.groups = d.groups.filter((x) => x.id !== g.id);
-                    d.students.forEach((x) => { if (x.groupId === g.id) x.groupId = (d.groups[0] || {}).id || ''; });
-                  });
-                }),
-              }),
-            ]);
-          }).concat([
+        sectionCard('groups', '冒險小隊', '小隊點數會即時累積；點卡片可以改名／刪除，寶箱集滿時直接在卡片上開啟。', [
+          el('div', { class: 'roster-grid' }, s.groups.map(groupCardTile).concat([
             el('button', {
-              class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增小組',
-              onclick: () => {
-                S.commit((d) => {
-                  d.groups.push({ id: U.uid('g'), name: '新小隊 ' + (d.groups.length + 1), emoji: '🚩', color: '#4aa3d8' });
-                });
-              },
-            }),
+              class: 'roster-card roster-card--add', title: '新增小隊',
+              onclick: () => openEditGroup({ emoji: '🚩', name: '' }, true),
+            }, [el('div', { style: { fontSize: '26px' }, text: '＋' }), el('div', { class: 'roster-card__name', text: '新增小隊' })]),
           ])),
         ]),
       ]),
@@ -1069,6 +1093,48 @@
     const pet = el('select', { class: 'select' }, M.allPets().map((p) =>
       el('option', { value: p.id, text: p.emoji + ' ' + p.name, selected: st && st.petId === p.id ? 'selected' : null })));
 
+    const actions = [
+      { label: '取消' },
+      {
+        label: '儲存', kind: 'primary',
+        onClick: () => {
+          const nm = name.value.trim();
+          if (!nm) { U.toast('請輸入姓名', 'warn'); return true; }
+          S.commit((d) => {
+            if (st) {
+              const t = d.students.find((x) => x.id === st.id);
+              Object.assign(t, { name: nm, no: Number(no.value) || t.no, groupId: grp.value, petId: pet.value });
+            } else {
+              d.students.push({
+                id: U.uid('s'), no: Number(no.value) || d.students.length + 1, name: nm,
+                groupId: grp.value, petId: pet.value, petName: '', xp: 0, points: 0, coins: 0,
+                streak: 0, cosmetics: [], equipped: '', badges: [], redeemCount: 0, ruleCount: {},
+                totalPoints: 0, lastActiveAt: 0, active: true,
+              });
+            }
+            d.students.sort((a, b) => a.no - b.no);
+          });
+          U.toast('已儲存');
+          if (onSaved) onSaved();
+        },
+      },
+    ];
+    if (st) {
+      actions.unshift({
+        label: '刪除', kind: 'danger',
+        onClick: (close) => {
+          close();
+          U.confirmDialog('刪除學生', '確定要刪除「' + st.name + '」嗎？該生的紀錄會保留在點數紀錄中。', '刪除').then((ok) => {
+            if (!ok) return;
+            S.commit((d) => { d.students = d.students.filter((x) => x.id !== st.id); });
+            selected.delete(st.id);
+            U.toast('已刪除', 'warn');
+          });
+          return true;
+        },
+      });
+    }
+
     U.modal({
       title: st ? '編輯學生' : '新增學生',
       body: el('div', { class: 'stack' }, [
@@ -1081,32 +1147,7 @@
           el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: '寵物' }), pet]),
         ]),
       ]),
-      actions: [
-        { label: '取消' },
-        {
-          label: '儲存', kind: 'primary',
-          onClick: () => {
-            const nm = name.value.trim();
-            if (!nm) { U.toast('請輸入姓名', 'warn'); return true; }
-            S.commit((d) => {
-              if (st) {
-                const t = d.students.find((x) => x.id === st.id);
-                Object.assign(t, { name: nm, no: Number(no.value) || t.no, groupId: grp.value, petId: pet.value });
-              } else {
-                d.students.push({
-                  id: U.uid('s'), no: Number(no.value) || d.students.length + 1, name: nm,
-                  groupId: grp.value, petId: pet.value, petName: '', xp: 0, points: 0, coins: 0,
-                  streak: 0, cosmetics: [], equipped: '', badges: [], redeemCount: 0, ruleCount: {},
-                  totalPoints: 0, lastActiveAt: 0, active: true,
-                });
-              }
-              d.students.sort((a, b) => a.no - b.no);
-            });
-            U.toast('已儲存');
-            if (onSaved) onSaved();
-          },
-        },
-      ],
+      actions,
     });
   }
 
