@@ -1028,6 +1028,38 @@
     });
   }
 
+  /* 小隊寶箱抽獎：轉盤式的開獎動畫（跟隨機抽點共用同一套 picker-stage 樣式），
+     轉完才呼叫 S.drawGroupChestLottery 決定真正抽到什麼。 */
+  function openChestLottery(g) {
+    const prizes = S.get().chestPrizes || [];
+    if (!prizes.length) return U.toast('還沒設定抽獎獎品，請先到「班級設定」新增', 'warn');
+    const stage = el('div', { class: 'picker-stage' }, [
+      el('div', { class: 'picker-stage__emoji', text: '🎰' }),
+      el('div', { class: 'picker-stage__name', text: '抽獎中…' }),
+      el('div', { class: 'picker-stage__meta', text: g.name }),
+    ]);
+    U.modal({ title: '🎉 小隊寶箱抽獎', body: stage });
+    stage.classList.add('is-rolling');
+    let n = 0;
+    const iv = setInterval(() => {
+      const r = prizes[Math.floor(Math.random() * prizes.length)];
+      stage.children[0].textContent = r.icon;
+      stage.children[1].textContent = r.name;
+      if (++n > 16) {
+        clearInterval(iv);
+        stage.classList.remove('is-rolling');
+        const result = S.drawGroupChestLottery(g.id);
+        if (result.ok) {
+          stage.children[0].textContent = result.prize.icon;
+          stage.children[1].textContent = result.prize.name;
+          stage.children[2].textContent = '🎉 ' + g.name + ' 抽中了！';
+        } else {
+          stage.children[1].textContent = result.msg;
+        }
+      }
+    }, 70);
+  }
+
   function pageRoster() {
     const s = S.get();
     const cardSize = AVATAR_SIZES[(s.settings && s.settings.rosterCardSize) || 'md'];
@@ -1080,6 +1112,12 @@
               },
             })
           : el('div', { class: 'muted', style: { fontSize: '11px', marginTop: '6px' }, text: '還差 ' + Math.max(0, chest.nextTarget - chest.pts) + ' 點開箱' }),
+        chest.lotteryPending > 0
+          ? el('button', {
+              class: 'btn btn--green btn--sm', style: { marginTop: '6px', width: '100%' }, text: '🎰 抽獎機會 ×' + chest.lotteryPending,
+              onclick: (e) => { e.stopPropagation(); openChestLottery(g); },
+            })
+          : null,
       ]);
     }
 
@@ -3181,6 +3219,59 @@
 
     /* ---- 小隊寶箱：小隊點數集滿門檻就能開箱，領全隊獎勵 ---- */
     const settingsUpd = (patch) => S.commit((d) => { d.settings = d.settings || {}; Object.assign(d.settings, patch); }, { silent: true });
+
+    function openEditPrize(p, isNew) {
+      const nameInput = el('input', { class: 'input grow', value: p.name || '', placeholder: '獎品名稱' });
+      const iconInput = el('input', { class: 'input', value: p.icon || '🎁', style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
+      const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
+      const actions = [
+        { label: '取消' },
+        {
+          label: '儲存', kind: 'primary',
+          onClick: () => {
+            const nm = nameInput.value.trim();
+            if (!nm) { U.toast('請輸入獎品名稱', 'warn'); return true; }
+            const patch = { icon: iconInput.value.trim() || '🎁', name: nm };
+            if (isNew) { S.commit((d) => d.chestPrizes.push(Object.assign({ id: U.uid('cp') }, patch))); U.toast('已新增獎品'); }
+            else { S.commit((d) => Object.assign(d.chestPrizes.find((x) => x.id === p.id), patch)); U.toast('已更新獎品'); }
+          },
+        },
+      ];
+      if (!isNew) {
+        actions.unshift({
+          label: '刪除', kind: 'danger',
+          onClick: (close) => {
+            close();
+            S.commit((d) => { d.chestPrizes = d.chestPrizes.filter((x) => x.id !== p.id); });
+            U.toast('已刪除獎品', 'warn');
+            return true;
+          },
+        });
+      }
+      U.modal({
+        title: isNew ? '新增抽獎獎品' : '編輯抽獎獎品',
+        body: el('div', { class: 'stack' }, [
+          el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
+          iconPicker(iconInput),
+        ]),
+        actions,
+      });
+    }
+
+    function prizeGrid() {
+      const s2 = S.get();
+      const cards = (s2.chestPrizes || []).map((p) => el('button', { class: 'rule-btn', onclick: () => openEditPrize(p, false) }, [
+        el('div', { class: 'rule-btn__emoji', text: p.icon }),
+        el('div', { class: 'rule-btn__label', text: p.name }),
+      ])).concat([
+        el('button', {
+          class: 'rule-btn rule-btn--add', title: '新增獎品',
+          onclick: () => openEditPrize({ icon: '🎁', name: '' }, true),
+        }, [el('div', { class: 'rule-btn__emoji', text: '＋' }), el('div', { class: 'rule-btn__label', text: '新增' })]),
+      ]);
+      return el('div', { class: 'rule-grid rule-grid--cols5' }, cards);
+    }
+
     const chestCard = card('🎁 小隊寶箱', '小隊目前點數（成員點數加總）每集滿一個門檻，隊上任何一人就能開箱，全隊每人都拿得到獎勵；開箱不會扣掉小隊的點數。', [
       el('div', { class: 'stack' }, [
         el('div', { class: 'field' }, [
@@ -3198,6 +3289,15 @@
           ]),
         ]),
         el('p', { class: 'card__sub', text: '以上欄位邊打邊存，不需另外按儲存；學生端在「小隊一起走」會看到寶箱集滿、可以開箱的按鈕。' }),
+        el('div', { class: 'field', style: { marginTop: '6px' } }, [
+          el('label', { class: 'field__label', text: '每開滿幾次寶箱，可以多抽一次獎' }),
+          el('input', { class: 'input', type: 'number', value: s.settings.groupChestLotteryEvery, onchange: (e) => settingsUpd({ groupChestLotteryEvery: Math.max(1, Number(e.target.value) || 5) }) }),
+        ]),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '🎰 抽獎獎品（點卡片可以編輯／刪除）' }),
+          prizeGrid(),
+        ]),
+        el('p', { class: 'card__sub', text: '抽獎只是隨機公布一個獎品名稱，實際獎品要老師自己發放，系統不會自動發點數或東西。抽獎按鈕在「學生與小組」頁的小隊卡片上。' }),
       ]),
     ]);
 

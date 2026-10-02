@@ -293,6 +293,14 @@
     { id: 'g5', name: '太陽小隊', emoji: '☀️', color: '#f08a5d' },
   ];
 
+  /* 小隊寶箱抽獎的預設獎品清單（老師可以自己新增/改名/刪除，見「班級設定」） */
+  const DEFAULT_CHEST_PRIZES = [
+    { id: 'cp1', icon: '🍬', name: '糖果一顆' },
+    { id: 'cp2', icon: '🎫', name: '免寫作業一次' },
+    { id: 'cp3', icon: '🪑', name: '座位選擇券' },
+    { id: 'cp4', icon: '🎵', name: '點歌一首' },
+  ];
+
   const NAMES = [
     '陳語晴', '王柏宇', '林宥安', '張子晴', '李承翰', '黃昱翔', '吳品妍', '劉冠廷',
     '蔡沛恩', '楊詠晴', '許家豪', '鄭雨彤', '謝宇軒', '郭芷妍', '洪睿哲', '曾心妤',
@@ -544,6 +552,7 @@
       pathCapacity: {},
       badgeDefs: U.deepClone(DEFAULT_BADGES),
       ruleCategories: U.deepClone(DEFAULT_RULE_CATEGORIES),
+      chestPrizes: U.deepClone(DEFAULT_CHEST_PRIZES),
       petNames: {},
       customPets: [],
       deletedPetIds: [],
@@ -571,7 +580,7 @@
         showRank: true,
         allowStudentRename: true,
         avatarCardSize: 'md',
-        rosterCardSize: 'md',
+        rosterCardSize: 'lg',
         avatarFrame: true,
         studentOrder: 'no',
         showStudentNo: true,
@@ -599,12 +608,15 @@
         groupChestStep: 100,
         groupChestCoins: 5,
         groupChestPoints: 0,
+        /* 每開滿幾次寶箱可以多抽一次獎（獎品清單是 state.chestPrizes），
+           抽到哪一個全看運氣，老師自己決定要怎麼實際發放（例如上課公布口頭宣布）。 */
+        groupChestLotteryEvery: 5,
       },
     };
   }
 
   global.PetModel = {
-    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_SHOP, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_IMAGE_ASSETS, DEFAULT_PET_RARITIES,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,

@@ -287,6 +287,7 @@
     /* 規則分類清單：同樣的邏輯，老師只要存檔裡已經有這個欄位就完全尊重老師自己改過的版本
        （改名、新增、刪除、排序都算），只有舊存檔完全沒有這個欄位時才套用預設三個分類。 */
     out.ruleCategories = Array.isArray(s.ruleCategories) && s.ruleCategories.length ? s.ruleCategories : base.ruleCategories;
+    out.chestPrizes = Array.isArray(s.chestPrizes) && s.chestPrizes.length ? s.chestPrizes : base.chestPrizes;
     migratePetStages(out, s, base);
     migratePetPaths(out, s, base);
     migratePetImageAssets(out);
@@ -726,7 +727,12 @@
     const pts = groupPoints(groupId);
     const opened = (g && g.chestsOpened) || 0;
     const pending = Math.max(0, Math.floor(pts / step) - opened);
-    return { step, pts, opened, pending, nextTarget: (opened + 1) * step };
+    /* 抽獎機會也是即時算的：每開滿 lotteryEvery 個寶箱就多一次，lotteryUsed 是已經
+       抽過幾次（存檔資料，不會因為之後開更多箱而被收回，邏輯跟 chestsOpened 一樣）。 */
+    const lotteryEvery = Math.max(1, (state.settings || {}).groupChestLotteryEvery || 5);
+    const lotteryUsed = (g && g.lotteryDrawsUsed) || 0;
+    const lotteryPending = Math.max(0, Math.floor(opened / lotteryEvery) - lotteryUsed);
+    return { step, pts, opened, pending, nextTarget: (opened + 1) * step, lotteryEvery, lotteryUsed, lotteryPending };
   }
 
   /* 開一個小隊寶箱：一次只開一個（就算差很多點數一次集滿好幾個也一樣，一次只發一個，
@@ -756,6 +762,24 @@
       if (s.ledger.length > 2000) s.ledger.length = 2000;
     });
     return { ok: true, coins, points: pts, memberIds };
+  }
+
+  /* 小隊寶箱抽獎：純粹隨機抽一個獎品名稱出來公布，不會自動發點數/金幣/東西——
+     抽到什麼由老師自己決定怎麼實際發放（例如口頭宣布、下課給獎品）。
+     抽獎機會跟獎品清單都是小隊/全班共用的，不特別記錄「誰」領走了獎品。 */
+  function drawGroupChestLottery(groupId) {
+    const info = groupChestInfo(groupId);
+    if (info.lotteryPending <= 0) return { ok: false, msg: '還沒集滿抽獎機會，再加油！' };
+    const prizes = state.chestPrizes || [];
+    if (!prizes.length) return { ok: false, msg: '還沒設定抽獎獎品，請先到「班級設定」新增' };
+    const prize = prizes[Math.floor(Math.random() * prizes.length)];
+    commit((s) => {
+      const g = s.groups.find((x) => x.id === groupId);
+      if (!g) return;
+      g.lotteryDrawsUsed = (g.lotteryDrawsUsed || 0) + 1;
+      g.lastChestPrize = { icon: prize.icon, name: prize.name, ts: Date.now() };
+    });
+    return { ok: true, prize };
   }
 
   /* ---------- 動作：加/扣點 ---------- */
@@ -1495,7 +1519,7 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
-    groupChestInfo, openGroupChest,
+    groupChestInfo, openGroupChest, drawGroupChestLottery,
     award, awardClass, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
     canCollectPets, adoptPet, drawPetGacha, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
