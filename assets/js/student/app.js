@@ -426,11 +426,16 @@
     ]);
   }
 
+  /* 小隊寶箱：小隊點數每集滿一個門檻（老師在班級設定調的 step）就多一個寶箱可以開，
+     開了全隊每人各得一筆金幣／點數獎勵。只有「自己隊上的人」看得到開箱按鈕，
+     其他隊的卡片只會顯示進度，不能幫別隊開箱。 */
   function groupCard(g) {
     const s = S.get();
     const members = s.students.filter((x) => x.groupId === g.id);
-    const pts = S.groupPoints(g.id);
-    const target = Math.max(100, Math.ceil(pts / 100) * 100);
+    const chest = S.groupChestInfo(g.id);
+    const myself = me();
+    const isMyGroup = !!myself && members.some((m) => m.id === myself.id);
+    const percent = Math.min(100, Math.round(((chest.pts - chest.opened * chest.step) / chest.step) * 100));
     return el('div', { class: 'card card--flat' }, [
       el('div', { class: 'row', style: { gap: '10px' } }, [
         el('span', { style: { fontSize: '26px' }, text: g.emoji }),
@@ -438,10 +443,24 @@
           el('div', { style: { fontWeight: 800, fontSize: '17px' }, text: g.name }),
           el('div', { class: 'muted', style: { fontSize: '13px' }, text: members.length + ' 位隊員' }),
         ]),
-        el('span', { class: 'pill pill--gold', text: pts + ' 點' }),
+        el('span', { class: 'pill pill--gold', text: chest.pts + ' 點' }),
       ]),
-      el('div', { style: { marginTop: '14px' } }, [progressBar(Math.round((pts / target) * 100), true)]),
-      el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '6px' }, text: '距離下一個小隊寶箱還差 ' + Math.max(0, target - pts) + ' 點' }),
+      el('div', { style: { marginTop: '14px' } }, [progressBar(percent, true)]),
+      chest.pending > 0
+        ? el('div', { style: { marginTop: '8px' } }, [
+            el('div', { class: 'muted', style: { fontSize: '12.5px' }, text: '🎁 小隊寶箱已經集滿了！' }),
+            isMyGroup
+              ? el('button', {
+                  class: 'btn btn--primary btn--sm', style: { marginTop: '6px' }, text: '🎁 開啟寶箱',
+                  onclick: () => {
+                    const r = S.openGroupChest(g.id);
+                    if (!r.ok) return U.toast(r.msg, 'warn');
+                    U.toast('🎉 開啟寶箱！全隊每人 +' + r.coins + ' 金幣' + (r.points ? '、+' + r.points + ' 點' : ''));
+                  },
+                })
+              : el('p', { class: 'muted', style: { fontSize: '11.5px', marginTop: '4px' }, text: '等隊員來開啟！' }),
+          ])
+        : el('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '6px' }, text: '距離下一個小隊寶箱還差 ' + Math.max(0, chest.nextTarget - chest.pts) + ' 點' }),
       el('div', { class: 'row', style: { marginTop: '12px', flexWrap: 'wrap', gap: '6px' } },
         members.slice(0, 8).map((m) => el('span', { title: m.name }, [M.petFace(M.petById(m.petId), 28, S.avatarDisplayLevel(m), m.petPathId)]))),
     ]);

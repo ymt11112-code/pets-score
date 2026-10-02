@@ -593,6 +593,11 @@
         classScoreLinkXpAmount: 2,
         classScoreLinkCoins: false,
         classScoreLinkCoinsAmount: 1,
+        /* 小隊寶箱：小隊目前點數（groupPoints）每累積滿一個 step 就多一個寶箱可以開，
+           開的時候全隊每人各得 groupChestCoins 金幣／groupChestPoints 點數（可以只設一種）。 */
+        groupChestStep: 100,
+        groupChestCoins: 5,
+        groupChestPoints: 0,
       },
     };
   }

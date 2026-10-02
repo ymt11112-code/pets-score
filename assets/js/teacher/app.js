@@ -3128,6 +3128,28 @@
       ]),
     ]);
 
+    /* ---- 小隊寶箱：小隊點數集滿門檻就能開箱，領全隊獎勵 ---- */
+    const settingsUpd = (patch) => S.commit((d) => { d.settings = d.settings || {}; Object.assign(d.settings, patch); }, { silent: true });
+    const chestCard = card('🎁 小隊寶箱', '小隊目前點數（成員點數加總）每集滿一個門檻，隊上任何一人就能開箱，全隊每人都拿得到獎勵；開箱不會扣掉小隊的點數。', [
+      el('div', { class: 'stack' }, [
+        el('div', { class: 'field' }, [
+          el('label', { class: 'field__label', text: '每集滿多少點開一次箱' }),
+          el('input', { class: 'input', type: 'number', value: s.settings.groupChestStep, onchange: (e) => settingsUpd({ groupChestStep: Math.max(1, Number(e.target.value) || 100) }) }),
+        ]),
+        el('div', { class: 'row', style: { gap: '10px' } }, [
+          el('div', { class: 'field grow' }, [
+            el('label', { class: 'field__label', text: '開箱時每人得到的金幣' }),
+            el('input', { class: 'input', type: 'number', value: s.settings.groupChestCoins, onchange: (e) => settingsUpd({ groupChestCoins: Number(e.target.value) || 0 }) }),
+          ]),
+          el('div', { class: 'field grow' }, [
+            el('label', { class: 'field__label', text: '開箱時每人得到的點數' }),
+            el('input', { class: 'input', type: 'number', value: s.settings.groupChestPoints, onchange: (e) => settingsUpd({ groupChestPoints: Number(e.target.value) || 0 }) }),
+          ]),
+        ]),
+        el('p', { class: 'card__sub', text: '以上欄位邊打邊存，不需另外按儲存；學生端在「小隊一起走」會看到寶箱集滿、可以開箱的按鈕。' }),
+      ]),
+    ]);
+
     /* ---- 重設點數／重新開始 ---- */
     const resetCard = card('🔄 重設點數 / 重新開始', '新學期可以清空點數，保留學生名單。', [
       el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
@@ -3151,7 +3173,7 @@
 
     return el('div', {}, [
       pageHead('班級設定', '班級資訊與共同任務的故事線，還有重設選項都放在這裡。'),
-      el('div', { class: 'set-grid' }, [classInfoCard, resetCard]),
+      el('div', { class: 'set-grid' }, [classInfoCard, chestCard, resetCard]),
     ]);
   }
 

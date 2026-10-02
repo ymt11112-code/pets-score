@@ -717,6 +717,47 @@
       .reduce((sum, s) => sum + s.points, 0);
   }
 
+  /* 小隊寶箱的門檻／進度都是即時從目前小隊點數算出來的，不用另外存一份「進度」；
+     只有「已經開過幾個」（chestsOpened）是存檔資料，開過的不會因為點數之後變動
+     （例如有人兌換東西扣點）而被收回，之後點數再往上累積，一樣看還差多少到下一個。 */
+  function groupChestInfo(groupId) {
+    const g = state.groups.find((x) => x.id === groupId);
+    const step = Math.max(1, (state.settings || {}).groupChestStep || 100);
+    const pts = groupPoints(groupId);
+    const opened = (g && g.chestsOpened) || 0;
+    const pending = Math.max(0, Math.floor(pts / step) - opened);
+    return { step, pts, opened, pending, nextTarget: (opened + 1) * step };
+  }
+
+  /* 開一個小隊寶箱：一次只開一個（就算差很多點數一次集滿好幾個也一樣，一次只發一個，
+     集更多之後可以再開下一個，比較清楚每次開箱都對應一筆獨立的紀錄）。
+     開箱不會消耗小隊點數，純粹是額外多發的獎勵。 */
+  function openGroupChest(groupId) {
+    const info = groupChestInfo(groupId);
+    if (info.pending <= 0) return { ok: false, msg: '還沒集滿，再加油！' };
+    const coins = Math.max(0, (state.settings || {}).groupChestCoins || 0);
+    const pts = Math.max(0, (state.settings || {}).groupChestPoints || 0);
+    let memberIds = [];
+    commit((s) => {
+      const g = s.groups.find((x) => x.id === groupId);
+      if (!g) return;
+      const members = s.students.filter((x) => x.groupId === groupId);
+      memberIds = members.map((x) => x.id);
+      members.forEach((st) => {
+        if (coins) st.coins = Math.max(0, (st.coins || 0) + coins);
+        if (pts) { st.points = Math.max(0, (st.points || 0) + pts); st.totalPoints = (st.totalPoints || 0) + pts; }
+      });
+      g.chestsOpened = (g.chestsOpened || 0) + 1;
+      s.ledger.unshift({
+        id: U.uid('lg'), ts: Date.now(), studentIds: memberIds,
+        ruleId: 'groupChest', label: '🎁 小隊寶箱（' + (g.name || '') + '）',
+        points: pts, xp: 0, coins, note: '', by: s.classInfo.teacher, undone: false,
+      });
+      if (s.ledger.length > 2000) s.ledger.length = 2000;
+    });
+    return { ok: true, coins, points: pts, memberIds };
+  }
+
   /* ---------- 動作：加/扣點 ---------- */
   function applyDelta(st, d) {
     st.points = Math.max(0, (st.points || 0) + (d.points || 0));
@@ -1454,6 +1495,7 @@
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
+    groupChestInfo, openGroupChest,
     award, awardClass, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
     canCollectPets, adoptPet, drawPetGacha, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
