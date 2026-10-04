@@ -10,6 +10,19 @@
 </head>
 <body>
 
+<div id="authGate" class="auth-gate">
+  <div class="auth-gate__box">
+    <div class="auth-gate__logo">🐾</div>
+    <h2 id="authGateTitle">老師後台密碼</h2>
+    <p id="authGateSub" class="muted">請輸入密碼才能進入老師後台。</p>
+    <input id="authGateInput" type="password" class="input" placeholder="密碼" autocomplete="current-password">
+    <div id="authGateMsg" class="auth-gate__msg"></div>
+    <button id="authGateBtn" class="btn btn--primary" style="width:100%">進入</button>
+    <button id="authGateReset" class="auth-gate__reset" type="button">忘記密碼？</button>
+  </div>
+</div>
+<script src="assets/js/teacher/auth-gate.js"></script>
+
 <header class="topbar">
   <div class="wrap--wide wrap topbar__inner">
     <button class="side-toggle" id="sideToggle" title="收合／展開選單" aria-label="收合／展開選單">☰</button>
@@ -26,6 +39,7 @@
           <span class="who__meta" id="teacherMeta">已登入</span>
         </span>
       </span>
+      <button class="btn btn--ghost" id="lockBtn" title="離開前可以先鎖定，下次要重新輸入密碼">🔒 鎖定</button>
       <a class="btn btn--primary" href="student.html">學生前台</a>
     </div>
   </div>

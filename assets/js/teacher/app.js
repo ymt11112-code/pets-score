@@ -3301,6 +3301,51 @@
       ]),
     ]);
 
+    /* ---- 老師後台密碼：密碼存在這台瀏覽器（localStorage），不是帳號系統，
+       只是擋掉學生隨手打開 teacher.html 就能進來的情況 ---- */
+    function openChangePassword() {
+      const oldInput = el('input', { class: 'input', type: 'password', placeholder: '目前密碼' });
+      const newInput = el('input', { class: 'input', type: 'password', placeholder: '新密碼（至少 4 個字）' });
+      const newInput2 = el('input', { class: 'input', type: 'password', placeholder: '再輸入一次新密碼' });
+      U.modal({
+        title: '更改老師後台密碼',
+        body: el('div', { class: 'stack' }, [oldInput, newInput, newInput2]),
+        actions: [
+          { label: '取消' },
+          {
+            label: '更改', kind: 'primary',
+            onClick: (close) => {
+              if (!window.TeacherAuth) { U.toast('密碼功能沒有載入成功', 'error'); return true; }
+              if (newInput.value.length < 4) { U.toast('新密碼至少要 4 個字', 'warn'); return true; }
+              if (newInput.value !== newInput2.value) { U.toast('兩次輸入的新密碼不一樣', 'warn'); return true; }
+              window.TeacherAuth.checkPassword(oldInput.value).then((ok) => {
+                if (!ok) { U.toast('目前密碼不正確', 'error'); return; }
+                window.TeacherAuth.setPassword(newInput.value).then(() => { U.toast('已更改密碼'); close(); });
+              });
+              return true;
+            },
+          },
+        ],
+      });
+    }
+    const authCard = card('🔒 老師後台密碼', '密碼存在這台瀏覽器裡，不是真正的帳號系統；換一台電腦要重新設定，忘記密碼只能清除重設（不會動到班級資料）。', [
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
+        el('button', { class: 'btn btn--ghost', text: '🔑 更改密碼', onclick: openChangePassword }),
+        el('button', {
+          class: 'btn btn--ghost', text: '🔒 立刻鎖定（下次要重新輸入密碼）',
+          onclick: () => { if (window.TeacherAuth) window.TeacherAuth.lockNow(); },
+        }),
+        el('button', {
+          class: 'btn btn--danger', text: '🗑️ 清除密碼',
+          onclick: () => U.confirmDialog('清除密碼', '清除後，下次打開老師後台會要求重新設定一組新密碼；不會影響班級資料。', '清除').then((ok) => {
+            if (!ok || !window.TeacherAuth) return;
+            window.TeacherAuth.clearPassword();
+            U.toast('已清除密碼', 'warn');
+          }),
+        }),
+      ]),
+    ]);
+
     /* ---- 重設點數／重新開始 ---- */
     const resetCard = card('🔄 重設點數 / 重新開始', '新學期可以清空點數，保留學生名單。', [
       el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
@@ -3324,7 +3369,7 @@
 
     return el('div', {}, [
       pageHead('班級設定', '班級資訊與共同任務的故事線，還有重設選項都放在這裡。'),
-      el('div', { class: 'set-grid' }, [classInfoCard, chestCard, resetCard]),
+      el('div', { class: 'set-grid' }, [classInfoCard, chestCard, authCard, resetCard]),
     ]);
   }
 
