@@ -103,12 +103,16 @@
     /* 03fox 目前只有 V1–V3 共用造型的照片（三條路線 V4–V10 都各自齊全，那個範圍本來就不會用到
        共用圖），shared 陣列只給到第 3 張，避免指到還沒存在的 shared-v4~v10.png。 */
     '03fox': petImageAssetSet('03fox', undefined, 3),
-    /* hamster／otter／trex 沒有「V1–V3 共用造型」照片，三條路線各自從 V1 就分開齊全，所以不給
-       shared，V1–V3 在選路線前會先顯示 emoji，選了路線之後整段（V1–V10）都是照片。 */
-    hamster: petImageAssetSet('04hamster', ['path1', 'path2', 'path3']),
-    otter: petImageAssetSet('05otter', ['path1', 'path2', 'path3']),
-    trex: petImageAssetSet('06tyrannosaurus', ['path1', 'path2', 'path3']),
+    /* hamster／otter／trex 沒有另外準備「V1–V3 共用造型」的照片，三條路線各自從 V1 就分開齊全；
+       選路線前（V1–V3）就先借用 path1 的前三張圖頂著用，不然會卡在 emoji，選了路線之後
+       自然會換成該路線自己的圖。 */
+    hamster: withPath1AsShared(petImageAssetSet('04hamster', ['path1', 'path2', 'path3'])),
+    otter: withPath1AsShared(petImageAssetSet('05otter', ['path1', 'path2', 'path3'])),
+    trex: withPath1AsShared(petImageAssetSet('06tyrannosaurus', ['path1', 'path2', 'path3'])),
   };
+  function withPath1AsShared(preset, len) {
+    return Object.assign({}, preset, { shared: preset.path1.slice(0, len || 3) });
+  }
 
 
   /* 造型（金幣解鎖 / 等級解鎖） */
