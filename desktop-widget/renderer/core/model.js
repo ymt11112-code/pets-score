@@ -22,6 +22,7 @@
     { id: 'bear',    name: '蜂蜜小熊',     emoji: '🐻', img: '', trait: '力量系', desc: '搬桌椅、整理公共區域的第一名。', rarity: 'common' },
     { id: 'koala',   name: '薄荷無尾熊',   emoji: '🐨', img: '', trait: '療癒系', desc: '身上帶著淡淡薄荷香，總能在同學緊張時輕輕安撫。', rarity: 'common' },
     { id: 'owl',     name: '星眠貓頭鷹',   emoji: '🦉', img: '', trait: '沉靜系', desc: '喜歡在安靜的角落閱讀，最懂得傾聽每個小小心事。', rarity: 'common' },
+    { id: 'trex',    name: '熔岩暴龍',     emoji: '🦖', img: '', trait: '爆發系', desc: '踩著熔岩般炙熱的步伐衝向前，遇到挑戰從不退縮。', rarity: 'common' },
   ];
 
   /* 寵物稀有度分級：決定抽獎機率權重（weight 越高越容易抽到）與直接領養的金幣價格，
@@ -83,6 +84,7 @@
     alpaca:  { path1: '擁抱治療師', path2: '安撫使者',     path3: '雲朵牧羊人' },
     capy:    { path1: '呼吸教練',   path2: '溫泉守護者',   path3: '沉穩軍師' },
     bear:    { path1: '蜂蜜工匠',   path2: '森林守衛',     path3: '力量搬運工' },
+    trex:    { path1: '烈焰衝鋒者', path2: '荒地獵蹤者',   path3: '熔岩守衛者' },
   };
 
   /* 老師已經整理好、可直接內建的寵物真實照片（V1–V10，共用圖＋各路線專屬圖）。
@@ -101,6 +103,11 @@
     /* 03fox 目前只有 V1–V3 共用造型的照片（三條路線 V4–V10 都各自齊全，那個範圍本來就不會用到
        共用圖），shared 陣列只給到第 3 張，避免指到還沒存在的 shared-v4~v10.png。 */
     '03fox': petImageAssetSet('03fox', undefined, 3),
+    /* hamster／otter／trex 沒有「V1–V3 共用造型」照片，三條路線各自從 V1 就分開齊全，所以不給
+       shared，V1–V3 在選路線前會先顯示 emoji，選了路線之後整段（V1–V10）都是照片。 */
+    hamster: petImageAssetSet('04hamster', ['path1', 'path2', 'path3']),
+    otter: petImageAssetSet('05otter', ['path1', 'path2', 'path3']),
+    trex: petImageAssetSet('06tyrannosaurus', ['path1', 'path2', 'path3']),
   };
 
 
