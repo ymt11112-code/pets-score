@@ -1424,6 +1424,97 @@
   }
 
   /* ================= 寵物設定 ================= */
+  function petCardGrid() {
+    const s = S.get();
+    const v3Level = ((s.petStageLevels || [])[2] || {}).minLevel || 1;
+    const pets = M.allPets().slice().sort((a, b) => (a.no != null ? a.no : 999) - (b.no != null ? b.no : 999));
+    const cards = pets.map((p) => {
+      const images = (s.petImages || {})[p.id] || [];
+      const withImg = images.filter(Boolean).length;
+      const rarityName = ((s.petRarities || []).find((r) => r.id === (p.rarity || 'common')) || {}).name || p.rarity || '';
+      return el('button', { class: 'roster-card', onclick: () => openEditPetCard(p) }, [
+        el('div', { class: 'pet-avatar', style: { width: '58px', height: '58px' } }, [
+          M.petFace(p, 38, v3Level),
+          p.no != null ? el('span', { class: 'pet-avatar__badge', text: String(p.no) }) : null,
+        ]),
+        el('div', { class: 'roster-card__name', text: p.name }),
+        el('div', { class: 'roster-card__sub', text: rarityName + '・' + (withImg ? withImg + ' 張圖' : 'emoji') }),
+      ]);
+    });
+    cards.push(el('button', { class: 'roster-card roster-card--add', onclick: openAddPet }, [
+      el('div', { style: { fontSize: '28px' }, text: '＋' }),
+      el('div', { class: 'roster-card__name', text: '新增寵物' }),
+    ]));
+    return el('div', { class: 'roster-grid' }, cards);
+  }
+
+  function openEditPetCard(p) {
+    const s = S.get();
+    const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
+    const v3Level = ((s.petStageLevels || [])[2] || {}).minLevel || 1;
+    const images = (s.petImages || {})[p.id] || [];
+    const withImg = images.filter(Boolean).length;
+    const totalStages = (s.petStageLevels || []).length;
+    const rarityId = p.rarity || 'common';
+
+    const noInput = el('input', { class: 'input', type: 'number', min: '1', value: p.no != null ? String(p.no) : '' });
+    const nameInput = el('input', { class: 'input grow', value: p.name, placeholder: '寵物名稱' });
+    const raritySelect = el('select', { class: 'select' },
+      (s.petRarities || []).map((r) => el('option', { value: r.id, text: r.name, selected: r.id === rarityId ? 'selected' : null })));
+
+    noInput.addEventListener('change', () => {
+      const n = Math.max(1, Math.round(Number(noInput.value) || 0));
+      if (!n) return;
+      if (isBuiltin) {
+        S.commit((d) => { d.petNoOverrides = d.petNoOverrides || {}; d.petNoOverrides[p.id] = n; }, { silent: true });
+      } else {
+        S.commit((d) => { const cp = (d.customPets || []).find((x) => x.id === p.id); if (cp) cp.no = n; }, { silent: true });
+      }
+    });
+    nameInput.addEventListener('change', () => {
+      const nm = nameInput.value.trim();
+      if (!nm) return;
+      if (isBuiltin) {
+        S.commit((d) => { d.petNames = d.petNames || {}; d.petNames[p.id] = nm; });
+      } else {
+        S.commit((d) => { const cp = (d.customPets || []).find((x) => x.id === p.id); if (cp) cp.name = nm; });
+      }
+    });
+    raritySelect.addEventListener('change', () => {
+      if (isBuiltin) {
+        S.commit((d) => { d.petRarityOverrides = d.petRarityOverrides || {}; d.petRarityOverrides[p.id] = raritySelect.value; }, { silent: true });
+      } else {
+        S.commit((d) => { const cp = (d.customPets || []).find((x) => x.id === p.id); if (cp) cp.rarity = raritySelect.value; }, { silent: true });
+      }
+    });
+
+    const modalHandle = U.modal({
+      title: '設定「' + p.name + '」',
+      body: el('div', { class: 'stack' }, [
+        el('div', { class: 'row', style: { gap: '12px', alignItems: 'center' } }, [
+          M.petFace(p, 56, v3Level),
+          el('span', {
+            class: 'pill' + (withImg ? '' : ' pill--gray'),
+            text: totalStages + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
+          }),
+        ]),
+        el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
+          el('div', { class: 'field', style: { width: '90px' } }, [el('label', { class: 'field__label', text: '編號' }), noInput]),
+          el('div', { class: 'field grow', style: { minWidth: '160px' } }, [el('label', { class: 'field__label', text: '名稱' }), nameInput]),
+        ]),
+        el('div', { class: 'field', style: { maxWidth: '200px' } }, [el('label', { class: 'field__label', text: '稀有度' }), raritySelect]),
+        el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', marginTop: '6px' } }, [
+          el('button', { class: 'btn btn--ghost', text: '🖼️ 管理圖片', onclick: () => openPetImageManager(p) }),
+          el('button', {
+            class: 'btn btn--danger', text: '🗑️ 刪除這種寵物',
+            onclick: () => { modalHandle.close(); openDeletePet(p); },
+          }),
+        ]),
+      ]),
+      actions: [{ label: '完成', kind: 'primary' }],
+    });
+  }
+
   function pagePetSettings() {
     const s = S.get();
 
@@ -1431,52 +1522,8 @@
       pageHead('寵物設定', '寵物種類、造型圖片、等級門檻、身分路線與收藏設定都在這裡，改完立即套用到老師後台與學生前台。'),
       el('div', { class: 'cols' }, [
         el('div', { class: 'stack' }, [
-          card('🖼️ 寵物名稱與造型圖片', '名稱可以直接改；也能新增／刪除寵物種類，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
-            el('div', { class: 'stack' }, M.allPets().map((p) => {
-              const images = (s.petImages || {})[p.id] || [];
-              const withImg = images.filter(Boolean).length;
-              const totalStages = (s.petStageLevels || []).length;
-              const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
-              /* 列表前面的小圖示固定顯示 V3（分岔前的最後一階）的造型，不受路線影響、也不會因為
-                 學生等級高低而跳來跳去，方便老師快速辨認每種寵物。 */
-              const v3Level = ((s.petStageLevels || [])[2] || {}).minLevel || 1;
-              const rarityId = p.rarity || 'common';
-              return el('div', { class: 'rule-edit' }, [
-                M.petFace(p, 32, v3Level),
-                el('input', {
-                  class: 'input grow', value: p.name, placeholder: '寵物名稱',
-                  onchange: (e) => {
-                    const nm = e.target.value.trim();
-                    if (!nm) return;
-                    if (isBuiltin) {
-                      S.commit((d) => { d.petNames = d.petNames || {}; d.petNames[p.id] = nm; });
-                    } else {
-                      S.commit((d) => { const cp = (d.customPets || []).find((x) => x.id === p.id); if (cp) cp.name = nm; });
-                    }
-                  },
-                }),
-                el('select', {
-                  class: 'select', style: { width: '92px' }, title: '稀有度（影響抽獎機率與領養金幣）',
-                  onchange: (e) => S.commit((d) => {
-                    if (isBuiltin) {
-                      d.petRarityOverrides = d.petRarityOverrides || {};
-                      d.petRarityOverrides[p.id] = e.target.value;
-                    } else {
-                      const cp = (d.customPets || []).find((x) => x.id === p.id);
-                      if (cp) cp.rarity = e.target.value;
-                    }
-                  }, { silent: true }),
-                },
-                  (s.petRarities || []).map((r) => el('option', { value: r.id, text: r.name, selected: r.id === rarityId ? 'selected' : null }))),
-                el('span', {
-                  class: 'pill' + (withImg ? '' : ' pill--gray'),
-                  text: totalStages + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
-                }),
-                el('button', { class: 'btn btn--ghost btn--sm', text: '管理圖片', onclick: () => openPetImageManager(p) }),
-                el('button', { class: 'btn btn--danger btn--sm', text: '🗑️', title: '刪除這種寵物', onclick: () => openDeletePet(p) }),
-              ]);
-            })),
-            el('button', { class: 'btn btn--green', style: { width: '100%', marginTop: '4px' }, text: '＋ 新增寵物', onclick: openAddPet }),
+          card('🖼️ 寵物圖鑑', '點卡片可以改名稱、編號、稀有度，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
+            petCardGrid(),
           ]),
         ]),
         el('div', { class: 'stack' }, [
@@ -1860,9 +1907,10 @@
             const nm = name.value.trim();
             if (!nm) { U.toast('請輸入寵物名稱', 'warn'); return true; }
             const id = U.uid('pet');
+            const nextNo = Math.max(0, ...M.allPets().map((p) => p.no || 0)) + 1;
             S.commit((d) => {
               d.customPets = d.customPets || [];
-              d.customPets.push({ id, name: nm, emoji: emoji.value.trim() || '🐾', img: '', trait: trait.value.trim(), desc: desc.value.trim() });
+              d.customPets.push({ id, no: nextNo, name: nm, emoji: emoji.value.trim() || '🐾', img: '', trait: trait.value.trim(), desc: desc.value.trim() });
               d.petImages = d.petImages || {};
               d.petImages[id] = new Array((d.petStageLevels || []).length).fill('');
             });

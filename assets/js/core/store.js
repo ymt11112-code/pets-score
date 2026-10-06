@@ -275,6 +275,7 @@
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     if (!out.pathCapacity || typeof out.pathCapacity !== 'object') out.pathCapacity = {};
     if (!out.petRarityOverrides || typeof out.petRarityOverrides !== 'object') out.petRarityOverrides = {};
+    if (!out.petNoOverrides || typeof out.petNoOverrides !== 'object') out.petNoOverrides = {};
     /* 寵物稀有度分級：老師已經改過名稱／權重／領養價格的整份保留；只補上還沒出現過的分級
        （例如日後新增第 4 個等級），不會覆蓋老師自己調整過的既有分級。 */
     out.petRarities = Array.isArray(s.petRarities) && s.petRarities.length ? s.petRarities : base.petRarities;

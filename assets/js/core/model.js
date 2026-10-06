@@ -390,26 +390,27 @@
         const s = S.get() || {};
         return {
           names: s.petNames || {}, extra: s.customPets || [], deleted: s.deletedPetIds || [],
-          rarities: s.petRarityOverrides || {},
+          rarities: s.petRarityOverrides || {}, nos: s.petNoOverrides || {},
         };
       }
     } catch (e) { /* store 還沒準備好就當作沒有任何自訂 */ }
-    return { names: {}, extra: [], deleted: [], rarities: {} };
+    return { names: {}, extra: [], deleted: [], rarities: {}, nos: {} };
   }
 
-  function resolvePet(p, names, rarities) {
+  function resolvePet(p, names, rarities, nos) {
     const patch = {};
     if (names[p.id]) patch.name = names[p.id];
     if (rarities[p.id]) patch.rarity = rarities[p.id];
+    if (nos && nos[p.id] != null) patch.no = nos[p.id];
     return Object.keys(patch).length ? Object.assign({}, p, patch) : p;
   }
 
-  /* 取得全部「目前可用」的寵物圖鑑：內建寵物（扣掉被刪除的）＋ 老師自己新增的寵物，並套用自訂名稱／稀有度。
+  /* 取得全部「目前可用」的寵物圖鑑：內建寵物（扣掉被刪除的）＋ 老師自己新增的寵物，並套用自訂名稱／稀有度／編號。
      下拉選單、圖鑑列表、抽新寵物等都應該用這個，而不是直接用 PETS。 */
   function allPets() {
-    const { names, extra, deleted, rarities } = classPetData();
+    const { names, extra, deleted, rarities, nos } = classPetData();
     const builtin = PETS.filter((p) => deleted.indexOf(p.id) < 0);
-    return builtin.concat(extra).map((p) => resolvePet(p, names, rarities));
+    return builtin.concat(extra).map((p) => resolvePet(p, names, rarities, nos));
   }
 
   /* 某隻寵物在「身分路線」上要顯示的名稱：每隻寵物可以各自取名（因為每隻寵物的發展不盡相同），
@@ -596,6 +597,7 @@
       petPathNames: U.deepClone(DEFAULT_PET_PATH_NAMES),
       petRarities: U.deepClone(DEFAULT_PET_RARITIES),
       petRarityOverrides: {},
+      petNoOverrides: {},
       pathCapacity: {},
       badgeDefs: U.deepClone(DEFAULT_BADGES),
       ruleCategories: U.deepClone(DEFAULT_RULE_CATEGORIES),
