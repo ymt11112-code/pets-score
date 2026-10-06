@@ -7,22 +7,35 @@
   /* ============ 寵物圖鑑 ============
      圖像先用 emoji 佔位；之後換成圖片只要把 img 欄位填上路徑，
      介面會自動改用 <img>（見 petFace()）。 */
+  /* 編號（no）跟稀有度是兩件獨立的事：編號只是老師整理照片資料夾時用的順序（01dog～06trex
+     是最早做好、照片最齊全的 6 隻，07–12 是後來補的貓狗系列，13 之後是還沒畫照片、純 emoji
+     佔位的寵物），稀有度則照「這隻寵物的造型照片有多完整」分級：
+       傳說（legendary）：3 條路線、V1–V10 全部都有照片（01dog／02cat／03fox／hamster／otter／trex）
+       稀有（rare）　　：2 條路線、V1–V7
+       普通（common）　：2 條路線、V1–V5（07–12 貓狗系列）
+     還沒畫照片、純 emoji 的寵物先維持 common，有照片之後再依實際張數調整分級。 */
   const PETS = [
-    { id: '02cat',   name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。', rarity: 'common' },
-    { id: '01dog',   name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。', rarity: 'common' },
-    { id: 'bunny',   name: '彩虹獨角兔',   emoji: '🐰', img: '', trait: '奇幻系', desc: '耳朵能聽見每個願望，蹦蹦跳跳把色彩帶給全班。', rarity: 'common' },
-    { id: '03fox',   name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。', rarity: 'common' },
-    { id: 'panda',   name: '功夫熊貓',     emoji: '🐼', img: '', trait: '堅毅系', desc: '動作慢但招招紮實，是隊伍裡最可靠的後盾。', rarity: 'common' },
-    { id: 'otter',   name: '焦糖水獺',     emoji: '🦦', img: '', trait: '探索系', desc: '毛色像融化的焦糖，喜歡在溪流間尋找新鮮事。', rarity: 'common' },
-    { id: 'hamster', name: '花生倉鼠',     emoji: '🐹', img: '', trait: '整潔系', desc: '小小的頰囊塞滿寶貝，最愛把教室角落都整理好。', rarity: 'common' },
-    { id: 'penguin', name: '極光企鵝',     emoji: '🐧', img: '', trait: '堅持系', desc: '揹著小小提燈，一步一步在黑夜裡帶路前進。', rarity: 'common' },
-    { id: 'dragon',  name: '抹茶小龍',     emoji: '🐲', img: '', trait: '勇氣系', desc: '遇到難題不退縮，會噴出鼓勵的火花。', rarity: 'common' },
-    { id: 'alpaca',  name: '棉花羊駝',     emoji: '🦙', img: '', trait: '溫柔系', desc: '毛茸茸的擁抱，專治上台前的緊張。', rarity: 'common' },
-    { id: 'capy',    name: '悠哉水豚',     emoji: '🦫', img: '', trait: '穩定系', desc: '從不慌張，教大家好好呼吸。', rarity: 'common' },
-    { id: 'bear',    name: '蜂蜜小熊',     emoji: '🐻', img: '', trait: '力量系', desc: '搬桌椅、整理公共區域的第一名。', rarity: 'common' },
-    { id: 'koala',   name: '薄荷無尾熊',   emoji: '🐨', img: '', trait: '療癒系', desc: '身上帶著淡淡薄荷香，總能在同學緊張時輕輕安撫。', rarity: 'common' },
-    { id: 'owl',     name: '星眠貓頭鷹',   emoji: '🦉', img: '', trait: '沉靜系', desc: '喜歡在安靜的角落閱讀，最懂得傾聽每個小小心事。', rarity: 'common' },
-    { id: 'trex',    name: '熔岩暴龍',     emoji: '🦖', img: '', trait: '爆發系', desc: '踩著熔岩般炙熱的步伐衝向前，遇到挑戰從不退縮。', rarity: 'common' },
+    { id: '02cat',   no: 2,  name: '草莓歐蕾貓',   emoji: '🐱', img: '', trait: '奇幻系', desc: '身上帶著草莓歐蕾香氣，安靜卻總能在關鍵時刻出現。', rarity: 'legendary' },
+    { id: '01dog',   no: 1,  name: '卡布奇諾柴',   emoji: '🐶', img: '', trait: '活力系', desc: '全身暖呼呼像杯剛沖好的卡布奇諾，最愛陪大家一起完成任務。', rarity: 'legendary' },
+    { id: 'bunny',   no: 13, name: '彩虹獨角兔',   emoji: '🐰', img: '', trait: '奇幻系', desc: '耳朵能聽見每個願望，蹦蹦跳跳把色彩帶給全班。', rarity: 'common' },
+    { id: '03fox',   no: 3,  name: '雲朵狐',       emoji: '🦊', img: '', trait: '夢幻系', desc: '腳步輕得像踩在雲朵上，總能找到別人忽略的線索。', rarity: 'legendary' },
+    { id: 'panda',   no: 14, name: '功夫熊貓',     emoji: '🐼', img: '', trait: '堅毅系', desc: '動作慢但招招紮實，是隊伍裡最可靠的後盾。', rarity: 'common' },
+    { id: 'otter',   no: 5,  name: '焦糖水獺',     emoji: '🦦', img: '', trait: '探索系', desc: '毛色像融化的焦糖，喜歡在溪流間尋找新鮮事。', rarity: 'legendary' },
+    { id: 'hamster', no: 4,  name: '花生倉鼠',     emoji: '🐹', img: '', trait: '整潔系', desc: '小小的頰囊塞滿寶貝，最愛把教室角落都整理好。', rarity: 'legendary' },
+    { id: 'penguin', no: 15, name: '極光企鵝',     emoji: '🐧', img: '', trait: '堅持系', desc: '揹著小小提燈，一步一步在黑夜裡帶路前進。', rarity: 'common' },
+    { id: 'dragon',  no: 16, name: '抹茶小龍',     emoji: '🐲', img: '', trait: '勇氣系', desc: '遇到難題不退縮，會噴出鼓勵的火花。', rarity: 'common' },
+    { id: 'alpaca',  no: 17, name: '棉花羊駝',     emoji: '🦙', img: '', trait: '溫柔系', desc: '毛茸茸的擁抱，專治上台前的緊張。', rarity: 'common' },
+    { id: 'capy',    no: 18, name: '悠哉水豚',     emoji: '🦫', img: '', trait: '穩定系', desc: '從不慌張，教大家好好呼吸。', rarity: 'common' },
+    { id: 'bear',    no: 19, name: '蜂蜜小熊',     emoji: '🐻', img: '', trait: '力量系', desc: '搬桌椅、整理公共區域的第一名。', rarity: 'common' },
+    { id: 'koala',   no: 20, name: '薄荷無尾熊',   emoji: '🐨', img: '', trait: '療癒系', desc: '身上帶著淡淡薄荷香，總能在同學緊張時輕輕安撫。', rarity: 'common' },
+    { id: 'owl',     no: 21, name: '星眠貓頭鷹',   emoji: '🦉', img: '', trait: '沉靜系', desc: '喜歡在安靜的角落閱讀，最懂得傾聽每個小小心事。', rarity: 'common' },
+    { id: 'trex',       no: 6,  name: '熔岩暴龍',   emoji: '🦖', img: '', trait: '爆發系', desc: '踩著熔岩般炙熱的步伐衝向前，遇到挑戰從不退縮。', rarity: 'legendary' },
+    { id: 'tuxedocat',  no: 7,  name: '賓士貓',     emoji: '🐈', img: '', trait: '紳士系', desc: '黑白配色像穿著小禮服，走路有模有樣，教室裡的風度代表。', rarity: 'common' },
+    { id: 'tabbycat',   no: 8,  name: '虎斑貓',     emoji: '😼', img: '', trait: '機靈系', desc: '身上有著經典條紋，反應靈活，總能第一個發現新鮮事。', rarity: 'common' },
+    { id: 'blackcat',   no: 9,  name: '烏龍黑貓',   emoji: '🐈‍⬛', img: '', trait: '神秘系', desc: '一身烏黑發亮的毛，安靜又聰明，據說會帶來意想不到的好運。', rarity: 'common' },
+    { id: 'corgi',      no: 10, name: '吐司柯基',   emoji: '🐕', img: '', trait: '元氣系', desc: '矮矮胖胖的身材像剛烤好的吐司，跑起來超有活力，笑容感染全班。', rarity: 'common' },
+    { id: 'dachshund',  no: 11, name: '可可臘腸',   emoji: '🐶', img: '', trait: '黏人系', desc: '身體長長的，喜歡窩在旁邊陪伴，是最溫暖的小跟班。', rarity: 'common' },
+    { id: 'schnauzer',  no: 12, name: '雲灰雪納瑞', emoji: '🐩', img: '', trait: '穩重系', desc: '灰白相間像飄著雲朵，鬍子翹翹的，看起來就很可靠。', rarity: 'common' },
   ];
 
   /* 寵物稀有度分級：決定抽獎機率權重（weight 越高越容易抽到）與直接領養的金幣價格，
@@ -109,9 +122,32 @@
     hamster: withPath1AsShared(petImageAssetSet('04hamster', ['path1', 'path2', 'path3'])),
     otter: withPath1AsShared(petImageAssetSet('05otter', ['path1', 'path2', 'path3'])),
     trex: withPath1AsShared(petImageAssetSet('06tyrannosaurus', ['path1', 'path2', 'path3'])),
+    /* 「普通級」貓狗系列：只有 5 階造型（V1–V3 共用、V4–V5 才分路線，而且只有兩條路線，沒有
+       路線三的圖）。shared 是獨立準備的 3 張；path1／path2 陣列故意留空前 3 格（用索引對齊
+       V4／V5，也就是陣列第 4、5 格），之後的 V6–V10 沒有圖，會沿用 V5 最後一張繼續顯示。 */
+    tuxedocat: commonPetAssetSet('07tuxedocat', true),
+    tabbycat: commonPetAssetSet('08tabbycat', true),
+    blackcat: commonPetAssetSet('09blackcat', true),
+    corgi: commonPetAssetSet('10corgi', true),
+    dachshund: commonPetAssetSet('11dachshund', true),
+    /* 雲灰雪納瑞目前只收到 5 張圖（1~5，對應共用 V1–V3＋路線一 V4/V5），路線二的 V4/V5 還沒給，
+       先讓路線二在 V4 之後沿用共用造型停在原地，之後補齊照片再換上去就好。 */
+    schnauzer: commonPetAssetSet('12schnauzer', false),
   };
   function withPath1AsShared(preset, len) {
     return Object.assign({}, preset, { shared: preset.path1.slice(0, len || 3) });
+  }
+  function commonPetAssetSet(dir, hasPath2) {
+    const shared = [1, 2, 3].map((n) => `assets/img/pets/${dir}/shared-v${n}.png`);
+    const pathArr = (prefix) => {
+      const a = [];
+      a[3] = `assets/img/pets/${dir}/${prefix}-v4.png`;
+      a[4] = `assets/img/pets/${dir}/${prefix}-v5.png`;
+      return a;
+    };
+    const result = { shared, path1: pathArr('path1') };
+    if (hasPath2) result.path2 = pathArr('path2');
+    return result;
   }
 
 
