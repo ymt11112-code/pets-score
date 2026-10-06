@@ -1530,16 +1530,17 @@
   function pagePetSettings() {
     const s = S.get();
 
-    return el('div', {}, [
-      pageHead('寵物設定', '寵物種類、造型圖片、等級門檻、身分路線與收藏設定都在這裡，改完立即套用到老師後台與學生前台。'),
-      el('div', { class: 'cols' }, [
-        el('div', { class: 'stack' }, [
-          card('🖼️ 寵物圖鑑', '點卡片可以改名稱、編號、稀有度，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
-            petCardGrid(),
-          ]),
-        ]),
-        el('div', { class: 'stack' }, [
-          card('🎚️ 寵物等級門檻（依稀有度分級，各自獨立）', '傳說／稀有／普通各自一份「第幾階段、達到等級幾、階段叫什麼名字」，改哪個分級只影響屬於那個分級的寵物；想要哪個分級有幾階、門檻訂在哪裡，都可以自己調。', [
+    /* 這個頁面卡片比較多，預設全部收合、只露出標題，點標籤跳過去才展開；只在「第一次」
+       遇到這幾個 section id 時套用這個預設值，之後老師自己展開/收合過的狀態會繼續保留。 */
+    ['pets-gallery', 'pets-stages', 'pets-paths', 'pets-collect'].forEach((id) => {
+      if (!(id in collapsedSections)) collapsedSections[id] = true;
+    });
+
+    const galleryCard = sectionCard('pets-gallery', '🖼️ 寵物圖鑑', '點卡片可以改名稱、編號、稀有度，或設定各階段要換上的圖片，改完立即套用到老師後台與學生前台，不用寫程式。', [
+      petCardGrid(),
+    ]);
+
+    const stagesCard = sectionCard('pets-stages', '🎚️ 寵物等級門檻（依稀有度分級，各自獨立）', '傳說／稀有／普通各自一份「第幾階段、達到等級幾、階段叫什麼名字」，改哪個分級只影響屬於那個分級的寵物；想要哪個分級有幾階、門檻訂在哪裡，都可以自己調。', [
             stageTierTabs(),
             el('div', { class: 'stack' }, ((s.petStageLevelsByRarity || {})[stageTierTab] || []).map((t, idx) =>
               el('div', { class: 'rule-edit' }, [
@@ -1583,8 +1584,9 @@
                 idsInTier.forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
               }),
             }),
-          ]),
-          card('🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((M.stageLevelsForRarity('legendary') || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
+          ]);
+
+    const pathsCard = sectionCard('pets-paths', '🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((M.stageLevelsForRarity('legendary') || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
             el('div', { class: 'stack' }, (s.petPaths || []).map((p, idx) =>
               el('div', { class: 'rule-edit' }, [
                 el('input', {
@@ -1603,8 +1605,9 @@
                 },
               }),
             ]),
-          ]),
-          card('🎒 寵物收藏設定', '學生的主寵物升到指定等級後，就能開始花金幣「領養」指定寵物，或花金幣「抽獎」隨機獲得；每隻寵物的抽獎機率與領養價格看牠的稀有度分級。', [
+          ]);
+
+    const collectCard = sectionCard('pets-collect', '🎒 寵物收藏設定', '學生的主寵物升到指定等級後，就能開始花金幣「領養」指定寵物，或花金幣「抽獎」隨機獲得；每隻寵物的抽獎機率與領養價格看牠的稀有度分級。', [
             el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
               el('div', { class: 'field', style: { width: '200px' } }, [
                 el('label', { class: 'field__label', text: '主寵物達到幾級才能收藏' }),
@@ -1651,8 +1654,20 @@
               ])
             )),
             el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '「抽獎」跟「領養」是兩種獨立的取得方式：抽獎只要付上面的抽獎金幣、抽到誰算誰；領養則是不用抽，直接付這裡的領養金幣指定要哪一隻，兩者不會疊加收費。' }),
-          ]),
-        ]),
+          ]);
+
+    return el('div', {}, [
+      pageHead('寵物設定', '寵物種類、造型圖片、等級門檻、身分路線與收藏設定都在這裡，改完立即套用到老師後台與學生前台。',
+        sectionJumpBar([
+          { id: 'pets-gallery', label: '🖼️ 寵物圖鑑' },
+          { id: 'pets-stages', label: '🎚️ 等級門檻' },
+          { id: 'pets-paths', label: '🌟 身分路線' },
+          { id: 'pets-collect', label: '🎒 收藏設定' },
+        ])),
+      el('div', { class: 'stack', style: { gap: '18px' } }, [
+        galleryCard,
+        stagesCard,
+        el('div', { class: 'set-grid' }, [pathsCard, collectCard]),
       ]),
     ]);
   }
