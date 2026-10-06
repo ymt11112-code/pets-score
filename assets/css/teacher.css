@@ -323,6 +323,10 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 /* ---------- 設定 ---------- */
 .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; align-items: start; }
 
+/* 寵物等級門檻：螢幕夠寬時普通／稀有／傳說三個分級並排對照修改，太窄就疊成一欄（見下方 media query） */
+.stage-tier-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.stage-tier-col__head { font-weight: 800; font-size: 14px; margin-bottom: 8px; }
+
 /* ---------- 星野主線：關卡編輯卡 ---------- */
 .chapter-block { border: 1.5px solid var(--line); }
 .chapter-block.is-cleared { border-color: var(--green); background: var(--green-soft); }
@@ -392,6 +396,7 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
   .cols { grid-template-columns: 1fr; }
   .note-grid { grid-template-columns: 1fr; }
   .guide-coin-grid { grid-template-columns: 1fr; }
+  .stage-tier-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
