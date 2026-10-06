@@ -304,7 +304,7 @@
             st
               ? (() => {
                   const pathName = st.petPathId ? M.petPathName(pet, st.petPathId) : '';
-                  const nextStage = (s.petStageLevels || []).find((t) => (t.minLevel || 1) > lv.level);
+                  const nextStage = (M.stageLevelsForPet(pet) || []).find((t) => (t.minLevel || 1) > lv.level);
                   return el('div', { class: 'hero-card__pet' }, [
                     el('span', { style: { fontSize: '30px' } }, [M.petFace(pet, 34, S.avatarDisplayLevel(st), st.petPathId)]),
                     el('div', { class: 'grow' }, [
@@ -466,8 +466,7 @@
   function stageGalleryCard(st, pet, instanceKey) {
     const inst = resolvePetInstance(st, instanceKey);
     const lv = M.levelFromXp(inst.xp || 0);
-    const s = S.get();
-    const levels = s.petStageLevels || [];
+    const levels = M.stageLevelsForPet(pet) || [];
     let autoIdx = 0;
     levels.forEach((t, i) => { if ((t.minLevel || 1) <= lv.level) autoIdx = i; });
     const overrideOk = inst.avatarStageIdx !== null && inst.avatarStageIdx !== undefined
@@ -514,8 +513,9 @@
     const s = S.get();
     const paths = s.petPaths || [];
     const cost = Math.max(0, (s.settings || {}).pathUnlockCost || 0);
-    const branchLevel = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].minLevel;
-    const branchName = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].name;
+    const branchStage = M.stageLevelsForPet(pet)[M.PATH_BRANCH_STAGE_INDEX] || {};
+    const branchLevel = branchStage.minLevel || 1;
+    const branchName = branchStage.name || '';
     if (lv.level < branchLevel) {
       return el('div', { class: 'card' }, [
         el('h3', { class: 'card__title', text: '🌟 身分路線' }),
@@ -563,19 +563,20 @@
     const st = me();
     if (!st) return;
     const lv = M.levelFromXp(st.xp);
-    const branchLevel = M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].minLevel;
+    const pet = M.petById(st.petId);
+    const branchStage = M.stageLevelsForPet(pet)[M.PATH_BRANCH_STAGE_INDEX] || {};
+    const branchLevel = branchStage.minLevel || 1;
     if (lv.level < branchLevel) return;
     if ((st.unlockedPaths || []).length > 0) return;
     const key = 'pathprompt:' + st.id;
     if (getCelebratedSet().has(key)) return;
     markCelebrated(key);
-    const pet = M.petById(st.petId);
     const paths = S.get().petPaths || [];
     const dlg = U.modal({
       title: '🌟 選擇專屬身分路線！',
       wide: true,
       body: el('div', { class: 'stack' }, [
-        el('p', { class: 'modal__text', text: (st.petName || pet.name) + ' 長大到「' + M.DEFAULT_PET_STAGES[M.PATH_BRANCH_STAGE_INDEX].name + '」了！選一條路線，接下來的造型都會走這條路，之後也能在「我的寵物」隨時切換或解鎖其他路線。' }),
+        el('p', { class: 'modal__text', text: (st.petName || pet.name) + ' 長大到「' + (branchStage.name || '') + '」了！選一條路線，接下來的造型都會走這條路，之後也能在「我的寵物」隨時切換或解鎖其他路線。' }),
         el('div', { class: 'cos-grid' }, paths.map((p) => el('button', {
           class: 'cos',
           onclick: () => {

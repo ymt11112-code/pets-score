@@ -55,7 +55,8 @@
     { key: 'legend', name: '傳說級', minLevel: 15, badge: '🌟' },
   ];
 
-  /* 每隻寵物預設的 10 段進化階段（老師可在「寵物與徽章」頁改名稱、等級與圖片） */
+  /* 每隻寵物預設的 10 段進化階段（老師可在「寵物與徽章」頁改名稱、等級與圖片）。
+     這是「傳說級」的滿版清單；稀有／普通級的階段數較少，見 DEFAULT_PET_STAGES_BY_RARITY。 */
   const DEFAULT_PET_STAGES = [
     { minLevel: 1,  name: '寵物蛋' },
     { minLevel: 3,  name: '幼胚體' },
@@ -68,6 +69,18 @@
     { minLevel: 41, name: '幻獸體' },
     { minLevel: 50, name: '神獸體' },
   ];
+
+  /* 每隻寵物的「總共有幾階造型」依稀有度分級決定，老師可以各自獨立增減、改名、改門檻等級：
+       傳說：3 條路線、V1–V10（滿版，跟 DEFAULT_PET_STAGES 一樣）
+       稀有：2 條路線、V1–V7
+       普通：2 條路線、V1–V5
+     V1–V3（索引 0–2）三個分級都一樣是共用造型、不分路線，差別只在 V4 之後還有幾階。
+     這只是「老師還沒自己改過」時的起始值，實際清單存在 state.petStageLevelsByRarity。 */
+  const DEFAULT_PET_STAGES_BY_RARITY = {
+    common: DEFAULT_PET_STAGES.slice(0, 5),
+    rare: DEFAULT_PET_STAGES.slice(0, 7),
+    legendary: DEFAULT_PET_STAGES.slice(),
+  };
 
   /* 升到 V4（成長體）之後，學生要選一條「身分路線」，其實就是這隻寵物的「職業型態」：
      V4–V10 的造型各走各的，路線名稱是老師可以在後台隨時改的班級預設值。 */
@@ -101,7 +114,7 @@
   };
 
   /* 老師已經整理好、可直接內建的寵物真實照片（V1–V10，共用圖＋各路線專屬圖）。
-     檔名 shared-vN／path{1,2,3}-vN 對應 petStageLevels 陣列索引 N-1。
+     檔名 shared-vN／path{1,2,3}-vN 對應這隻寵物所屬稀有度分級的門檻清單陣列索引 N-1。
      還沒整理照片的寵物不在這裡，畫面會照舊退回 emoji。 */
   function petImageAssetSet(dir, parts, sharedLen) {
     const list = parts || ['shared', 'path1', 'path2', 'path3'];
@@ -435,13 +448,33 @@
   }
 
   /* 進化到第幾階（陣列索引，從 0 開始）之後開始分路線：索引 3 = V4「成長體」。
-     V1–V3（索引 0–2）全班共用同一張圖，不分路線；V4–V10 每條路線各自一張圖。 */
+     V1–V3（索引 0–2）全班共用同一張圖，不分路線；V4 之後每條路線各自一張圖。
+     這個分岔點三個稀有度分級都一樣，差別只在分岔後總共還有幾階（見 stageLevelsForPet）。 */
   const PATH_BRANCH_STAGE_INDEX = 3;
 
+  /* 這隻寵物實際要用的「等級門檻清單」：依牠的稀有度分級去 state.petStageLevelsByRarity 找，
+     找不到（例如稀有度分級被刪掉了）就退回 common 那一份。老師在後台改某個分級的門檻／階段數，
+     所有屬於那個分級的寵物都會一起套用。 */
+  function stageLevelsForRarity(rarityId) {
+    try {
+      const S = global.PetStore;
+      if (S && S.get) {
+        const s = S.get() || {};
+        const map = s.petStageLevelsByRarity || {};
+        return map[rarityId] || map.common || [];
+      }
+    } catch (e) { /* store 還沒準備好 */ }
+    return DEFAULT_PET_STAGES_BY_RARITY[rarityId] || DEFAULT_PET_STAGES_BY_RARITY.common;
+  }
+  function stageLevelsForPet(pet) {
+    return stageLevelsForRarity((pet && pet.rarity) || 'common');
+  }
+
   /* 依等級挑選老師在後台設定的造型圖片，可另外指定「身分路線」（V4 之後才有意義）。
-     等級門檻是全班共用的一份清單（state.petStageLevels），每隻寵物的共用圖存在 state.petImages[petId]，
-     V4 之後的路線專屬圖存在 state.petPathImages[petId][pathId]，兩者都跟 petStageLevels 用陣列位置對應。
-     找不到路線圖就退回共用圖，再退回 pet.img（單張固定圖），再退回 emoji。 */
+     等級門檻依這隻寵物的稀有度分級決定（見 stageLevelsForPet），每隻寵物的共用圖存在
+     state.petImages[petId]，V4 之後的路線專屬圖存在 state.petPathImages[petId][pathId]，
+     兩者都跟這份門檻清單用陣列位置對應。找不到路線圖就退回共用圖，再退回 pet.img（單張固定圖），
+     再退回 emoji。 */
   function stageImageFor(pet, level, pathId) {
     let levels = null;
     let images = null;
@@ -450,7 +483,7 @@
       const S = global.PetStore;
       if (S && S.get) {
         const s = S.get() || {};
-        levels = s.petStageLevels;
+        levels = stageLevelsForPet(pet);
         images = (s.petImages || {})[pet.id];
         pathImages = pathId && s.petPathImages && s.petPathImages[pet.id] ? s.petPathImages[pet.id][pathId] : null;
       }
@@ -577,11 +610,16 @@
       toolbar: U.deepClone(DEFAULT_TOOLBAR),
       attendance: {},
       messages: [],
-      petStageLevels: DEFAULT_PET_STAGES.map((s) => ({ minLevel: s.minLevel, name: s.name })),
+      petStageLevelsByRarity: {
+        common: DEFAULT_PET_STAGES_BY_RARITY.common.map((s) => ({ minLevel: s.minLevel, name: s.name })),
+        rare: DEFAULT_PET_STAGES_BY_RARITY.rare.map((s) => ({ minLevel: s.minLevel, name: s.name })),
+        legendary: DEFAULT_PET_STAGES_BY_RARITY.legendary.map((s) => ({ minLevel: s.minLevel, name: s.name })),
+      },
       petImages: PETS.reduce((acc, p) => {
         const preset = DEFAULT_PET_IMAGE_ASSETS[p.id];
+        const stageCount = (DEFAULT_PET_STAGES_BY_RARITY[p.rarity || 'common'] || DEFAULT_PET_STAGES_BY_RARITY.common).length;
         const arr = preset && preset.shared ? preset.shared.slice() : [];
-        while (arr.length < DEFAULT_PET_STAGES.length) arr.push('');
+        while (arr.length < stageCount) arr.push('');
         acc[p.id] = arr;
         return acc;
       }, {}),
@@ -589,8 +627,9 @@
       petPathImages: PETS.reduce((acc, p) => {
         acc[p.id] = {};
         const preset = DEFAULT_PET_IMAGE_ASSETS[p.id];
+        const stageCount = (DEFAULT_PET_STAGES_BY_RARITY[p.rarity || 'common'] || DEFAULT_PET_STAGES_BY_RARITY.common).length;
         DEFAULT_PET_PATHS.forEach((path) => {
-          acc[p.id][path.id] = (preset && preset[path.id]) ? preset[path.id].slice() : new Array(DEFAULT_PET_STAGES.length).fill('');
+          acc[p.id][path.id] = (preset && preset[path.id]) ? preset[path.id].slice() : new Array(stageCount).fill('');
         });
         return acc;
       }, {}),
@@ -666,7 +705,8 @@
 
   global.PetModel = {
     PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, GROUP_PRESET,
-    DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
+    DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_STAGES_BY_RARITY, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
+    stageLevelsForRarity, stageLevelsForPet,
     DEFAULT_PET_IMAGE_ASSETS, DEFAULT_PET_RARITIES,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
     xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, petPathName, seedState,

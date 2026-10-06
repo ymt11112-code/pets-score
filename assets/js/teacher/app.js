@@ -20,6 +20,7 @@
   let ruleEditTab = 'pos'; // 規則設定頁「加分規則」格線：'pos' 加分 / 'neg' 扣分
   let ruleEditCategory = 'all'; // 'all' 或某個分類 id
   let dragCardId = null; // 規則設定頁卡片拖曳排序中，正在拖的項目 id（規則／分類共用）
+  let stageTierTab = 'legendary'; // 寵物設定頁「等級門檻」目前在編輯哪個稀有度分級
 
   /* ---------- 共用元件 ---------- */
   function pageHead(title, sub, right) {
@@ -1426,12 +1427,12 @@
   /* ================= 寵物設定 ================= */
   function petCardGrid() {
     const s = S.get();
-    const v3Level = ((s.petStageLevels || [])[2] || {}).minLevel || 1;
     const pets = M.allPets().slice().sort((a, b) => (a.no != null ? a.no : 999) - (b.no != null ? b.no : 999));
     const cards = pets.map((p) => {
       const images = (s.petImages || {})[p.id] || [];
       const withImg = images.filter(Boolean).length;
       const rarityName = ((s.petRarities || []).find((r) => r.id === (p.rarity || 'common')) || {}).name || p.rarity || '';
+      const v3Level = ((M.stageLevelsForPet(p) || [])[2] || {}).minLevel || 1;
       return el('button', { class: 'roster-card', onclick: () => openEditPetCard(p) }, [
         el('div', { class: 'pet-avatar', style: { width: '58px', height: '58px' } }, [
           M.petFace(p, 38, v3Level),
@@ -1451,10 +1452,10 @@
   function openEditPetCard(p) {
     const s = S.get();
     const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
-    const v3Level = ((s.petStageLevels || [])[2] || {}).minLevel || 1;
+    const v3Level = ((M.stageLevelsForPet(p) || [])[2] || {}).minLevel || 1;
     const images = (s.petImages || {})[p.id] || [];
     const withImg = images.filter(Boolean).length;
-    const totalStages = (s.petStageLevels || []).length;
+    const totalStages = (M.stageLevelsForPet(p) || []).length;
     const rarityId = p.rarity || 'common';
 
     const noInput = el('input', { class: 'input', type: 'number', min: '1', value: p.no != null ? String(p.no) : '' });
@@ -1515,6 +1516,17 @@
     });
   }
 
+  function stageTierTabs() {
+    const s = S.get();
+    const rarities = s.petRarities || [];
+    if (rarities.length && !rarities.some((r) => r.id === stageTierTab)) stageTierTab = rarities[0].id;
+    return el('div', { class: 'tag-toggle' }, rarities.map((r) => el('button', {
+      class: r.id === stageTierTab ? 'is-on' : '',
+      text: r.name,
+      onclick: () => { stageTierTab = r.id; render(); },
+    })));
+  }
+
   function pagePetSettings() {
     const s = S.get();
 
@@ -1527,30 +1539,33 @@
           ]),
         ]),
         el('div', { class: 'stack' }, [
-          card('🎚️ 寵物等級門檻（全部寵物共用）', '統一設定「第幾階段、達到等級幾、階段叫什麼名字」，所有寵物都套用同一組門檻，不用每隻寵物分別輸入一次。', [
-            el('div', { class: 'stack' }, (s.petStageLevels || []).map((t, idx) =>
+          card('🎚️ 寵物等級門檻（依稀有度分級，各自獨立）', '傳說／稀有／普通各自一份「第幾階段、達到等級幾、階段叫什麼名字」，改哪個分級只影響屬於那個分級的寵物；想要哪個分級有幾階、門檻訂在哪裡，都可以自己調。', [
+            stageTierTabs(),
+            el('div', { class: 'stack' }, ((s.petStageLevelsByRarity || {})[stageTierTab] || []).map((t, idx) =>
               el('div', { class: 'rule-edit' }, [
                 el('div', { class: 'field', style: { width: '80px' } }, [
                   el('label', { class: 'field__label', text: '等級' }),
                   el('input', {
                     class: 'input', type: 'number', min: '1', value: t.minLevel,
-                    onchange: (e) => S.commit((d) => { d.petStageLevels[idx].minLevel = Number(e.target.value) || 1; }),
+                    onchange: (e) => S.commit((d) => { d.petStageLevelsByRarity[stageTierTab][idx].minLevel = Number(e.target.value) || 1; }),
                   }),
                 ]),
                 el('div', { class: 'field grow' }, [
                   el('label', { class: 'field__label', text: '階段名稱' }),
                   el('input', {
                     class: 'input', value: t.name || '', placeholder: '例如：成熟體',
-                    onchange: (e) => S.commit((d) => { d.petStageLevels[idx].name = e.target.value; }),
+                    onchange: (e) => S.commit((d) => { d.petStageLevelsByRarity[stageTierTab][idx].name = e.target.value; }),
                   }),
                 ]),
                 el('button', {
                   class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段',
-                  onclick: () => U.confirmDialog('刪除這個階段', '所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
+                  onclick: () => U.confirmDialog('刪除這個階段', '這個分級底下所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
                     if (!ok) return;
                     S.commit((d) => {
-                      d.petStageLevels.splice(idx, 1);
-                      Object.keys(d.petImages || {}).forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
+                      const tier = stageTierTab;
+                      d.petStageLevelsByRarity[tier].splice(idx, 1);
+                      const idsInTier = M.allPets().filter((p) => (p.rarity || 'common') === tier).map((p) => p.id);
+                      idsInTier.forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
                     });
                   }),
                 }),
@@ -1559,14 +1574,17 @@
             el('button', {
               class: 'btn btn--ghost', style: { width: '100%' }, text: '＋ 新增階段',
               onclick: () => S.commit((d) => {
-                d.petStageLevels = d.petStageLevels || [];
-                const lv = d.petStageLevels.length ? Math.max.apply(null, d.petStageLevels.map((x) => x.minLevel || 1)) + 5 : 1;
-                d.petStageLevels.push({ minLevel: lv, name: '' });
-                Object.keys(d.petImages || {}).forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
+                const tier = stageTierTab;
+                d.petStageLevelsByRarity[tier] = d.petStageLevelsByRarity[tier] || [];
+                const list = d.petStageLevelsByRarity[tier];
+                const lv = list.length ? Math.max.apply(null, list.map((x) => x.minLevel || 1)) + 5 : 1;
+                list.push({ minLevel: lv, name: '' });
+                const idsInTier = M.allPets().filter((p) => (p.rarity || 'common') === tier).map((p) => p.id);
+                idsInTier.forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
               }),
             }),
           ]),
-          card('🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((s.petStageLevels || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
+          card('🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((M.stageLevelsForRarity('legendary') || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
             el('div', { class: 'stack' }, (s.petPaths || []).map((p, idx) =>
               el('div', { class: 'rule-edit' }, [
                 el('input', {
@@ -1912,7 +1930,7 @@
               d.customPets = d.customPets || [];
               d.customPets.push({ id, no: nextNo, name: nm, emoji: emoji.value.trim() || '🐾', img: '', trait: trait.value.trim(), desc: desc.value.trim() });
               d.petImages = d.petImages || {};
-              d.petImages[id] = new Array((d.petStageLevels || []).length).fill('');
+              d.petImages[id] = new Array(((d.petStageLevelsByRarity || {}).common || []).length).fill('');
             });
             U.toast('已新增「' + nm + '」');
           },
@@ -1969,7 +1987,7 @@
   }
 
   function openPetImageManager(pet) {
-    const levels = S.get().petStageLevels || [];
+    const levels = M.stageLevelsForPet(pet) || [];
     const branchIdx = M.PATH_BRANCH_STAGE_INDEX; // V4 開始分路線
     let images = ((S.get().petImages || {})[pet.id] || []).slice();
     while (images.length < levels.length) images.push('');
@@ -2083,7 +2101,7 @@
       wide: true,
       body: el('div', { class: 'stack' }, [
         el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' } }, [
-          el('p', { class: 'card__sub', style: { margin: 0, flex: '1 1 260px' }, text: '等級門檻是全部寵物共用的，要調整請到上面「寵物等級門檻」；這裡只設定這隻寵物在各階段要換上的圖片。' }),
+          el('p', { class: 'card__sub', style: { margin: 0, flex: '1 1 260px' }, text: '等級門檻是依「' + (((S.get().petRarities || []).find((r) => r.id === (pet.rarity || 'common')) || {}).name || pet.rarity || '普通') + '」這個稀有度分級共用的，要調整請到上面「寵物等級門檻」；這裡只設定這隻寵物在各階段要換上的圖片。' }),
           el('button', { class: 'btn btn--ghost btn--sm', text: '⚙️ GitHub 上傳設定', onclick: () => openGithubSettings() }),
         ]),
         el('p', { class: 'field__label', text: 'V1–V' + branchIdx + '（共用，不分路線）' }),

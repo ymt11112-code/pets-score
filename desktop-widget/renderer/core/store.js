@@ -314,15 +314,20 @@
     });
     const raw = (s && s.petPathImages) || {};
     const pathIds = out.petPaths.map((p) => p.id);
-    const stageLen = (out.petStageLevels || base.petStageLevels).length;
+    const byRarity = out.petStageLevelsByRarity || base.petStageLevelsByRarity;
     const result = {};
     const petIds = Object.keys(Object.assign({}, base.petImages, out.petImages || {}));
     petIds.forEach((petId) => {
+      const stageLen = (byRarity[petRarityForId(petId, out)] || byRarity.common || []).length;
       const rawForPet = raw[petId] || {};
       result[petId] = {};
       pathIds.forEach((pid) => {
         const existing = rawForPet[pid];
-        result[petId][pid] = Array.isArray(existing) && existing.length === stageLen ? existing : new Array(stageLen).fill('');
+        /* 長度不足就補到這隻寵物所屬分級目前需要的長度，但絕對不會因為長度「不等於」就整個
+           清空重建——不然老師只要調整某個分級的階段數，那個分級底下所有寵物的路線圖就會不見。 */
+        const arr = Array.isArray(existing) ? existing.slice() : [];
+        while (arr.length < stageLen) arr.push('');
+        result[petId][pid] = arr;
       });
     });
     out.petPathImages = result;
@@ -596,52 +601,94 @@
     });
   }
 
-  /* 寵物造型圖片以前是「每隻寵物各自存一份等級門檻＋圖片」，現在改成「全班共用一份等級門檻，
-     每隻寵物只存自己在各階段的圖片（用陣列位置對應）」。這裡把舊格式的資料原地轉換過來，
-     盡量不要遺失老師已經設定好的圖片。 */
+  /* 這隻寵物目前歸在哪個稀有度分級：先看老師是否手動覆蓋過（petRarityOverrides），
+     沒有就看內建表或自訂寵物自己存的 rarity，都沒有就當 common。呼叫時 out.customPets／
+     out.petRarityOverrides 都必須已經是陣列／物件（migrate() 裡這兩個欄位的 fixup
+     要排在 migratePetStages／migratePetPaths 之前）。 */
+  function petRarityForId(petId, out) {
+    const builtin = M.PETS.find((p) => p.id === petId);
+    const custom = (out.customPets || []).find((p) => p.id === petId);
+    const override = (out.petRarityOverrides || {})[petId];
+    return override || (builtin && builtin.rarity) || (custom && custom.rarity) || 'common';
+  }
+
+  /* 寵物造型圖片以前是「全班共用一份等級門檻」，現在改成「依稀有度分級各自一份等級門檻」
+     （傳說 V1–V10／稀有 V1–V7／普通 V1–V5，老師可以各自獨立增減、改名、改門檻），
+     每隻寵物只存自己在各階段的圖片（用陣列位置對應牠所屬分級的門檻清單）。
+     這裡把舊格式的資料原地轉換過來，盡量不要遺失老師已經設定好的圖片與階段名稱。 */
   function migratePetStages(out, s, base) {
     const raw = s.petImages || {};
-    const isOldFormat = Object.keys(raw).some((id) => {
+    const isOldestFormat = Object.keys(raw).some((id) => {
       const v = raw[id];
       return Array.isArray(v) && v.length > 0 && v[0] && typeof v[0] === 'object';
     });
+    const cloneLevels = (arr) => (arr || []).map((t) => ({ minLevel: t.minLevel, name: t.name || '' }));
 
-    if (!isOldFormat) {
-      out.petStageLevels = (s.petStageLevels && s.petStageLevels.length ? s.petStageLevels : base.petStageLevels)
-        .map((t) => ({ minLevel: t.minLevel, name: t.name || '' }));
-      out.petImages = Object.assign({}, base.petImages, raw);
-      const len = out.petStageLevels.length;
-      Object.keys(out.petImages).forEach((id) => {
-        const arr = (out.petImages[id] || []).slice();
-        while (arr.length < len) arr.push('');
-        out.petImages[id] = arr;
+    if (isOldestFormat) {
+      /* 最早期格式（寵物各自存一份等級門檻＋圖片物件）：先把所有寵物用過的門檻合併成一份清單，
+         當作「傳說」分級的起點，稀有／普通各自截短成前 7／5 階；這批資料非常舊，之後讓老師
+         自己到後台調整三個分級各自的門檻即可，不用再特別保留分級資訊（當年還沒有分級概念）。 */
+      const levelNames = {};
+      base.petStageLevelsByRarity.legendary.forEach((t) => { levelNames[t.minLevel] = t.name; });
+      Object.keys(raw).forEach((id) => {
+        (raw[id] || []).forEach((stg) => {
+          const lv = (stg && stg.minLevel) || 1;
+          if (!levelNames[lv] && stg && stg.name) levelNames[lv] = stg.name;
+          else if (!(lv in levelNames)) levelNames[lv] = (stg && stg.name) || '';
+        });
       });
-      return;
+      const sortedLv = Object.keys(levelNames).map(Number).sort((a, b) => a - b);
+      const fullLevels = sortedLv.map((lv) => ({ minLevel: lv, name: levelNames[lv] || '' }));
+      out.petStageLevelsByRarity = {
+        legendary: fullLevels,
+        rare: fullLevels.slice(0, 7),
+        common: fullLevels.slice(0, 5),
+      };
+      const newImages = {};
+      Object.keys(raw).forEach((id) => {
+        const arr = new Array(fullLevels.length).fill('');
+        (raw[id] || []).forEach((stg) => {
+          const idx = fullLevels.findIndex((t) => t.minLevel === ((stg && stg.minLevel) || 1));
+          if (idx >= 0 && stg && stg.img) arr[idx] = stg.img;
+        });
+        newImages[id] = arr;
+      });
+      out.petImages = Object.assign({}, base.petImages, newImages);
+    } else if (s.petStageLevelsByRarity && typeof s.petStageLevelsByRarity === 'object') {
+      /* 已經是分級格式：老師改過的每個分級（新增/刪除/改名/改門檻）完全保留，只補上
+         還沒出現過的分級；老師自己額外新增的稀有度分級（不在預設三個裡）也一併保留。 */
+      out.petStageLevelsByRarity = {};
+      Object.keys(base.petStageLevelsByRarity).forEach((rid) => {
+        const existing = s.petStageLevelsByRarity[rid];
+        out.petStageLevelsByRarity[rid] = (Array.isArray(existing) && existing.length) ? cloneLevels(existing) : cloneLevels(base.petStageLevelsByRarity[rid]);
+      });
+      Object.keys(s.petStageLevelsByRarity).forEach((rid) => {
+        if (!out.petStageLevelsByRarity[rid] && Array.isArray(s.petStageLevelsByRarity[rid])) {
+          out.petStageLevelsByRarity[rid] = cloneLevels(s.petStageLevelsByRarity[rid]);
+        }
+      });
+      out.petImages = Object.assign({}, base.petImages, raw);
+    } else {
+      /* 這次升級前的格式（單一全班共用清單，存在 s.petStageLevels）：老師改過的內容
+         （例如把幼年體的門檻從 Lv.6 改成 Lv.5）整份當作「傳說」分級的起點保留，
+         稀有／普通各自截短成前 7／5 階，這樣升級後三個分級的 V1–V5 都還是老師原本
+         看到的樣子，之後才各自獨立繼續調整。 */
+      const single = (s.petStageLevels && s.petStageLevels.length) ? cloneLevels(s.petStageLevels) : cloneLevels(base.petStageLevelsByRarity.legendary);
+      out.petStageLevelsByRarity = {
+        legendary: single,
+        rare: single.slice(0, 7).length ? single.slice(0, 7) : cloneLevels(base.petStageLevelsByRarity.rare),
+        common: single.slice(0, 5).length ? single.slice(0, 5) : cloneLevels(base.petStageLevelsByRarity.common),
+      };
+      out.petImages = Object.assign({}, base.petImages, raw);
     }
 
-    // 舊格式：先把所有寵物用過的等級門檻合併成一份共用清單
-    const levelNames = {};
-    base.petStageLevels.forEach((t) => { levelNames[t.minLevel] = t.name; });
-    Object.keys(raw).forEach((id) => {
-      (raw[id] || []).forEach((stg) => {
-        const lv = (stg && stg.minLevel) || 1;
-        if (!levelNames[lv] && stg && stg.name) levelNames[lv] = stg.name;
-        else if (!(lv in levelNames)) levelNames[lv] = (stg && stg.name) || '';
-      });
+    const byRarity = out.petStageLevelsByRarity;
+    Object.keys(out.petImages).forEach((id) => {
+      const len = (byRarity[petRarityForId(id, out)] || byRarity.common || []).length;
+      const arr = (out.petImages[id] || []).slice();
+      while (arr.length < len) arr.push('');
+      out.petImages[id] = arr;
     });
-    const levels = Object.keys(levelNames).map(Number).sort((a, b) => a - b);
-    out.petStageLevels = levels.map((lv) => ({ minLevel: lv, name: levelNames[lv] || '' }));
-
-    const newImages = {};
-    Object.keys(raw).forEach((id) => {
-      const arr = new Array(levels.length).fill('');
-      (raw[id] || []).forEach((stg) => {
-        const idx = levels.indexOf((stg && stg.minLevel) || 1);
-        if (idx >= 0 && stg && stg.img) arr[idx] = stg.img;
-      });
-      newImages[id] = arr;
-    });
-    out.petImages = Object.assign({}, base.petImages, newImages);
   }
 
   /* ---------- 初始化 ---------- */
@@ -1379,11 +1426,12 @@
 
   /* 「造型收藏」讓學生自由穿回任何一個已經達到過的造型階段，純粹是外觀選擇，
      不會動到等級、XP、星光或畫面上顯示的階段名稱——那些一律照真實等級計算。
-     avatarStageIdx 存的是 petStageLevels 的陣列索引；空著（null）就是照目前等級自動顯示。 */
+     avatarStageIdx 存的是「這隻寵物所屬稀有度分級」的門檻清單陣列索引；空著（null）就是照目前等級自動顯示。 */
   function avatarDisplayLevel(st) {
     const real = M.levelFromXp((st && st.xp) || 0).level;
     if (!st || st.avatarStageIdx === null || st.avatarStageIdx === undefined) return real;
-    const stage = (state.petStageLevels || [])[st.avatarStageIdx];
+    const pet = M.petById(st.petId);
+    const stage = (M.stageLevelsForPet(pet) || [])[st.avatarStageIdx];
     if (!stage || (stage.minLevel || 1) > real) return real; // 還沒達到那一階就不生效，安全退回目前等級
     return stage.minLevel || 1;
   }
@@ -1397,7 +1445,8 @@
       if (!inst) return;
       if (idx === null) { inst.avatarStageIdx = null; return; }
       const real = M.levelFromXp(inst.xp || 0).level;
-      const stage = (s.petStageLevels || [])[idx];
+      const pet = M.petById(inst.petId);
+      const stage = (M.stageLevelsForPet(pet) || [])[idx];
       if (stage && (stage.minLevel || 1) <= real) inst.avatarStageIdx = idx;
     });
   }
