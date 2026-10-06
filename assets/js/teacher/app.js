@@ -1425,21 +1425,40 @@
   }
 
   /* ================= 寵物設定 ================= */
+  /* 「有幾階有圖」不能只算 petImages[id]（共用圖）的張數——V4 之後的圖存在
+     petPathImages[id][路線] 裡，有些寵物（例如沒有專屬共用圖的那幾隻）V1–V3 其實是
+     借用 path1 的圖頂著，不會額外存一份在共用陣列，只看共用陣列張數會低估，讓老師以為
+     明明上傳過的路線圖「沒被算到」。這裡改成照這隻寵物實際的階段數，每一階只要共用圖
+     或任一條路線有圖就算「這一階有圖」，跟畫面上真正顯示的邏輯（stageImageFor）一致。 */
+  function petImageCoverage(p, s) {
+    const levels = M.stageLevelsForPet(p) || [];
+    const shared = (s.petImages || {})[p.id] || [];
+    const pathImages = (s.petPathImages || {})[p.id] || {};
+    const pathIds = Object.keys(pathImages);
+    const branchIdx = M.PATH_BRANCH_STAGE_INDEX;
+    let covered = 0;
+    levels.forEach((t, i) => {
+      const hasShared = !!shared[i];
+      const hasPath = i >= branchIdx && pathIds.some((pid) => pathImages[pid] && pathImages[pid][i]);
+      if (hasShared || hasPath) covered++;
+    });
+    return { covered, total: levels.length };
+  }
+
   function petCardGrid() {
     const s = S.get();
     const pets = M.allPets().slice().sort((a, b) => (a.no != null ? a.no : 999) - (b.no != null ? b.no : 999));
     const cards = pets.map((p) => {
-      const images = (s.petImages || {})[p.id] || [];
-      const withImg = images.filter(Boolean).length;
+      const cov = petImageCoverage(p, s);
       const rarityName = ((s.petRarities || []).find((r) => r.id === (p.rarity || 'common')) || {}).name || p.rarity || '';
       const v3Level = ((M.stageLevelsForPet(p) || [])[2] || {}).minLevel || 1;
       return el('button', { class: 'roster-card', onclick: () => openEditPetCard(p) }, [
-        el('div', { class: 'pet-avatar', style: { width: '58px', height: '58px' } }, [
-          M.petFace(p, 38, v3Level),
+        el('div', { class: 'pet-avatar', style: { width: '84px', height: '84px' } }, [
+          M.petFace(p, 58, v3Level),
           p.no != null ? el('span', { class: 'pet-avatar__badge', text: String(p.no) }) : null,
         ]),
         el('div', { class: 'roster-card__name', text: p.name }),
-        el('div', { class: 'roster-card__sub', text: rarityName + '・' + (withImg ? withImg + ' 張圖' : 'emoji') }),
+        el('div', { class: 'roster-card__sub', text: rarityName + '・' + (cov.covered ? cov.covered + '/' + cov.total + ' 階有圖' : 'emoji') }),
       ]);
     });
     cards.push(el('button', { class: 'roster-card roster-card--add', onclick: openAddPet }, [
@@ -1453,9 +1472,7 @@
     const s = S.get();
     const isBuiltin = M.PETS.some((bp) => bp.id === p.id);
     const v3Level = ((M.stageLevelsForPet(p) || [])[2] || {}).minLevel || 1;
-    const images = (s.petImages || {})[p.id] || [];
-    const withImg = images.filter(Boolean).length;
-    const totalStages = (M.stageLevelsForPet(p) || []).length;
+    const cov = petImageCoverage(p, s);
     const rarityId = p.rarity || 'common';
 
     const noInput = el('input', { class: 'input', type: 'number', min: '1', value: p.no != null ? String(p.no) : '' });
@@ -1495,8 +1512,8 @@
         el('div', { class: 'row', style: { gap: '12px', alignItems: 'center' } }, [
           M.petFace(p, 56, v3Level),
           el('span', {
-            class: 'pill' + (withImg ? '' : ' pill--gray'),
-            text: totalStages + ' 個階段・' + (withImg ? withImg + ' 張圖片' : '尚無圖片，顯示 emoji'),
+            class: 'pill' + (cov.covered ? '' : ' pill--gray'),
+            text: cov.total + ' 個階段・' + (cov.covered ? cov.covered + ' 階有圖' : '尚無圖片，顯示 emoji'),
           }),
         ]),
         el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } }, [
