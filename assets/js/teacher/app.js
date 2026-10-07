@@ -119,7 +119,7 @@
     const notifyOn = isPositive ? st.notifyAward !== false : st.notifyDeduct !== false;
     const soundOn = isPositive ? !!st.soundAward : !!st.soundDeduct;
     if (notifyOn) U.toast(ids.length + ' 位學生 ' + ruleObj.label + ' ' + sign + ruleObj.points + ' 點');
-    if (soundOn) { try { playTone(isPositive ? 660 : 300); } catch (e) { /* 部分瀏覽器不允許自動播放 */ } }
+    if (soundOn) playAwardChime(isPositive);
     if (ups.length) {
       U.toast('🎉 ' + ups.map((u) => u.name + ' Lv.' + u.level).join('、') + ' 升級了！');
     }
@@ -571,10 +571,19 @@
 
     return el('div', { class: 'page-batch' }, [
       pageHead('批次加點', multiMode ? '多選模式：點頭像切換選取，切到「小組」可以整組一起選取，再用下方工具列套用規則。' : '點一下學生頭像即可直接給他加點／扣點；切到「小組」或開啟下方「多選」可以一次處理多人。',
-        el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, [
-          seg, sizeSliders, quickChips,
-          el('span', { class: 'pill pill--gold', text: '已選 ' + selected.size + ' 位' }),
-        ])),
+        el('button', {
+          class: 'btn btn--ghost btn--sm', title: '批次加點設定（系統設定）',
+          onclick: () => {
+            collapsedSections.display = false;
+            go('system');
+            const node = document.getElementById('sec-display');
+            if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          },
+        }, [el('span', { text: '⚙️ 設定' })])),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end', marginBottom: '14px' } }, [
+        seg, sizeSliders, quickChips,
+        el('span', { class: 'pill pill--gold', text: '已選 ' + selected.size + ' 位' }),
+      ]),
       card(null, null, [grid]),
       dockBar(),
     ]);
@@ -629,7 +638,7 @@
       class: 'dock-btn', text: '✏️ 編輯', title: '編輯底部工具列項目、顯示設定等',
       onclick: () => {
         collapsedSections.toolbar = false;
-        go('settings');
+        go('system');
         const node = document.getElementById('sec-toolbar');
         if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
       },
@@ -963,8 +972,10 @@
     function sortedStudents() {
       const list = s.students.slice();
       if (sortMode === 'group') {
-        const gName = (id) => (s.groups.find((g) => g.id === id) || {}).name || '';
-        list.sort((a, b) => gName(a.groupId).localeCompare(gName(b.groupId), 'zh-Hant') || a.no - b.no);
+        /* 依照班級小隊清單原本的順序排（跟下面小組快速按鈕的順序一致），不要用名稱筆畫/字母排序，
+           不然會跟老師在「學生與小組」頁設定的小隊順序對不起來。 */
+        const groupIdx = (id) => { const i = s.groups.findIndex((g) => g.id === id); return i < 0 ? s.groups.length : i; };
+        list.sort((a, b) => groupIdx(a.groupId) - groupIdx(b.groupId) || a.no - b.no);
       } else {
         list.sort((a, b) => a.no - b.no);
       }
@@ -1488,16 +1499,34 @@
     return U.pad2(Math.floor(sec / 60)) + ':' + U.pad2(sec % 60);
   }
 
-  function playTone(freq) {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = freq || 880; gain.gain.value = 0.15;
-    osc.start(); osc.stop(ctx.currentTime + 0.35);
+  /* 原本是固定音量播放、說停就停，啟動跟結束那一瞬間會有明顯的「喀」聲（Web Audio 的
+     經典 zipper noise）；改成快速淡入、指數曲線淡出，聽起來才會是圓潤的「叮」而不是刺耳的電子雜音。 */
+  function playTone(freq, dur) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq || 880;
+      const now = ctx.currentTime;
+      const len = dur || 0.35;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + len);
+      osc.start(now);
+      osc.stop(now + len + 0.02);
+    } catch (e) { /* 部分瀏覽器不允許自動播放音效，忽略即可 */ }
   }
 
   function beep() { playTone(880); }
+
+  /* 加扣點提示音：加分是兩個快速上揚的音符（像拿到金幣），扣分是單一個較低、較短的音，
+     跟加分明顯分得開，也比單一刺耳的嗶聲順耳。 */
+  function playAwardChime(positive) {
+    const notes = positive ? [660, 880] : [330];
+    notes.forEach((freq, i) => setTimeout(() => playTone(freq, 0.28), i * 90));
+  }
 
   function playAlarm() {
     [0, 260, 520].forEach((delay) => setTimeout(() => { try { playTone(1046); } catch (e) { /* 忽略 */ } }, delay));
@@ -3637,6 +3666,12 @@
   function pageSystemSettings() {
     const s = S.get();
 
+    /* 這兩張卡片其實都是「批次加點」頁面會用到的設定（頭像顯示、底部工具列），
+       預設收合、只露出標題，點上面的標籤才展開並捲過去，跟寵物設定頁同一套做法。 */
+    ['display', 'toolbar'].forEach((id) => {
+      if (!(id in collapsedSections)) collapsedSections[id] = true;
+    });
+
     /* ---- 顯示設定 ---- */
     const setUpd = (key, val) => S.commit((d) => { d.settings = d.settings || {}; d.settings[key] = val; });
 
@@ -3820,7 +3855,7 @@
     ]);
 
     return el('div', {}, [
-      pageHead('系統設定', '顯示樣式與批次加點的底部工具列都放在這裡，參考 ClassDojo 的「Options」選單整理，改完立即生效。',
+      pageHead('系統設定', '目前兩張卡片都是「批次加點」頁面的設定（頭像顯示方式、底部工具列），參考 ClassDojo 的「Options」選單整理，改完立即生效。',
         sectionJumpBar([{ id: 'display', label: '🎨 顯示設定' }, { id: 'toolbar', label: '⭐ 底部工具列' }])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [displayCard, toolbarCard]),
     ]);
