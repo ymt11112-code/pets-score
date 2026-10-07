@@ -1611,7 +1611,7 @@
       stageTierTable(),
     ]);
 
-    const pathsCard = sectionCard('pets-paths', '🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((M.stageLevelsForRarity('legendary') || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
+    const pathsCard = sectionCard('pets-paths', '🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((M.stageLevelsForRarity('legendary') || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的只是「還沒單獨取過專屬名稱」的寵物會用到的預設值——大部分寵物老師應該都已經在各自的「管理圖片」裡取過專屬名稱了，那些不會受這裡影響；下面還有「每個分級能選幾條路線」，普通／稀有級通常只有 2 條路線的圖。', [
             el('div', { class: 'stack' }, (s.petPaths || []).map((p, idx) =>
               el('div', { class: 'rule-edit' }, [
                 el('input', {
