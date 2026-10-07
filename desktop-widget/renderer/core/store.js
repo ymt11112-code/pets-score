@@ -251,6 +251,15 @@
     ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds', 'messages'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
     });
+    /* 今日任務以前只存一個「已完成人次」數字，不知道是哪些學生；改成記錄實際完成的學生名單
+       （doneBy），done 改成每次都從 doneBy.length 重新算，不再直接存。舊存檔只有數字沒有名單，
+       就先挑座號最前面的幾位頂著湊出一樣的人次，老師之後可以自己到「今日任務進度」調整名單。 */
+    out.dailyTasks = out.dailyTasks.map((t) => {
+      if (Array.isArray(t.doneBy)) return Object.assign({}, t, { done: t.doneBy.length });
+      const n = Math.max(0, Math.min(t.target || 0, t.done || 0));
+      const doneBy = out.students.slice().sort((a, b) => a.no - b.no).slice(0, n).map((x) => x.id);
+      return Object.assign({}, t, { doneBy, done: doneBy.length });
+    });
     /* 舊的自訂工具列存檔可能是在「自訂點數」「今日任務」「反選」這些按鈕出現前存的，這裡補進去避免消失 */
     if (out.toolbar.length) {
       ['util:custom', 'util:tasks', 'util:invert'].forEach((id) => {
@@ -1600,6 +1609,18 @@
     emit();
   }
 
+  /* 今日任務完成名單：整份直接替換（勾學生座號、整組設定、清空都是呼叫這個，由畫面算好
+     完整的新名單再一次寫入），done 永遠等於 doneBy.length，不會分開存。 */
+  function setDailyTaskStudents(taskId, studentIds) {
+    commit((s) => {
+      const t = (s.dailyTasks || []).find((x) => x.id === taskId);
+      if (!t) return;
+      const ids = Array.from(new Set(studentIds));
+      t.doneBy = ids;
+      t.done = ids.length;
+    });
+  }
+
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
@@ -1615,5 +1636,6 @@
     storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress,
     storylineChapterParticipantIds, storylineChapterParticipantStats,
     activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear, grantChapterPathReward,
+    setDailyTaskStudents,
   };
 })(window);

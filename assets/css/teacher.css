@@ -353,6 +353,15 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 }
 .tag-toggle button.is-on { background: var(--green); border-color: var(--green); color: #fff; }
 
+/* ---------- 座號格子選取（今日任務完成名單） ---------- */
+.seat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 8px; }
+.seat-btn {
+  aspect-ratio: 1; border-radius: 10px; border: 1.5px solid var(--line); background: var(--bg-soft);
+  font-weight: 800; font-size: 14px; cursor: pointer; transition: .12s; color: var(--ink);
+}
+.seat-btn:hover { border-color: var(--green); }
+.seat-btn.is-on { background: var(--green); border-color: var(--green); color: #fff; }
+
 /* ---------- 使用說明 ---------- */
 .guide-page-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .guide-page-card {

@@ -913,6 +913,92 @@
     });
   }
 
+  /* 挑某一項今日任務「完成的學生名單」：點座號切換、也可以整組一起勾，排序可以切依座號／依組別，
+     完成人數就是畫面上這個名單的數量，不用自己算也不用自己打數字。 */
+  function openTaskStudentPicker(task, onSaved) {
+    const s = S.get();
+    let sortMode = 'no'; // 'no' 依座號 / 'group' 依組別
+    const doneSet = new Set(task.doneBy || []);
+
+    const gridEl = el('div', { class: 'seat-grid' });
+    const countEl = el('div', { style: { fontWeight: 800 } });
+    const sortToggle = el('div', { class: 'seg-toggle' });
+
+    function sortedStudents() {
+      const list = s.students.slice();
+      if (sortMode === 'group') {
+        const gName = (id) => (s.groups.find((g) => g.id === id) || {}).name || '';
+        list.sort((a, b) => gName(a.groupId).localeCompare(gName(b.groupId), 'zh-Hant') || a.no - b.no);
+      } else {
+        list.sort((a, b) => a.no - b.no);
+      }
+      return list;
+    }
+
+    function paintCount() { countEl.textContent = '已選：' + doneSet.size + ' 人'; }
+
+    function paintGrid() {
+      gridEl.innerHTML = '';
+      sortedStudents().forEach((st) => {
+        const on = doneSet.has(st.id);
+        gridEl.appendChild(el('button', {
+          class: 'seat-btn' + (on ? ' is-on' : ''), text: String(st.no), title: st.name,
+          onclick: () => { on ? doneSet.delete(st.id) : doneSet.add(st.id); paintGrid(); paintCount(); },
+        }));
+      });
+    }
+
+    function paintSortToggle() {
+      sortToggle.innerHTML = '';
+      [{ id: 'no', label: '依座號' }, { id: 'group', label: '依組別' }].forEach((o) => {
+        sortToggle.appendChild(el('button', {
+          class: 'seg-toggle__btn' + (sortMode === o.id ? ' is-active' : ''), text: o.label,
+          onclick: () => { sortMode = o.id; paintSortToggle(); paintGrid(); },
+        }));
+      });
+    }
+
+    const groupChips = el('div', { class: 'tag-toggle' }, s.groups.map((g) => {
+      const ids = s.students.filter((x) => x.groupId === g.id).map((x) => x.id);
+      return el('button', {
+        text: g.name,
+        onclick: () => {
+          const allOn = ids.length > 0 && ids.every((id) => doneSet.has(id));
+          ids.forEach((id) => (allOn ? doneSet.delete(id) : doneSet.add(id)));
+          paintGrid(); paintCount();
+        },
+      });
+    }));
+
+    paintSortToggle();
+    paintGrid();
+    paintCount();
+
+    U.modal({
+      title: '設定「' + task.title + '」完成名單',
+      wide: true,
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'card__sub', text: '點座號切換完成狀態；下面的小組按鈕可以整組一起勾選／取消。' }),
+        el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' } }, [sortToggle, groupChips]),
+        gridEl,
+        el('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' } }, [
+          countEl,
+          el('div', { class: 'row', style: { gap: '8px' } }, [
+            el('button', { class: 'btn btn--ghost btn--sm', text: '全班完成', onclick: () => { s.students.forEach((st) => doneSet.add(st.id)); paintGrid(); paintCount(); } }),
+            el('button', { class: 'btn btn--ghost btn--sm', text: '清空', onclick: () => { doneSet.clear(); paintGrid(); paintCount(); } }),
+          ]),
+        ]),
+      ]),
+      actions: [
+        { label: '取消' },
+        {
+          label: '完成', kind: 'primary',
+          onClick: () => { S.setDailyTaskStudents(task.id, Array.from(doneSet)); if (onSaved) onSaved(); },
+        },
+      ],
+    });
+  }
+
   function openDailyTasksQuick() {
     const listEl = el('div', { class: 'stack' });
 
@@ -924,23 +1010,17 @@
         return;
       }
       tasks.forEach((t) => {
-        const done = Math.min(t.target, Math.max(0, t.done || 0));
+        const done = (t.doneBy || []).length;
         listEl.appendChild(el('div', { class: 'log-row' }, [
           el('span', { style: { fontSize: '20px' }, text: t.icon }),
           el('div', { class: 'grow' }, [
             el('div', { style: { fontWeight: 700 }, text: t.title }),
             el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・+' + t.xp + ' XP' }),
           ]),
-          el('div', { class: 'qty' }, [
-            el('button', {
-              class: 'qty__btn qty__btn--minus', text: '−', title: '減 1',
-              onclick: () => { S.commit((d) => { const dt = d.dailyTasks.find((x) => x.id === t.id); dt.done = Math.max(0, (dt.done || 0) - 1); }); paint(); },
-            }),
-            el('button', {
-              class: 'qty__btn qty__btn--plus', text: '＋', title: '加 1',
-              onclick: () => { S.commit((d) => { const dt = d.dailyTasks.find((x) => x.id === t.id); dt.done = Math.min(dt.target, (dt.done || 0) + 1); }); paint(); },
-            }),
-          ]),
+          el('button', {
+            class: 'btn btn--ghost btn--sm', text: '👥 設定名單',
+            onclick: () => openTaskStudentPicker(t, paint),
+          }),
         ]));
       });
     }
@@ -950,7 +1030,7 @@
       title: '今日任務進度',
       wide: true,
       body: el('div', { class: 'stack' }, [
-        el('p', { class: 'card__sub', text: '快速調整全班今日任務的完成人次，改完立即生效；學生前台的進度也會一起更新。' }),
+        el('p', { class: 'card__sub', text: '點「設定名單」挑選完成的學生座號，人數會自動算好，不用自己填數字；學生前台的進度也會一起更新。' }),
         listEl,
       ]),
       actions: [{ label: '完成', kind: 'primary' }],
@@ -3217,11 +3297,11 @@
       return el('div', { class: 'rule-grid rule-grid--cols5' }, cards);
     }
 
-    /* ---- 今日任務：格子卡片，點卡片開編輯視窗（圖示、名稱、已完成、全班目標、XP） ---- */
+    /* ---- 今日任務：格子卡片，點卡片開編輯視窗（圖示、名稱、全班目標、XP）。完成名單不在這裡改，
+       到「今日任務進度」（底部工具列「今日任務」）用座號點選，done 會自動跟著名單算。 ---- */
     function openEditTask(t, isNew) {
       const iconInput = el('input', { class: 'input', value: t.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
       const nameInput = el('input', { class: 'input grow', value: t.title, placeholder: '任務名稱' });
-      const doneInput = el('input', { class: 'input', type: 'number', value: t.done });
       const targetInput = el('input', { class: 'input', type: 'number', value: t.target });
       const xpInput = el('input', { class: 'input', type: 'number', value: t.xp });
       const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
@@ -3235,9 +3315,9 @@
             if (!nm) { U.toast('請輸入任務名稱', 'warn'); return true; }
             const patch = {
               icon: iconInput.value.trim() || '📌', title: nm,
-              done: Number(doneInput.value) || 0, target: Number(targetInput.value) || 0, xp: Number(xpInput.value) || 0,
+              target: Number(targetInput.value) || 0, xp: Number(xpInput.value) || 0,
             };
-            if (isNew) { S.commit((d) => d.dailyTasks.push(Object.assign({ id: U.uid('dt') }, patch))); U.toast('已新增任務'); }
+            if (isNew) { S.commit((d) => d.dailyTasks.push(Object.assign({ id: U.uid('dt'), doneBy: [], done: 0 }, patch))); U.toast('已新增任務'); }
             else { S.commit((d) => Object.assign(d.dailyTasks.find((x) => x.id === t.id), patch)); U.toast('已更新任務'); }
           },
         },
@@ -3256,13 +3336,20 @@
           },
         });
       }
-      U.modal({
+      const modalHandle = U.modal({
         title: isNew ? '新增任務' : '編輯任務',
         body: el('div', { class: 'stack' }, [
           el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
           iconPicker(iconInput),
-          el('div', { class: 'row', style: { gap: '10px' } }, [field('已完成', doneInput), field('全班目標', targetInput), field('達成後的 XP', xpInput)]),
+          el('div', { class: 'row', style: { gap: '10px' } }, [field('全班目標', targetInput), field('達成後的 XP', xpInput)]),
           el('p', { class: 'card__sub', text: 'XP 目前僅顯示於學生前台，尚未自動加總發放。' }),
+          isNew ? null : el('div', { class: 'row', style: { gap: '10px', alignItems: 'center', marginTop: '4px' } }, [
+            el('span', { class: 'card__sub', style: { margin: 0 }, text: '目前已完成 ' + (t.doneBy || []).length + ' 人' }),
+            el('button', {
+              class: 'btn btn--ghost btn--sm', text: '👥 設定完成名單',
+              onclick: () => { modalHandle.close(); openTaskStudentPicker(t, () => openEditTask(S.get().dailyTasks.find((x) => x.id === t.id), false)); },
+            }),
+          ]),
         ]),
         actions,
       });

@@ -693,10 +693,10 @@
       deletedPetIds: [],
       ledger,
       dailyTasks: [
-        { id: 'dt1', title: '晨間閱讀 20 分鐘', icon: '📗', xp: 2, target: 40, done: 31 },
-        { id: 'dt2', title: '小組合作不落單', icon: '👥', xp: 3, target: 5,  done: 4 },
-        { id: 'dt3', title: '離開座位前整理桌面', icon: '🌱', xp: 1, target: 40, done: 35 },
-        { id: 'dt4', title: '主動說一句鼓勵的話', icon: '❤️', xp: 2, target: 40, done: 26 },
+        { id: 'dt1', title: '晨間閱讀 20 分鐘', icon: '📗', xp: 2, target: 40, doneBy: students.slice(0, 31).map((x) => x.id), done: Math.min(31, students.length) },
+        { id: 'dt2', title: '小組合作不落單', icon: '👥', xp: 3, target: 5,  doneBy: students.slice(0, 4).map((x) => x.id), done: Math.min(4, students.length) },
+        { id: 'dt3', title: '離開座位前整理桌面', icon: '🌱', xp: 1, target: 40, doneBy: students.slice(0, 35).map((x) => x.id), done: Math.min(35, students.length) },
+        { id: 'dt4', title: '主動說一句鼓勵的話', icon: '❤️', xp: 2, target: 40, doneBy: students.slice(0, 26).map((x) => x.id), done: Math.min(26, students.length) },
       ],
       classMission: {
         title: '抵達閱讀森林',
