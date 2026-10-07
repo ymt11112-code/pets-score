@@ -396,7 +396,6 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
   .cols { grid-template-columns: 1fr; }
   .note-grid { grid-template-columns: 1fr; }
   .guide-coin-grid { grid-template-columns: 1fr; }
-  .stage-tier-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
@@ -409,6 +408,7 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
   .side__item { white-space: nowrap; padding: 9px 13px; font-size: 14px; }
   .main { padding: 18px 14px 80px; }
   .tool-grid, .lead-grid, .rule-grid { grid-template-columns: 1fr; }
+  .stage-tier-grid { grid-template-columns: 1fr; }
   .tbl-wrap { max-height: none; }
   table.tbl .col-hide-sm { display: none; }
   .batchbar { left: 10px; right: 10px; transform: translateY(150%); max-width: none; }
