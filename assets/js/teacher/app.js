@@ -1532,54 +1532,65 @@
     });
   }
 
-  /* 一個分級的等級門檻清單，螢幕夠寬時三個分級（普通／稀有／傳說）會並排顯示，
-     方便老師對照著改；每一欄只動自己 tier 的資料，互不影響。 */
-  function stageTierColumn(tierId) {
-    const s = S.get();
-    const tierName = ((s.petRarities || []).find((r) => r.id === tierId) || {}).name || tierId;
-    const list = (s.petStageLevelsByRarity || {})[tierId] || [];
-    return el('div', { class: 'stack' }, [
-      el('div', { class: 'stage-tier-col__head', text: tierName }),
-      el('div', { class: 'stack' }, list.map((t, idx) =>
-        el('div', { class: 'rule-edit' }, [
-          el('div', { class: 'field', style: { width: '70px' } }, [
-            el('label', { class: 'field__label', text: '等級' }),
-            el('input', {
-              class: 'input', type: 'number', min: '1', value: t.minLevel,
-              onchange: (e) => S.commit((d) => { d.petStageLevelsByRarity[tierId][idx].minLevel = Number(e.target.value) || 1; }),
-            }),
-          ]),
-          el('div', { class: 'field grow' }, [
-            el('label', { class: 'field__label', text: '階段名稱' }),
-            el('input', {
-              class: 'input', value: t.name || '', placeholder: '例如：成熟體',
-              onchange: (e) => S.commit((d) => { d.petStageLevelsByRarity[tierId][idx].name = e.target.value; }),
-            }),
-          ]),
-          el('button', {
-            class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段',
-            onclick: () => U.confirmDialog('刪除這個階段', '這個分級底下所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
-              if (!ok) return;
-              S.commit((d) => {
-                d.petStageLevelsByRarity[tierId].splice(idx, 1);
-                const idsInTier = M.allPets().filter((p) => (p.rarity || 'common') === tierId).map((p) => p.id);
-                idsInTier.forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
-              });
-            }),
-          }),
-        ])
-      )),
+  /* 一格「等級＋階段名稱＋刪除」的精簡編輯器，給等級門檻對照表用；t 是 undefined
+     代表這個分級在這一階還沒有資料（分級階數不一樣長），顯示 — 就好，不用放輸入框。 */
+  function stageCell(tierId, idx, t) {
+    if (!t) return el('span', { class: 'muted', style: { fontSize: '12px' }, text: '—' });
+    return el('div', { class: 'row', style: { gap: '4px', alignItems: 'center', flexWrap: 'nowrap' } }, [
+      el('input', {
+        class: 'input', type: 'number', min: '1', value: t.minLevel, style: { width: '50px', padding: '5px 6px' },
+        onchange: (e) => S.commit((d) => { d.petStageLevelsByRarity[tierId][idx].minLevel = Number(e.target.value) || 1; }),
+      }),
+      el('input', {
+        class: 'input grow', value: t.name || '', placeholder: '階段名稱', style: { minWidth: '72px', padding: '5px 6px' },
+        onchange: (e) => S.commit((d) => { d.petStageLevelsByRarity[tierId][idx].name = e.target.value; }),
+      }),
       el('button', {
-        class: 'btn btn--ghost btn--sm', style: { width: '100%' }, text: '＋ 新增階段',
-        onclick: () => S.commit((d) => {
-          d.petStageLevelsByRarity[tierId] = d.petStageLevelsByRarity[tierId] || [];
-          const tierList = d.petStageLevelsByRarity[tierId];
-          const lv = tierList.length ? Math.max.apply(null, tierList.map((x) => x.minLevel || 1)) + 5 : 1;
-          tierList.push({ minLevel: lv, name: '' });
-          const idsInTier = M.allPets().filter((p) => (p.rarity || 'common') === tierId).map((p) => p.id);
-          idsInTier.forEach((id) => { d.petImages[id] = (d.petImages[id] || []).concat(['']); });
+        class: 'btn btn--danger btn--sm', text: '✕', title: '刪除這個階段', style: { padding: '3px 7px' },
+        onclick: () => U.confirmDialog('刪除這個階段', '這個分級底下所有寵物在這個階段設定的圖片也會一起被移除。', '刪除').then((ok) => {
+          if (!ok) return;
+          S.commit((d) => {
+            d.petStageLevelsByRarity[tierId].splice(idx, 1);
+            const idsInTier = M.allPets().filter((p) => (p.rarity || 'common') === tierId).map((p) => p.id);
+            idsInTier.forEach((id) => { if (d.petImages[id]) d.petImages[id].splice(idx, 1); });
+          });
         }),
       }),
+    ]);
+  }
+
+  /* 三個分級的等級門檻合成一張對照表：每一列是同一個「第幾階」（V1、V2…），三個分級
+     的階段名稱左右對齊，一眼就能比較哪個分級在哪一階叫什麼名字、門檻訂在等級幾；
+     某個分級階數比較少的地方顯示 — ，不會硬塞輸入框占空間。 */
+  function stageTierTable() {
+    const s = S.get();
+    const tiers = ['common', 'rare', 'legendary'];
+    const tierName = (id) => ((s.petRarities || []).find((r) => r.id === id) || {}).name || id;
+    const lists = tiers.map((id) => (s.petStageLevelsByRarity || {})[id] || []);
+    const maxLen = Math.max(0, ...lists.map((l) => l.length));
+    const rows = [];
+    for (let i = 0; i < maxLen; i++) {
+      rows.push(el('tr', {}, [el('td', { style: { fontWeight: 800, color: 'var(--ink-mute)', whiteSpace: 'nowrap' }, text: 'V' + (i + 1) })]
+        .concat(tiers.map((id, ti) => el('td', {}, [stageCell(id, i, lists[ti][i])])))));
+    }
+    rows.push(el('tr', {}, [el('td', {})].concat(tiers.map((id) => el('td', {}, [
+      el('button', {
+        class: 'btn btn--ghost btn--sm', text: '＋ 新增階段',
+        onclick: () => S.commit((d) => {
+          d.petStageLevelsByRarity[id] = d.petStageLevelsByRarity[id] || [];
+          const list = d.petStageLevelsByRarity[id];
+          const lv = list.length ? Math.max.apply(null, list.map((x) => x.minLevel || 1)) + 5 : 1;
+          list.push({ minLevel: lv, name: '' });
+          const idsInTier = M.allPets().filter((p) => (p.rarity || 'common') === id).map((p) => p.id);
+          idsInTier.forEach((pid) => { d.petImages[pid] = (d.petImages[pid] || []).concat(['']); });
+        }),
+      }),
+    ])))));
+    return el('div', { class: 'tbl-wrap', style: { maxHeight: 'none' } }, [
+      el('table', { class: 'tbl' }, [
+        el('thead', {}, [el('tr', {}, [el('th', { text: '階段' })].concat(tiers.map((id) => el('th', { text: tierName(id) }))))]),
+        el('tbody', {}, rows),
+      ]),
     ]);
   }
 
@@ -1596,12 +1607,8 @@
       petCardGrid(),
     ]);
 
-    const stagesCard = sectionCard('pets-stages', '🎚️ 寵物等級門檻（依稀有度分級，各自獨立）', '普通／稀有／傳說各自一份「第幾階段、達到等級幾、階段叫什麼名字」，螢幕夠寬時三欄並排方便對照修改；改哪一欄只影響屬於那個分級的寵物，想要哪個分級有幾階、門檻訂在哪裡，都可以自己調。', [
-      el('div', { class: 'stage-tier-grid' }, [
-        stageTierColumn('common'),
-        stageTierColumn('rare'),
-        stageTierColumn('legendary'),
-      ]),
+    const stagesCard = sectionCard('pets-stages', '🎚️ 寵物等級門檻（依稀有度分級，各自獨立）', '普通／稀有／傳說各自一份「第幾階段、達到等級幾、階段叫什麼名字」，整理成一張對照表方便一眼比較；改哪一欄只影響屬於那個分級的寵物，想要哪個分級有幾階、門檻訂在哪裡，都可以自己調。', [
+      stageTierTable(),
     ]);
 
     const pathsCard = sectionCard('pets-paths', '🌟 身分路線名稱（班級預設）', '升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + '（' + ((M.stageLevelsForRarity('legendary') || [])[M.PATH_BRANCH_STAGE_INDEX] || {}).name + '）後，學生會從這 ' + (s.petPaths || []).length + ' 條路線中選一條。這裡改的是全班預設名稱；如果某隻寵物的發展想取不一樣的名字，可以到該寵物「管理圖片」裡單獨設定專屬名稱。', [
