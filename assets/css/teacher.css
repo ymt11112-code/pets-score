@@ -113,7 +113,7 @@ table.tbl tbody tr.is-sel { background: #eef9f3; }
 .avatar-card__emoji { font-size: calc(var(--avatar-size, 64px) * 0.47); }
 .avatar-card__badge {
   position: absolute; top: -4px; right: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px;
-  background: var(--green); color: #fff; font-size: 11.5px; font-weight: 800; display: grid; place-items: center;
+  background: var(--green); color: #fff; font-size: clamp(11.5px, calc(var(--avatar-size, 64px) * 0.17), 20px); font-weight: 800; display: grid; place-items: center;
   border: 2px solid #fff; box-shadow: var(--shadow-sm);
 }
 .avatar-card__check {
@@ -121,9 +121,10 @@ table.tbl tbody tr.is-sel { background: #eef9f3; }
   background: var(--brand); color: #fff; font-size: 13px; font-weight: 900; display: grid; place-items: center;
   border: 2px solid #fff; box-shadow: var(--shadow-sm);
 }
-.avatar-card__label { font-size: 14px; font-weight: 800; color: var(--ink); line-height: 1.25; }
+/* 字級跟著頭像大小（--avatar-size）一起放大，不然老師把頭像調大之後，名字跟數字還是維持原本的小字，看起來不協調 */
+.avatar-card__label { font-size: clamp(14px, calc(var(--avatar-size, 64px) * 0.2), 24px); font-weight: 800; color: var(--ink); line-height: 1.25; }
 .avatar-card.is-on .avatar-card__label { color: var(--brand); font-weight: 900; }
-.avatar-card__extra { font-size: 11px; font-weight: 700; color: var(--ink-mute); margin-top: -2px; }
+.avatar-card__extra { font-size: clamp(11px, calc(var(--avatar-size, 64px) * 0.15), 18px); font-weight: 700; color: var(--ink-mute); margin-top: -2px; }
 .avatar-card.is-absent { cursor: not-allowed; }
 .avatar-card.is-absent:hover { background: transparent; }
 .avatar-card.is-absent .avatar-card__face { background: #f4f4f4; box-shadow: inset 0 0 0 2px var(--line); filter: grayscale(1); opacity: .6; }

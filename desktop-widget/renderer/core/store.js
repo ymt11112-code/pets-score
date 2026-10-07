@@ -251,9 +251,9 @@
     ['groups', 'rules', 'shop', 'ledger', 'dailyTasks', 'redeems', 'groupTasks', 'toolbar', 'customPets', 'deletedPetIds', 'messages'].forEach((k) => {
       if (!Array.isArray(out[k])) out[k] = base[k];
     });
-    /* 舊的自訂工具列存檔可能是在「自訂點數」「今日任務」這兩個按鈕出現前存的，這裡補進去避免消失 */
+    /* 舊的自訂工具列存檔可能是在「自訂點數」「今日任務」「反選」這些按鈕出現前存的，這裡補進去避免消失 */
     if (out.toolbar.length) {
-      ['util:custom', 'util:tasks'].forEach((id) => {
+      ['util:custom', 'util:tasks', 'util:invert'].forEach((id) => {
         if (out.toolbar.indexOf(id) < 0) out.toolbar.push(id);
       });
     }

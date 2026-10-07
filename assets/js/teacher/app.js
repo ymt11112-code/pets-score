@@ -557,6 +557,15 @@
     if (tool) {
       if (id === 'util:attendance') return { icon: tool.icon, label: tool.label, onclick: openAttendance };
       if (id === 'util:multi') return { icon: tool.icon, label: multiMode ? '多選中' : tool.label, active: multiMode, onclick: () => { multiMode = !multiMode; selected = new Set(); render(); } };
+      if (id === 'util:invert') return {
+        icon: tool.icon, label: tool.label,
+        onclick: () => {
+          multiMode = true;
+          const presentIds = s.students.filter((x) => !S.isAbsent(x.id)).map((x) => x.id);
+          selected = new Set(presentIds.filter((pid) => !selected.has(pid)));
+          render();
+        },
+      };
       if (id === 'util:random') return { icon: tool.icon, label: tool.label, onclick: openRandomDraw };
       if (id === 'util:timer') return { icon: tool.icon, label: tool.label, onclick: openTimerModal };
       if (id === 'util:custom') return { icon: tool.icon, label: tool.label, onclick: () => openCustomAward(Array.from(selected)) };
