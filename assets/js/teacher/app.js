@@ -979,8 +979,9 @@
 
     function paintCount() { countEl.textContent = '已選：' + doneSet.size + ' 人'; }
 
-    /* 依座號：一整排。依組別：一組一列，各自標上小隊名稱，順序跟班級小隊清單一致；
-       沒有分組的學生（如果有）另外併成「未分組」一列放在最後。 */
+    /* 依座號：固定排成 3 列（欄數照人數自動算，不會因為視窗變寬就一直多塞幾欄）。
+       依組別：一組一行，組名直接放在那一行最前面（不另外佔一行標題），省空間；
+       沒有分組的學生（如果有）另外併成「未分組」一行放在最後。 */
     function paintGrid() {
       gridEl.innerHTML = '';
       if (sortMode === 'group') {
@@ -993,11 +994,17 @@
         if (ungrouped.length) sections.push({ label: '❔ 未分組', members: ungrouped });
         sections.forEach(({ label, members }) => {
           if (!members.length) return;
-          gridEl.appendChild(el('div', { style: { fontWeight: 800, fontSize: '13px', color: 'var(--ink-mute)', marginTop: '6px' }, text: label }));
-          gridEl.appendChild(el('div', { class: 'seat-grid' }, members.map(seatBtn)));
+          gridEl.appendChild(el('div', { class: 'seat-group-row' }, [
+            el('span', { class: 'seat-group-row__label', text: label }),
+            ...members.map(seatBtn),
+          ]));
         });
       } else {
-        gridEl.appendChild(el('div', { class: 'seat-grid' }, s.students.slice().sort((a, b) => a.no - b.no).map(seatBtn)));
+        const total = s.students.length;
+        const cols = Math.max(1, Math.ceil(total / 3));
+        gridEl.appendChild(el('div', {
+          class: 'seat-grid', style: { gridTemplateColumns: 'repeat(' + cols + ', minmax(40px, 1fr))' },
+        }, s.students.slice().sort((a, b) => a.no - b.no).map(seatBtn)));
       }
     }
 

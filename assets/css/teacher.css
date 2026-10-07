@@ -370,6 +370,10 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 }
 .seat-btn:hover { border-color: var(--green); }
 .seat-btn.is-on { background: var(--green); border-color: var(--green); color: #fff; }
+/* 依組別時，組名直接放在那一組座號的最前面，同一行一起排，不另外佔一行標題 */
+.seat-group-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
+.seat-group-row__label { font-weight: 800; font-size: 13px; color: var(--ink-mute); flex: 0 0 auto; min-width: 54px; }
+.seat-group-row .seat-btn { width: 40px; height: 40px; flex: 0 0 auto; }
 
 /* ---------- 使用說明 ---------- */
 .guide-page-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
