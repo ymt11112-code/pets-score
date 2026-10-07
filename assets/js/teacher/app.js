@@ -1671,29 +1671,30 @@
                 }),
               ]),
             ]),
-            el('p', { class: 'field__label', style: { marginTop: '14px' }, text: '稀有度分級（名稱／抽獎機率權重／領養金幣）' }),
-            el('div', { class: 'stack' }, (s.petRarities || []).map((r, idx) =>
-              el('div', { class: 'rule-edit' }, [
-                el('input', {
-                  class: 'input grow', value: r.name, placeholder: '分級名稱',
-                  onchange: (e) => { const nm = e.target.value.trim(); if (nm) S.commit((d) => { d.petRarities[idx].name = nm; }, { silent: true }); },
-                }),
-                el('div', { class: 'field', style: { width: '110px' } }, [
-                  el('label', { class: 'field__label', text: '抽獎權重' }),
-                  el('input', {
-                    class: 'input', type: 'number', min: '1', value: r.weight,
+            el('p', { class: 'field__label', style: { marginTop: '14px' }, text: '稀有度分級' }),
+            el('div', { class: 'tbl-wrap', style: { maxHeight: 'none' } }, [
+              el('table', { class: 'tbl', style: { minWidth: '0' } }, [
+                el('thead', {}, [el('tr', {}, [
+                  el('th', { text: '分級名稱' }),
+                  el('th', { text: '抽獎權重' }),
+                  el('th', { text: '領養金幣（不透過抽獎）' }),
+                ])]),
+                el('tbody', {}, (s.petRarities || []).map((r, idx) => el('tr', {}, [
+                  el('td', {}, [el('input', {
+                    class: 'input', value: r.name, placeholder: '分級名稱', style: { maxWidth: '140px' },
+                    onchange: (e) => { const nm = e.target.value.trim(); if (nm) S.commit((d) => { d.petRarities[idx].name = nm; }, { silent: true }); },
+                  })]),
+                  el('td', {}, [el('input', {
+                    class: 'input', type: 'number', min: '1', value: r.weight, style: { width: '80px' },
                     onchange: (e) => S.commit((d) => { d.petRarities[idx].weight = Math.max(1, Math.round(Number(e.target.value) || 1)); }, { silent: true }),
-                  }),
-                ]),
-                el('div', { class: 'field', style: { width: '150px' } }, [
-                  el('label', { class: 'field__label', text: '直接領養金幣（不透過抽獎）' }),
-                  el('input', {
-                    class: 'input', type: 'number', min: '0', value: r.adoptCost,
+                  })]),
+                  el('td', {}, [el('input', {
+                    class: 'input', type: 'number', min: '0', value: r.adoptCost, style: { width: '90px' },
                     onchange: (e) => S.commit((d) => { d.petRarities[idx].adoptCost = Math.max(0, Math.round(Number(e.target.value) || 0)); }, { silent: true }),
-                  }),
-                ]),
-              ])
-            )),
+                  })]),
+                ]))),
+              ]),
+            ]),
             el('p', { class: 'card__sub', style: { marginTop: '10px' }, text: '「抽獎」跟「領養」是兩種獨立的取得方式：抽獎只要付上面的抽獎金幣、抽到誰算誰；領養則是不用抽，直接付這裡的領養金幣指定要哪一隻，兩者不會疊加收費。' }),
           ]);
 
