@@ -245,6 +245,12 @@
     const out = Object.assign({}, base, s);
     out.classInfo = Object.assign({}, base.classInfo, s.classInfo || {});
     out.settings = Object.assign({}, base.settings, s.settings || {});
+    /* 批次加點的頭像大小以前是 xs~xxl 這種固定檔位的字串，現在改成直接存像素數字，
+       搭配拉桿自由調整；舊存檔是字串就照原本檔位換算成對應的像素值。 */
+    if (typeof out.settings.avatarCardSize === 'string') {
+      const legacySizes = { xs: 40, sm: 48, md: 64, lg: 84, xl: 110, xxl: 140 };
+      out.settings.avatarCardSize = legacySizes[out.settings.avatarCardSize] || 84;
+    }
     out.students = (s.students || base.students).map((st) =>
       Object.assign({ cosmetics: [], badges: [], ruleCount: {}, redeemCount: 0, totalPoints: st.points || 0, petPathId: '', unlockedPaths: [], avatarStageIdx: null, pets: [], displayPetKey: 'main' }, st)
     );

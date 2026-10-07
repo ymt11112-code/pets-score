@@ -496,10 +496,38 @@
       el('button', { text: '清除選取', onclick: () => { selected = new Set(); render(); } }),
     ]);
 
-    const cardSize = AVATAR_SIZES[(s.settings && s.settings.avatarCardSize) || 'md'];
+    const cardSize = Math.round((s.settings && s.settings.avatarCardSize) || 84);
+    const nameSize = Math.round((s.settings && s.settings.avatarNameSize) || 16);
+    const statSize = Math.round((s.settings && s.settings.avatarStatSize) || 12);
     const frameOn = !s.settings || s.settings.avatarFrame !== false;
     const faceSize = Math.round(cardSize * (frameOn ? 0.69 : 0.92));
-    const gridStyle = { '--avatar-size': cardSize + 'px', gridTemplateColumns: 'repeat(auto-fill, minmax(' + (cardSize + 30) + 'px,1fr))' };
+    const gridStyle = {
+      '--avatar-size': cardSize + 'px', '--avatar-name-size': nameSize + 'px', '--avatar-stat-size': statSize + 'px',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(' + (cardSize + 30) + 'px,1fr))',
+    };
+
+    /* 頭像／名字／數字字級拉桿：拖曳中直接改 grid 的 CSS 變數即時預覽，不呼叫 S.commit
+       （避免每個刻度都整頁重繪、滑桿被重新渲染而中斷拖曳手感）；放開滑鼠那一刻才真正存檔。 */
+    function sizeSlider(icon, title, min, max, value, settingsKey, cssVar) {
+      const input = el('input', {
+        type: 'range', class: 'mini-range', min: String(min), max: String(max), value: String(value), title,
+        oninput: (e) => {
+          const px = Number(e.target.value);
+          grid.style.setProperty(cssVar, px + 'px');
+          if (cssVar === '--avatar-size') grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(' + (px + 30) + 'px,1fr))';
+        },
+        onchange: (e) => {
+          const px = Number(e.target.value);
+          S.commit((d) => { d.settings = d.settings || {}; d.settings[settingsKey] = px; }, { silent: true });
+        },
+      });
+      return el('label', { class: 'mini-range-wrap' }, [el('span', { text: icon }), input]);
+    }
+    const sizeSliders = el('div', { class: 'row', style: { gap: '8px' } }, [
+      sizeSlider('🖼️', '圖片大小', 40, 160, cardSize, 'avatarCardSize', '--avatar-size'),
+      sizeSlider('🔤', '姓名字體', 12, 28, nameSize, 'avatarNameSize', '--avatar-name-size'),
+      sizeSlider('🔢', '數字字體', 9, 22, statSize, 'avatarStatSize', '--avatar-stat-size'),
+    ]);
     const showNo = !s.settings || s.settings.showStudentNo !== false;
     const badgeStats = (s.settings && Array.isArray(s.settings.avatarBadgeStats) && s.settings.avatarBadgeStats.length)
       ? s.settings.avatarBadgeStats
@@ -544,7 +572,7 @@
     return el('div', { class: 'page-batch' }, [
       pageHead('批次加點', multiMode ? '多選模式：點頭像切換選取，切到「小組」可以整組一起選取，再用下方工具列套用規則。' : '點一下學生頭像即可直接給他加點／扣點；切到「小組」或開啟下方「多選」可以一次處理多人。',
         el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, [
-          seg, quickChips,
+          seg, sizeSliders, quickChips,
           el('span', { class: 'pill pill--gold', text: '已選 ' + selected.size + ' 位' }),
         ])),
       card(null, null, [grid]),
@@ -597,7 +625,15 @@
       ? el('button', { class: 'dock-btn', text: toolbarExpanded ? '▴ 收起' : '▾ 更多', onclick: () => { toolbarExpanded = !toolbarExpanded; render(); } })
       : null;
 
-    const editBtn = el('button', { class: 'dock-btn', text: '✏️ 編輯', title: '編輯底部工具列項目、顯示設定等', onclick: () => go('settings') });
+    const editBtn = el('button', {
+      class: 'dock-btn', text: '✏️ 編輯', title: '編輯底部工具列項目、顯示設定等',
+      onclick: () => {
+        collapsedSections.toolbar = false;
+        go('settings');
+        const node = document.getElementById('sec-toolbar');
+        if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      },
+    });
 
     const countEl = (multiMode && selected.size > 0)
       ? el('button', {
@@ -3660,17 +3696,17 @@
     }
 
     const sizeRow = el('div', { class: 'tag-toggle' }, Object.keys(AVATAR_SIZES).map((id) => {
-      const active = ((s.settings && s.settings.avatarCardSize) || 'md') === id;
+      const active = Math.round((s.settings && s.settings.avatarCardSize) || 84) === AVATAR_SIZES[id];
       return el('button', {
         class: active ? 'is-on' : '',
         text: AVATAR_SIZE_LABELS[id] + '（' + AVATAR_SIZES[id] + 'px）',
-        onclick: () => setUpd('avatarCardSize', id),
+        onclick: () => setUpd('avatarCardSize', AVATAR_SIZES[id]),
       });
     }));
 
     const displayCard = sectionCard('display', '🎨 顯示設定', '調整批次加點頁的顯示方式，改完立即生效（參考 ClassDojo 的 Display 設定整理）。', [
       el('div', { class: 'stack' }, [
-        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '學生頭像大小' }), sizeRow]),
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '學生頭像大小（常用檔位，想要更精細可以到「批次加點」頁上方拉桿調整）' }), sizeRow]),
         el('div', { class: 'field' }, [
           el('label', { class: 'field__label', text: '頭像外框' }),
           checkRow('avatarFrame', '顯示圓形外框（關閉後只放大圖片本身，外框不會跟著變大）', true),
