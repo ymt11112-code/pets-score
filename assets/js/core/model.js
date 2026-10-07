@@ -82,6 +82,12 @@
     legendary: DEFAULT_PET_STAGES.slice(),
   };
 
+  /* 每個分級能選幾條身分路線（傳說 3 條、稀有／普通只有 2 條），老師可以在後台調整。
+     路線「名稱」本身是全班共用的一份清單（state.petPaths，固定 path1/2/3），這裡只決定
+     「這個分級的寵物只能從前 N 條裡面選」，不會真的刪掉 path3 這個全域定義——傳說級的
+     寵物還是看得到、用得到它，只是普通／稀有級的寵物不會顯示這個選項、也選不到。 */
+  const DEFAULT_PET_PATH_COUNT_BY_RARITY = { common: 2, rare: 2, legendary: 3 };
+
   /* 升到 V4（成長體）之後，學生要選一條「身分路線」，其實就是這隻寵物的「職業型態」：
      V4–V10 的造型各走各的，路線名稱是老師可以在後台隨時改的班級預設值。 */
   const DEFAULT_PET_PATHS = [
@@ -470,6 +476,37 @@
     return stageLevelsForRarity((pet && pet.rarity) || 'common');
   }
 
+  /* 這個分級能選幾條路線（傳說 3 條、稀有／普通 2 條，老師可調整）。 */
+  function pathCountForRarity(rarityId) {
+    try {
+      const S = global.PetStore;
+      if (S && S.get) {
+        const s = S.get() || {};
+        const map = s.petPathCountByRarity || {};
+        const n = map[rarityId] != null ? map[rarityId] : map.common;
+        if (n != null) return n;
+      }
+    } catch (e) { /* store 還沒準備好 */ }
+    return DEFAULT_PET_PATH_COUNT_BY_RARITY[rarityId] != null ? DEFAULT_PET_PATH_COUNT_BY_RARITY[rarityId] : 3;
+  }
+
+  /* 這隻寵物實際可以選的路線清單（從全班共用的 state.petPaths 取前 N 條，N 看牠的
+     稀有度分級）。畫面上凡是要「列出某隻寵物能選哪些路線」的地方都應該用這個，
+     而不是直接列 state.petPaths 全部——不然普通／稀有級的寵物會多出一條沒畫過圖、
+     也刪不掉的路線選項。 */
+  function allowedPathsForPet(pet) {
+    try {
+      const S = global.PetStore;
+      if (S && S.get) {
+        const s = S.get() || {};
+        const all = s.petPaths || [];
+        const n = pathCountForRarity((pet && pet.rarity) || 'common');
+        return all.slice(0, Math.max(0, Math.min(n, all.length)));
+      }
+    } catch (e) { /* store 還沒準備好 */ }
+    return [];
+  }
+
   /* 依等級挑選老師在後台設定的造型圖片，可另外指定「身分路線」（V4 之後才有意義）。
      等級門檻依這隻寵物的稀有度分級決定（見 stageLevelsForPet），每隻寵物的共用圖存在
      state.petImages[petId]，V4 之後的路線專屬圖存在 state.petPathImages[petId][pathId]，
@@ -634,6 +671,7 @@
         return acc;
       }, {}),
       petPathNames: U.deepClone(DEFAULT_PET_PATH_NAMES),
+      petPathCountByRarity: Object.assign({}, DEFAULT_PET_PATH_COUNT_BY_RARITY),
       petRarities: U.deepClone(DEFAULT_PET_RARITIES),
       petRarityOverrides: {},
       petNoOverrides: {},
@@ -706,7 +744,8 @@
   global.PetModel = {
     PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_STAGES_BY_RARITY, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
-    stageLevelsForRarity, stageLevelsForPet,
+    DEFAULT_PET_PATH_COUNT_BY_RARITY,
+    stageLevelsForRarity, stageLevelsForPet, pathCountForRarity, allowedPathsForPet,
     DEFAULT_PET_IMAGE_ASSETS, DEFAULT_PET_RARITIES,
     STORYLINE_TITLE, STORYLINE_CHAPTERS, seedStoryline,
     xpForNext, levelFromXp, stageOf, petById, allPets, petFace, stageImageFor, petPathName, seedState,

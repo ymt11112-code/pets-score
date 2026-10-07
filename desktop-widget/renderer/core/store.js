@@ -276,6 +276,9 @@
     if (!out.pathCapacity || typeof out.pathCapacity !== 'object') out.pathCapacity = {};
     if (!out.petRarityOverrides || typeof out.petRarityOverrides !== 'object') out.petRarityOverrides = {};
     if (!out.petNoOverrides || typeof out.petNoOverrides !== 'object') out.petNoOverrides = {};
+    /* 每個分級能選幾條路線：老師已經調整過的分級維持原值，只補上還沒出現過的分級（例如
+       日後新增第 4 個稀有度）；不是物件（舊存檔完全沒有這個欄位）就整份套用預設。 */
+    out.petPathCountByRarity = Object.assign({}, base.petPathCountByRarity, (s.petPathCountByRarity && typeof s.petPathCountByRarity === 'object') ? s.petPathCountByRarity : {});
     /* 寵物稀有度分級：老師已經改過名稱／權重／領養價格的整份保留；只補上還沒出現過的分級
        （例如日後新增第 4 個等級），不會覆蓋老師自己調整過的既有分級。 */
     out.petRarities = Array.isArray(s.petRarities) && s.petRarities.length ? s.petRarities : base.petRarities;
@@ -527,12 +530,12 @@
       if (!c) return;
       if (!c.cleared) { result = { ok: false, msg: '這一關還沒通關，不能發放' }; return; }
       if (c.pathGifted) { result = { ok: false, msg: '這一關已經發放過了' }; return; }
-      const paths = s.petPaths || [];
       const granted = [];
       storylineChapterParticipantIds(s, chapterId).forEach((sid) => {
         const t = s.students.find((x) => x.id === sid);
         if (!t) return;
         t.unlockedPaths = t.unlockedPaths || [];
+        const paths = M.allowedPathsForPet(M.petById(t.petId));
         const nextPath = paths.find((p) => t.unlockedPaths.indexOf(p.id) < 0);
         if (nextPath) {
           t.unlockedPaths.push(nextPath.id);
@@ -1167,7 +1170,8 @@
     if (!t) return { ok: false, msg: '找不到學生' };
     const inst = findPetInstance(t, instanceKey);
     if (!inst) return { ok: false, msg: '找不到這隻寵物' };
-    if (!(state.petPaths || []).some((p) => p.id === pathId)) return { ok: false, msg: '找不到這條路線' };
+    const pet = M.petById(inst.petId);
+    if (!M.allowedPathsForPet(pet).some((p) => p.id === pathId)) return { ok: false, msg: '找不到這條路線' };
     const already = (inst.unlockedPaths || []).indexOf(pathId) >= 0;
     if (already) {
       commit((s) => {
@@ -1214,7 +1218,7 @@
     commit((s) => {
       const t = s.students.find((x) => x.id === studentId);
       if (!t) return;
-      if (!(s.petPaths || []).some((p) => p.id === pathId)) return;
+      if (!M.allowedPathsForPet(M.petById(t.petId)).some((p) => p.id === pathId)) return;
       t.unlockedPaths = t.unlockedPaths || [];
       if (t.unlockedPaths.indexOf(pathId) < 0) t.unlockedPaths.push(pathId);
       if (!t.petPathId) t.petPathId = pathId;

@@ -511,7 +511,7 @@
     const inst = resolvePetInstance(st, instanceKey);
     const lv = M.levelFromXp(inst.xp || 0);
     const s = S.get();
-    const paths = s.petPaths || [];
+    const paths = M.allowedPathsForPet(pet);
     const cost = Math.max(0, (s.settings || {}).pathUnlockCost || 0);
     const branchStage = M.stageLevelsForPet(pet)[M.PATH_BRANCH_STAGE_INDEX] || {};
     const branchLevel = branchStage.minLevel || 1;
@@ -571,7 +571,7 @@
     const key = 'pathprompt:' + st.id;
     if (getCelebratedSet().has(key)) return;
     markCelebrated(key);
-    const paths = S.get().petPaths || [];
+    const paths = M.allowedPathsForPet(pet);
     const dlg = U.modal({
       title: '🌟 選擇專屬身分路線！',
       wide: true,

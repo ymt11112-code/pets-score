@@ -803,7 +803,7 @@
           el('div', { class: 'field' }, [
             el('label', { class: 'field__label', text: '身分路線（學生平常要花金幣解鎖，這裡可以直接免費贈送）' }),
             el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap' } },
-              (s.petPaths || []).map((p) => {
+              M.allowedPathsForPet(M.petById(st.petId)).map((p) => {
                 const unlocked = (st.unlockedPaths || []).indexOf(p.id) >= 0;
                 const pet = M.petById(st.petId);
                 return unlocked
@@ -1620,6 +1620,22 @@
                 }),
               ])
             )),
+            el('p', { class: 'field__label', style: { marginTop: '14px' }, text: '每個分級能選幾條路線（傳說通常 3 條、稀有／普通只有 2 條，看老師實際畫了幾條路線的圖）' }),
+            el('div', { class: 'row', style: { gap: '14px', flexWrap: 'wrap' } }, ['common', 'rare', 'legendary'].map((tid) => {
+              const tierName = ((s.petRarities || []).find((r) => r.id === tid) || {}).name || tid;
+              const maxN = (s.petPaths || []).length;
+              const current = ((s.petPathCountByRarity || {})[tid] != null) ? s.petPathCountByRarity[tid] : maxN;
+              return el('div', { class: 'field', style: { width: '110px' } }, [
+                el('label', { class: 'field__label', text: tierName }),
+                el('input', {
+                  class: 'input', type: 'number', min: '0', max: String(maxN), value: String(current),
+                  onchange: (e) => {
+                    const n = Math.max(0, Math.min(maxN, Math.round(Number(e.target.value) || 0)));
+                    S.commit((d) => { d.petPathCountByRarity = d.petPathCountByRarity || {}; d.petPathCountByRarity[tid] = n; }, { silent: true });
+                  },
+                }),
+              ]);
+            })),
             el('div', { class: 'field', style: { maxWidth: '260px', marginTop: '14px' } }, [
               el('label', { class: 'field__label', text: '解鎖第 2、3 條路線要花多少金幣（升到 V' + (M.PATH_BRANCH_STAGE_INDEX + 1) + ' 第一次選路線一律免費）' }),
               el('input', {
@@ -2036,7 +2052,7 @@
       S.commit((d) => { d.petImages = d.petImages || {}; d.petImages[pet.id] = images.slice(); });
     }
 
-    const paths = S.get().petPaths || [];
+    const paths = M.allowedPathsForPet(pet);
     let activePathId = (paths[0] || {}).id;
     const pathImagesMap = {};
     paths.forEach((p) => {
