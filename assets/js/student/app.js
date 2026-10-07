@@ -82,7 +82,9 @@
           class: 'picker-btn', 'data-k': U.pad2(st.no) + st.name,
           onclick: () => { setMe(st.id); dlg.close(); },
         }, [
-          el('div', { class: 'picker-btn__emoji' }, [M.petFace(M.petById(st.petId), 56, S.avatarDisplayLevel(st), st.petPathId)]),
+          el('div', { class: 'picker-btn__emoji' }, [
+            st.petId ? M.petFace(M.petById(st.petId), 56, S.avatarDisplayLevel(st), st.petPathId) : el('span', { style: { fontSize: '40px' }, text: '🎁' }),
+          ]),
           el('div', { class: 'picker-btn__name', text: st.name }),
           el('div', { class: 'picker-btn__no', text: U.pad2(st.no) + ' 號' }),
         ])
@@ -97,6 +99,53 @@
     render();
     const st = me();
     if (st) U.toast('哈囉，' + st.name + '！');
+  }
+
+  /* 老師新增學生時如果把寵物留白，學生第一次登入就會看到這個「抽第一隻寵物」畫面，
+     不能用背景點擊或切頁跳過，一定要抽過才會消失；render() 每次都會呼叫這個檢查，
+     用 firstPetDrawOpen 擋重複開窗（不然每次重新渲染都會疊一個新的視窗上去）。 */
+  let firstPetDrawOpen = false;
+  function maybeShowFirstPetDraw() {
+    const st = me();
+    if (!st || st.petId || firstPetDrawOpen) return;
+    firstPetDrawOpen = true;
+    const stage = el('div', { class: 'picker-stage' }, [
+      el('div', { class: 'picker-stage__emoji', text: '🥚' }),
+      el('div', { class: 'picker-stage__name', text: '點下面的按鈕，抽出屬於你的第一隻寵物吧！' }),
+      el('div', { class: 'picker-stage__meta', text: '' }),
+    ]);
+    const drawBtn = el('button', { class: 'btn btn--primary', style: { width: '100%', marginTop: '14px' }, text: '🎲 免費抽一隻！' });
+    const handle = U.modal({
+      title: '🎉 歡迎加入班級寵物探險隊！',
+      dismissable: false,
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'modal__text', text: '每個人都會從普通或稀有等級的寵物裡，隨機抽到一隻專屬的第一隻寵物；抽到哪一隻就是哪一隻，沒辦法重抽。更稀有的傳說級寵物，之後養大、存夠金幣就有機會收藏到。' }),
+        stage,
+        drawBtn,
+      ]),
+      onClose: () => { firstPetDrawOpen = false; },
+    });
+    drawBtn.addEventListener('click', () => {
+      drawBtn.disabled = true;
+      const pool = M.allPets().filter((p) => (p.rarity || 'common') !== 'legendary');
+      stage.classList.add('is-rolling');
+      let n = 0;
+      const iv = setInterval(() => {
+        const r = pool[Math.floor(Math.random() * pool.length)];
+        stage.children[0].textContent = r.emoji;
+        stage.children[1].textContent = r.name;
+        if (++n > 14) {
+          clearInterval(iv);
+          stage.classList.remove('is-rolling');
+          const result = S.drawFirstPet(st.id);
+          setTimeout(() => {
+            handle.close();
+            if (!result || !result.ok) { U.toast((result && result.msg) || '抽獎失敗，請稍後再試', 'warn'); return; }
+            U.toast('🎉 抽到了「' + M.petById(result.petId).name + '」！從今天開始一起冒險吧！', 'ok');
+          }, 450);
+        }
+      }, 70);
+    });
   }
 
   /* ---------- 升級慶祝 ---------- */
@@ -1151,6 +1200,7 @@
     renderWho();
     renderMsgBadge();
     $$('#nav .nav__item').forEach((b) => b.classList.toggle('is-active', b.dataset.view === view));
+    try { maybeShowFirstPetDraw(); } catch (e) { /* 同上 */ }
     try { maybeCelebrateStoryline(); } catch (e) { /* 動畫失敗不該擋住正常畫面 */ }
     try { maybeShowPathChoice(); } catch (e) { /* 同上 */ }
   }

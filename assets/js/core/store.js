@@ -1225,6 +1225,36 @@
     });
   }
 
+  /* 學生還沒有主寵物時（老師新增學生時把寵物留白，交給學生自己抽），可以免費抽一隻當第一隻
+     主寵物——只會抽到普通／稀有級（排除傳說級，傳說級要靠之後花金幣的收藏系統才能拿到），
+     照各分級的抽獎權重加權隨機，抽到什麼就是什麼，不能重抽、也不能指定。一旦 petId 有值
+     就不會再觸發這個流程了。 */
+  function drawFirstPet(studentId) {
+    const t = student(studentId);
+    if (!t) return { ok: false, msg: '找不到學生' };
+    if (t.petId) return { ok: false, msg: '已經有寵物了' };
+    const pool = M.allPets().filter((p) => (p.rarity || 'common') !== 'legendary');
+    if (!pool.length) return { ok: false, msg: '目前沒有可以抽的寵物，請聯絡老師' };
+    const totalWeight = pool.reduce((sum, p) => sum + Math.max(1, petRarityOf(p.id).weight || 1), 0);
+    let roll = Math.random() * totalWeight;
+    let picked = pool[pool.length - 1];
+    for (let i = 0; i < pool.length; i++) {
+      roll -= Math.max(1, petRarityOf(pool[i].id).weight || 1);
+      if (roll <= 0) { picked = pool[i]; break; }
+    }
+    commit((s) => {
+      const x = s.students.find((y) => y.id === studentId);
+      if (!x || x.petId) return;
+      x.petId = picked.id;
+      s.ledger.unshift({
+        id: U.uid('lg'), ts: Date.now(), studentIds: [studentId], ruleId: 'firstPet',
+        label: '抽到第一隻寵物 ' + picked.name, points: 0, xp: 0, coins: 0,
+        note: '', by: x.name, undone: false,
+      });
+    });
+    return { ok: true, petId: picked.id };
+  }
+
   /* 主寵物要先養到這個等級，才能開始收藏其他寵物（領養／抽獎），老師可在後台調整門檻。
      已經有收藏（st.pets 不是空的）代表曾經解鎖過，這裡就一直算已解鎖——不然學生把主寵物切換成
      剛收藏、等級還很低的那隻之後，會因為「目前主寵物」等級不夠，被鎖回去、連切回原本那隻的畫面都看不到。 */
@@ -1576,7 +1606,7 @@
     groupChestInfo, openGroupChest, drawGroupChestLottery,
     award, awardClass, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
-    canCollectPets, adoptPet, drawPetGacha, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
+    canCollectPets, adoptPet, drawPetGacha, drawFirstPet, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
     sendMessage, studentMessages, unreadMessageCount, markMessagesRead, claimMessageReward,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,

@@ -1083,11 +1083,13 @@
       const stage = M.stageOf(lv.level);
       return el('button', { class: 'roster-card', onclick: () => openStudentProfile(st.id) }, [
         el('div', { class: 'pet-avatar', style: { width: cardSize + 'px', height: cardSize + 'px' } }, [
-          M.petFace(M.petById(st.petId), Math.round(cardSize * 0.62), lv.level, st.petPathId),
+          st.petId
+            ? M.petFace(M.petById(st.petId), Math.round(cardSize * 0.62), lv.level, st.petPathId)
+            : el('span', { style: { fontSize: Math.round(cardSize * 0.5) + 'px' }, text: '🎁' }),
           el('span', { class: 'pet-avatar__badge', text: stage.badge }),
         ]),
         el('div', { class: 'roster-card__name', text: U.pad2(st.no) + ' ' + st.name }),
-        el('div', { class: 'roster-card__sub', text: '寵物 Lv.' + lv.level + (g ? ' ・ ' + g.name : '') }),
+        el('div', { class: 'roster-card__sub', text: st.petId ? ('寵物 Lv.' + lv.level + (g ? ' ・ ' + g.name : '')) : ('還沒抽第一隻寵物' + (g ? ' ・ ' + g.name : '')) }),
         el('div', { style: { width: '100%', marginTop: '6px' } }, [bar(lv.percent, true)]),
       ]);
     }
@@ -1153,8 +1155,10 @@
     const no = el('input', { class: 'input', type: 'number', value: st ? st.no : s.students.length + 1 });
     const grp = el('select', { class: 'select' }, s.groups.map((g) =>
       el('option', { value: g.id, text: g.name, selected: st && st.groupId === g.id ? 'selected' : null })));
-    const pet = el('select', { class: 'select' }, M.allPets().map((p) =>
-      el('option', { value: p.id, text: p.emoji + ' ' + p.name, selected: st && st.petId === p.id ? 'selected' : null })));
+    const pet = el('select', { class: 'select' }, [
+      el('option', { value: '', text: '🎲 留給學生自己抽第一隻（推薦）', selected: !st || !st.petId ? 'selected' : null }),
+    ].concat(M.allPets().map((p) =>
+      el('option', { value: p.id, text: p.emoji + ' ' + p.name, selected: st && st.petId === p.id ? 'selected' : null }))));
 
     const actions = [
       { label: '取消' },
@@ -1208,6 +1212,7 @@
       body: el('div', { class: 'stack' }, [
         ta,
         el('label', { class: 'row', style: { gap: '8px', cursor: 'pointer' } }, [replace, el('span', { text: '取代現有名單（原有點數會清空）' })]),
+        el('p', { class: 'card__sub', text: '匯入的學生不會先指定寵物，第一次用學生前台登入時，會讓學生自己免費抽一隻普通或稀有等級的寵物。' }),
       ]),
       actions: [
         { label: '取消' },
@@ -1228,7 +1233,7 @@
                 if (gname && !g) { g = { id: U.uid('g'), name: gname, emoji: '🚩', color: '#4aa3d8' }; d.groups.push(g); }
                 d.students.push({
                   id: U.uid('s'), no, name: nm, groupId: (g || d.groups[i % d.groups.length] || {}).id || '',
-                  petId: M.allPets()[d.students.length % M.allPets().length].id, petName: '', xp: 0, points: 0, coins: 0,
+                  petId: '', petName: '', xp: 0, points: 0, coins: 0,
                   streak: 0, cosmetics: [], equipped: '', badges: [], redeemCount: 0, ruleCount: {},
                   totalPoints: 0, lastActiveAt: 0, active: true,
                 });
