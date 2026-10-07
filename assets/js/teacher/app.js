@@ -965,34 +965,40 @@
     let sortMode = 'no'; // 'no' 依座號 / 'group' 依組別
     const doneSet = new Set(task.doneBy || []);
 
-    const gridEl = el('div', { class: 'seat-grid' });
+    const gridEl = el('div', { class: 'stack', style: { gap: '4px' } });
     const countEl = el('div', { style: { fontWeight: 800 } });
     const sortToggle = el('div', { class: 'seg-toggle' });
 
-    function sortedStudents() {
-      const list = s.students.slice();
-      if (sortMode === 'group') {
-        /* 依照班級小隊清單原本的順序排（跟下面小組快速按鈕的順序一致），不要用名稱筆畫/字母排序，
-           不然會跟老師在「學生與小組」頁設定的小隊順序對不起來。 */
-        const groupIdx = (id) => { const i = s.groups.findIndex((g) => g.id === id); return i < 0 ? s.groups.length : i; };
-        list.sort((a, b) => groupIdx(a.groupId) - groupIdx(b.groupId) || a.no - b.no);
-      } else {
-        list.sort((a, b) => a.no - b.no);
-      }
-      return list;
+    function seatBtn(st) {
+      const on = doneSet.has(st.id);
+      return el('button', {
+        class: 'seat-btn' + (on ? ' is-on' : ''), text: String(st.no), title: st.name,
+        onclick: () => { on ? doneSet.delete(st.id) : doneSet.add(st.id); paintGrid(); paintCount(); },
+      });
     }
 
     function paintCount() { countEl.textContent = '已選：' + doneSet.size + ' 人'; }
 
+    /* 依座號：一整排。依組別：一組一列，各自標上小隊名稱，順序跟班級小隊清單一致；
+       沒有分組的學生（如果有）另外併成「未分組」一列放在最後。 */
     function paintGrid() {
       gridEl.innerHTML = '';
-      sortedStudents().forEach((st) => {
-        const on = doneSet.has(st.id);
-        gridEl.appendChild(el('button', {
-          class: 'seat-btn' + (on ? ' is-on' : ''), text: String(st.no), title: st.name,
-          onclick: () => { on ? doneSet.delete(st.id) : doneSet.add(st.id); paintGrid(); paintCount(); },
+      if (sortMode === 'group') {
+        const sections = s.groups.map((g) => ({
+          label: (g.emoji ? g.emoji + ' ' : '') + g.name,
+          members: s.students.filter((x) => x.groupId === g.id).sort((a, b) => a.no - b.no),
         }));
-      });
+        const groupIds = s.groups.map((g) => g.id);
+        const ungrouped = s.students.filter((x) => groupIds.indexOf(x.groupId) < 0).sort((a, b) => a.no - b.no);
+        if (ungrouped.length) sections.push({ label: '❔ 未分組', members: ungrouped });
+        sections.forEach(({ label, members }) => {
+          if (!members.length) return;
+          gridEl.appendChild(el('div', { style: { fontWeight: 800, fontSize: '13px', color: 'var(--ink-mute)', marginTop: '6px' }, text: label }));
+          gridEl.appendChild(el('div', { class: 'seat-grid' }, members.map(seatBtn)));
+        });
+      } else {
+        gridEl.appendChild(el('div', { class: 'seat-grid' }, s.students.slice().sort((a, b) => a.no - b.no).map(seatBtn)));
+      }
     }
 
     function paintSortToggle() {
@@ -1058,24 +1064,34 @@
       }
       tasks.forEach((t) => {
         const done = (t.doneBy || []).length;
-        listEl.appendChild(el('div', { class: 'log-row' }, [
+        listEl.appendChild(el('button', {
+          class: 'log-row log-row--clickable', type: 'button',
+          onclick: () => openTaskStudentPicker(t, paint),
+        }, [
           el('span', { style: { fontSize: '20px' }, text: t.icon }),
           el('div', { class: 'grow' }, [
             el('div', { style: { fontWeight: 700 }, text: t.title }),
             el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・+' + t.xp + ' XP' }),
           ]),
-          el('button', {
-            class: 'btn btn--ghost btn--sm', text: '👥 設定名單',
-            onclick: () => openTaskStudentPicker(t, paint),
-          }),
+          el('span', { class: 'pill', style: { pointerEvents: 'none' }, text: '👥 設定名單' }),
         ]));
       });
     }
     paint();
 
-    U.modal({
+    const modalHandle = U.modal({
       title: '今日任務進度',
       wide: true,
+      headerRight: el('button', {
+        class: 'btn btn--ghost btn--sm', title: '新增／編輯任務項目（規則設定）',
+        onclick: () => {
+          modalHandle.close();
+          collapsedSections.tasks = false;
+          go('rules');
+          const node = document.getElementById('sec-tasks');
+          if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+      }, [el('span', { text: '⚙️ 設定' })]),
       body: el('div', { class: 'stack' }, [
         el('p', { class: 'card__sub', text: '點「設定名單」挑選完成的學生座號，人數會自動算好，不用自己填數字；學生前台的進度也會一起更新。' }),
         listEl,
@@ -3444,7 +3460,7 @@
           { id: 'shop', label: '🎁 兌換商店' },
         ])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [
-        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、已完成、全班目標、達成後的 XP（目前僅顯示於學生前台，尚未自動加總發放）。', [
+        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標、達成後的 XP；完成名單請到底部工具列「今日任務」設定，XP 目前僅顯示於學生前台，尚未自動加總發放。', [
           taskCardGrid(),
         ]),
         sectionCard('categories', '規則分類', '桌面小工具用這些分類把規則按鈕分區塊顯示；點卡片可以改名、刪除，拖曳可以排序。', [
@@ -3739,7 +3755,7 @@
       });
     }));
 
-    const displayCard = sectionCard('display', '🎨 顯示設定', '調整批次加點頁的顯示方式，改完立即生效（參考 ClassDojo 的 Display 設定整理）。', [
+    const displayCard = sectionCard('display', '🎨 批次加點頁面設定', '調整批次加點頁的顯示方式，改完立即生效（參考 ClassDojo 的 Display 設定整理）。', [
       el('div', { class: 'stack' }, [
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '學生頭像大小（常用檔位，想要更精細可以到「批次加點」頁上方拉桿調整）' }), sizeRow]),
         el('div', { class: 'field' }, [
@@ -3856,7 +3872,7 @@
 
     return el('div', {}, [
       pageHead('系統設定', '目前兩張卡片都是「批次加點」頁面的設定（頭像顯示方式、底部工具列），參考 ClassDojo 的「Options」選單整理，改完立即生效。',
-        sectionJumpBar([{ id: 'display', label: '🎨 顯示設定' }, { id: 'toolbar', label: '⭐ 底部工具列' }])),
+        sectionJumpBar([{ id: 'display', label: '🎨 批次加點頁面設定' }, { id: 'toolbar', label: '⭐ 底部工具列' }])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [displayCard, toolbarCard]),
     ]);
   }

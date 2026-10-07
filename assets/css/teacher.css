@@ -249,6 +249,9 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .log-row__pts { margin-left: auto; font-weight: 900; color: var(--green); }
 .log-row__pts.is-minus { color: var(--red); }
 .log-row.is-undone { opacity: .45; text-decoration: line-through; }
+/* 整列可點（例如今日任務進度清單）：不用特地瞄準右邊的小按鈕，滑過整列都會有底色提示 */
+.log-row--clickable { width: 100%; background: none; border: none; cursor: pointer; border-radius: 10px; padding-left: 8px; padding-right: 8px; text-align: left; }
+.log-row--clickable:hover { background: var(--bg-soft); }
 
 /* ---------- 浮動批次列 ---------- */
 .batchbar {

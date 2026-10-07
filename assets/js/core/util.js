@@ -138,7 +138,8 @@
     const footer = el('div', { class: 'modal__footer' });
     const box = el('div', { class: 'modal' + (o.wide ? ' modal--wide' : '') }, [
       el('div', { class: 'modal__head' }, [
-        el('h3', { class: 'modal__title', text: o.title || '' }),
+        el('h3', { class: 'modal__title grow', text: o.title || '' }),
+        o.headerRight || null,
         el('button', { class: 'modal__close', text: '✕', 'aria-label': '關閉', onclick: close }),
       ]),
       el('div', { class: 'modal__body' }, body ? [body] : []),
