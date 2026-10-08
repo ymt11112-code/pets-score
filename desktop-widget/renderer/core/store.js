@@ -1631,6 +1631,7 @@
     let toReward = [];
     let taskXp = 0;
     let taskTitle = '';
+    let taskIcon = '📗';
     commit((s) => {
       const t = (s.dailyTasks || []).find((x) => x.id === taskId);
       if (!t) return;
@@ -1639,6 +1640,7 @@
       const rewarded = new Set(t.rewardedBy);
       taskXp = t.xp || 0;
       taskTitle = t.title || '今日任務';
+      taskIcon = t.icon || '📗';
       if (taskXp > 0) {
         toReward = ids.filter((id) => !rewarded.has(id));
         toReward.forEach((id) => t.rewardedBy.push(id));
@@ -1648,6 +1650,9 @@
     });
     if (toReward.length) {
       award(toReward, { id: 'dailyTask:' + taskId, label: '今日任務：' + taskTitle, points: 0, xp: taskXp, coins: 0 }, '', state.classInfo.teacher);
+      /* XP 已經直接發到學生帳上了（不是待領取的獎勵），這則訊息純粹是通知，不帶 reward，
+         不然學生還要跑去訊息中心「領取」一次，會跟已經到帳的 XP 搞混、重複的感覺。 */
+      sendMessage(toReward, '完成了今日任務！', '「' + taskTitle + '」完成了，獲得 +' + taskXp + ' XP！', taskIcon);
     }
   }
 
