@@ -1002,8 +1002,11 @@
       } else {
         const total = s.students.length;
         const cols = Math.max(1, Math.ceil(total / 3));
+        /* 欄數固定住就好，格子本身用固定尺寸（跟依組別那邊一樣大），不要用 1fr 把每一欄
+           撐滿剩餘寬度——不然欄數少的時候（例如全班 21 人只排 7 欄）每顆按鈕會被拉得
+           又大又粗，看起來很笨重。 */
         gridEl.appendChild(el('div', {
-          class: 'seat-grid', style: { gridTemplateColumns: 'repeat(' + cols + ', minmax(40px, 1fr))' },
+          class: 'seat-grid', style: { gridTemplateColumns: 'repeat(' + cols + ', 40px)' },
         }, s.students.slice().sort((a, b) => a.no - b.no).map(seatBtn)));
       }
     }
