@@ -693,11 +693,17 @@
       deletedPetIds: [],
       ledger,
       dailyTasks: [
-        { id: 'dt1', title: '晨間閱讀 20 分鐘', icon: '📗', xp: 2, target: 40, doneBy: students.slice(0, 31).map((x) => x.id), done: Math.min(31, students.length) },
-        { id: 'dt2', title: '小組合作不落單', icon: '👥', xp: 3, target: 5,  doneBy: students.slice(0, 4).map((x) => x.id), done: Math.min(4, students.length) },
-        { id: 'dt3', title: '離開座位前整理桌面', icon: '🌱', xp: 1, target: 40, doneBy: students.slice(0, 35).map((x) => x.id), done: Math.min(35, students.length) },
-        { id: 'dt4', title: '主動說一句鼓勵的話', icon: '❤️', xp: 2, target: 40, doneBy: students.slice(0, 26).map((x) => x.id), done: Math.min(26, students.length) },
-      ],
+        { id: 'dt1', title: '晨間閱讀 20 分鐘', icon: '📗', xp: 2, target: 40, n: 31 },
+        { id: 'dt2', title: '小組合作不落單', icon: '👥', xp: 3, target: 5, n: 4 },
+        { id: 'dt3', title: '離開座位前整理桌面', icon: '🌱', xp: 1, target: 40, n: 35 },
+        { id: 'dt4', title: '主動說一句鼓勵的話', icon: '❤️', xp: 2, target: 40, n: 26 },
+      ].map((t) => {
+        /* demo 資料本來就是「示範用、已經完成一部分」的假資料，不是老師剛剛才勾選完成的，
+           所以 rewardedBy 直接等於 doneBy——不然老師一打開範例班級，點一下今日任務名單，
+           就會突然看到一大筆「今日任務」的 XP 加點紀錄，那些其實都是展示用的假進度。 */
+        const doneBy = students.slice(0, Math.min(t.n, students.length)).map((x) => x.id);
+        return { id: t.id, title: t.title, icon: t.icon, xp: t.xp, target: t.target, doneBy, rewardedBy: doneBy.slice(), done: doneBy.length };
+      }),
       classMission: {
         title: '抵達閱讀森林',
         icon: '🗺️',

@@ -261,10 +261,16 @@
        （doneBy），done 改成每次都從 doneBy.length 重新算，不再直接存。舊存檔只有數字沒有名單，
        就先挑座號最前面的幾位頂著湊出一樣的人次，老師之後可以自己到「今日任務進度」調整名單。 */
     out.dailyTasks = out.dailyTasks.map((t) => {
-      if (Array.isArray(t.doneBy)) return Object.assign({}, t, { done: t.doneBy.length });
+      if (Array.isArray(t.doneBy)) {
+        /* rewardedBy 是這次新加的欄位（記錄「已經實際發過 XP」的學生，點名單時只對這份清單
+           裡沒出現過的人補發 XP），舊存檔沒有這欄位就直接拿 doneBy 當起點——這樣這批已經
+           標記完成的人不會在老師下次隨便開一次名單時被誤判成「新完成」而補發一次 XP。 */
+        const rewardedBy = Array.isArray(t.rewardedBy) ? t.rewardedBy : t.doneBy.slice();
+        return Object.assign({}, t, { done: t.doneBy.length, rewardedBy });
+      }
       const n = Math.max(0, Math.min(t.target || 0, t.done || 0));
       const doneBy = out.students.slice().sort((a, b) => a.no - b.no).slice(0, n).map((x) => x.id);
-      return Object.assign({}, t, { doneBy, done: doneBy.length });
+      return Object.assign({}, t, { doneBy, done: doneBy.length, rewardedBy: doneBy.slice() });
     });
     /* 舊的自訂工具列存檔可能是在「自訂點數」「今日任務」「反選」這些按鈕出現前存的，這裡補進去避免消失 */
     if (out.toolbar.length) {
@@ -1616,15 +1622,33 @@
   }
 
   /* 今日任務完成名單：整份直接替換（勾學生座號、整組設定、清空都是呼叫這個，由畫面算好
-     完整的新名單再一次寫入），done 永遠等於 doneBy.length，不會分開存。 */
+     完整的新名單再一次寫入），done 永遠等於 doneBy.length，不會分開存。
+     doneBy 只是「目前勾選狀態」，可以自由勾掉重勾；rewardedBy 才是「有沒有實際發過 XP」，
+     只會增加不會減少——這樣老師不小心勾掉又勾回來，不會重複發兩次 XP，取消勾選也不會
+     收回已經發出去的 XP（不處理補扣，避免情況變複雜）。沒有設定 XP（0 或留空）的任務
+     純粹是進度紀錄，不會產生點數紀錄。 */
   function setDailyTaskStudents(taskId, studentIds) {
+    let toReward = [];
+    let taskXp = 0;
+    let taskTitle = '';
     commit((s) => {
       const t = (s.dailyTasks || []).find((x) => x.id === taskId);
       if (!t) return;
       const ids = Array.from(new Set(studentIds));
+      t.rewardedBy = t.rewardedBy || [];
+      const rewarded = new Set(t.rewardedBy);
+      taskXp = t.xp || 0;
+      taskTitle = t.title || '今日任務';
+      if (taskXp > 0) {
+        toReward = ids.filter((id) => !rewarded.has(id));
+        toReward.forEach((id) => t.rewardedBy.push(id));
+      }
       t.doneBy = ids;
       t.done = ids.length;
     });
+    if (toReward.length) {
+      award(toReward, { id: 'dailyTask:' + taskId, label: '今日任務：' + taskTitle, points: 0, xp: taskXp, coins: 0 }, '', state.classInfo.teacher);
+    }
   }
 
   global.PetStore = {
