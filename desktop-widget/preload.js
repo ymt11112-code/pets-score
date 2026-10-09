@@ -20,4 +20,8 @@ contextBridge.exposeInMainWorld('desktopWidget', {
 
   hideWindow: () => ipcRenderer.invoke('hide-window'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
+
+  notifyAward: (payload) => ipcRenderer.invoke('notify-award', payload),
+  onShowAward: (cb) => ipcRenderer.on('show-award', (evt, payload) => cb(payload)),
+  bubbleDone: () => ipcRenderer.invoke('bubble-done'),
 });

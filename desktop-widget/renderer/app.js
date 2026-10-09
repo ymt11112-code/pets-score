@@ -27,6 +27,38 @@
   let ledgerOpen = false;
   let activeCategory = 'class';
 
+  /* 加點通知泡泡：每次 paint（= 每次資料有變動，包含雲端同步拉回來的）都比對一次目前的
+     點數紀錄，找出「上次沒看過」的紀錄，送去 main process 跳泡泡。seenLedgerIds 開機時
+     先用「當下已經有的紀錄」整批塞滿，這樣一開機不會把過去幾百筆舊紀錄全部跳出來；
+     suppressNextDiff 是在「這個視窗自己剛點規則加點」的當下設成 true，讓這次新增的那筆
+     紀錄被直接標記成「看過了」、不用再跳一次泡泡（toast 已經在同一個視窗裡看得到了）。 */
+  let seenLedgerIds = null;
+  let suppressNextDiff = false;
+
+  function checkForNewLedgerEntries(s) {
+    if (!seenLedgerIds) return;
+    const ledger = s.ledger || [];
+    const unseen = ledger.filter((e) => !seenLedgerIds.has(e.id));
+    if (!unseen.length) return;
+    unseen.forEach((e) => seenLedgerIds.add(e.id));
+    if (suppressNextDiff) return;
+    if (!window.desktopWidget) return;
+    const nameOf = (id) => { const st = s.students.find((x) => x.id === id); return st ? st.name : '？'; };
+    unseen
+      .filter((e) => !e.undone)
+      .forEach((e) => {
+        const rule = s.rules.find((r) => r.id === e.ruleId);
+        window.desktopWidget.notifyAward({
+          names: (e.studentIds || []).map(nameOf),
+          label: e.label || '',
+          points: e.points || 0,
+          xp: e.xp || 0,
+          coins: e.coins || 0,
+          icon: rule ? rule.icon : '⭐',
+        });
+      });
+  }
+
   function isVertical() { return dockSide === 'left' || dockSide === 'right'; }
 
   function reportSize(wrapEl) {
@@ -97,7 +129,11 @@
       class: 'dw-rule',
       onclick: () => {
         if (!selected.size) return U.toast('請先點「選人」挑學生', 'warn');
+        /* 這裡是本機自己按的，馬上就看得到下面這行 toast 了，不用再跳一次右下角泡泡
+           （泡泡是留給「人不在這台電腦前面」的情境，例如手機加點）。 */
+        suppressNextDiff = true;
         const ups = S.award(Array.from(selected), r, '', s.classInfo.teacher);
+        suppressNextDiff = false;
         const sign = r.points >= 0 ? '+' : '';
         U.toast(selected.size + ' 位 ' + r.label + ' ' + sign + r.points);
         if (ups.length) U.toast('🎉 ' + ups.map((u) => u.name + ' Lv.' + u.level).join('、') + ' 升級了！');
@@ -171,6 +207,7 @@
     const cfg = S.getConfig();
     const connected = cfg.mode === 'sheet' && !!cfg.sheetUrl;
     if (connected) {
+      checkForNewLedgerEntries(S.get());
       mainBody(S.get()).forEach((n) => wrap.appendChild(n));
     } else {
       const head = el('div', { class: 'dw-bar' }, [
@@ -199,6 +236,8 @@
   }
 
   S.init().then(() => {
+    // 開機當下已經存在的紀錄全部當作「看過了」，不然一開機就會把過去累積的紀錄全部跳出來
+    seenLedgerIds = new Set((S.get().ledger || []).map((e) => e.id));
     S.subscribe(paint);
     Promise.all([initDock(), initSelection()]).then(paint);
   });

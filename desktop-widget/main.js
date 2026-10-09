@@ -20,15 +20,20 @@ const fs = require('fs');
 const POS_FILE = path.join(app.getPath('userData'), 'window-pos.json');
 const DEFAULT_SIZE = { width: 320, height: 50 };
 const PICKER_SIZE = { width: 190, height: 380 };
+const BUBBLE_SIZE = { width: 320, height: 90 };
+const BUBBLE_MARGIN = 20; // 泡泡視窗跟螢幕邊緣留的間距（px）
 const DOCK_THRESHOLD = 24; // 離螢幕邊緣多近算「貼邊」（px）
 const PICKER_GAP = 8; // 選人小視窗跟主視窗之間留的間距
 
 let win = null;
 let pickerWin = null;
+let bubbleWin = null;
 let tray = null;
 let dockSide = 'none'; // 'none' | 'left' | 'right' | 'top' | 'bottom'
 let ignoreNextMove = false; // resize-to 自己造成的 setBounds 移動，不要被當成使用者拖曳
 let selectedIds = []; // 目前選取的學生 id，主視窗／選人視窗共用同一份
+let bubbleQueue = []; // 還沒播放的加點通知，一次只顯示一則，播完才接著播下一則
+let bubbleBusy = false;
 
 function loadSavedBounds() {
   try {
@@ -98,6 +103,50 @@ function closePickerWindow() {
   if (pickerWin) pickerWin.close(); // 觸發上面的 'closed'，會自動通知主視窗
 }
 
+/* 加點通知泡泡：手機／其他裝置透過雲端同步加點時，這裡跳出一個右下角小提示，
+   就算教學電腦正開著 PowerPoint 全螢幕簡報也看得到，不用切換視窗確認。
+   整個視窗設成滑鼠事件完全穿透（setIgnoreMouseEvents）＋不可取得焦點（focusable:false），
+   保證不會擋到底下 PowerPoint 的點擊、也不會搶走簡報的焦點，純粹是「看得到但摸不到」的
+   提示而已。視窗只建立一次、重複使用，顯示/隱藏交給 processBubbleQueue 控制。 */
+function createBubbleWindow() {
+  const area = screen.getPrimaryDisplay().workArea;
+  bubbleWin = new BrowserWindow({
+    x: Math.round(area.x + area.width - BUBBLE_SIZE.width - BUBBLE_MARGIN),
+    y: Math.round(area.y + area.height - BUBBLE_SIZE.height - BUBBLE_MARGIN),
+    width: BUBBLE_SIZE.width, height: BUBBLE_SIZE.height,
+    frame: false, transparent: true, resizable: false, movable: false,
+    minimizable: false, maximizable: false, skipTaskbar: true, alwaysOnTop: true, hasShadow: false,
+    focusable: false, show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
+  });
+  bubbleWin.setAlwaysOnTop(true, 'screen-saver');
+  bubbleWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  bubbleWin.setIgnoreMouseEvents(true, { forward: true });
+  bubbleWin.loadFile(path.join(__dirname, 'renderer', 'bubble.html'));
+  bubbleWin.on('closed', () => { bubbleWin = null; });
+}
+
+function positionBubbleWindow() {
+  if (!bubbleWin) return;
+  const area = screen.getPrimaryDisplay().workArea;
+  bubbleWin.setBounds({
+    x: Math.round(area.x + area.width - BUBBLE_SIZE.width - BUBBLE_MARGIN),
+    y: Math.round(area.y + area.height - BUBBLE_SIZE.height - BUBBLE_MARGIN),
+    width: BUBBLE_SIZE.width, height: BUBBLE_SIZE.height,
+  });
+}
+
+/* 一次只播一則：播完（bubble.js 淡出動畫結束後呼叫 bubble-done）才接著播下一則，
+   避免同時跳出好幾個泡泡疊在一起看不清楚。showInactive 絕對不會把焦點從 PowerPoint 搶走。 */
+function processBubbleQueue() {
+  if (bubbleBusy || !bubbleQueue.length || !bubbleWin) return;
+  bubbleBusy = true;
+  const payload = bubbleQueue.shift();
+  positionBubbleWindow();
+  bubbleWin.webContents.send('show-award', payload);
+  bubbleWin.showInactive();
+}
+
 function broadcastSelection() {
   if (win) win.webContents.send('selection-changed', selectedIds);
   if (pickerWin) pickerWin.webContents.send('selection-changed', selectedIds);
@@ -157,15 +206,36 @@ function createWindow() {
   win.on('closed', () => { win = null; });
 }
 
+/* 「隱藏到系統匣」不能真的呼叫 win.hide()：Electron 視窗被 hide() 之後，renderer 那邊的
+   document.hidden 會變 true，而 core/store.js 的雲端同步輪詢（startPolling）本來就是設計成
+   「分頁/視窗不在前面就不用一直打 API」而故意跳過——這支援小工具最主要的情境就是「老師
+   把它藏起來、專心用 PowerPoint，但還是希望手機加點能同步跳泡泡」，真的 hide() 等於直接
+   把同步也一起停掉，泡泡自然永遠不會跳出來。改成「假隱藏」：視窗維持 show 狀態（renderer
+   繼續跑、繼續同步），只是整個視窗變透明、滑鼠事件穿透過去，視覺上看起來跟真的隱藏一樣，
+   但背景該做的事一件都沒少做。 */
+function hideWidgetSoftly() {
+  if (!win) return;
+  win.setOpacity(0);
+  win.setIgnoreMouseEvents(true, { forward: true });
+  if (pickerWin) pickerWin.hide(); // 選人視窗沒有自己要持續同步的理由，直接真的隱藏就好
+}
+function showWidgetAgain() {
+  if (!win) return;
+  win.setIgnoreMouseEvents(false);
+  win.setOpacity(1);
+  win.show();
+  win.focus();
+}
+
 function createTray() {
   // 用系統內建的空白圖示也能動作，只是工具列圖示會比較不明顯；先求「打得開、關得掉」堪用。
   tray = new Tray(path.join(__dirname, 'renderer', 'tray-icon.png'));
   tray.setToolTip('班級加點小工具');
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '顯示小工具', click: () => { if (win) { win.show(); win.focus(); } } },
+    { label: '顯示小工具', click: showWidgetAgain },
     { label: '結束', click: () => app.quit() },
   ]));
-  tray.on('click', () => { if (win) { win.show(); win.focus(); } });
+  tray.on('click', showWidgetAgain);
 }
 
 ipcMain.handle('get-dock-side', () => dockSide);
@@ -239,12 +309,25 @@ ipcMain.handle('invert-selection', (evt, ids) => {
   broadcastSelection();
 });
 
-ipcMain.handle('hide-window', () => { if (win) win.hide(); if (pickerWin) pickerWin.hide(); });
+ipcMain.handle('hide-window', () => hideWidgetSoftly());
 ipcMain.handle('quit-app', () => app.quit());
+
+/* renderer（app.js）偵測到新的加點紀錄（通常是手機或其他裝置透過雲端同步加進來的）
+   就會呼叫這個，把內容排進佇列；bubble.js 淡出動畫結束後呼叫 bubble-done 才會接著播下一則。 */
+ipcMain.handle('notify-award', (evt, payload) => {
+  bubbleQueue.push(payload);
+  processBubbleQueue();
+});
+ipcMain.handle('bubble-done', () => {
+  if (bubbleWin) bubbleWin.hide();
+  bubbleBusy = false;
+  processBubbleQueue();
+});
 
 app.whenReady().then(() => {
   createWindow();
   createTray();
+  createBubbleWindow();
 });
 
 app.on('window-all-closed', () => {
