@@ -9,7 +9,7 @@
   const { el } = U;
   const root = document.getElementById('root');
 
-  const TOAST_RESERVE = 70;
+  const TOAST_RESERVE = 36;
   let tab = 'students'; // 'students' | 'groups'
   let selected = new Set();
 

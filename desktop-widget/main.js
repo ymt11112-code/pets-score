@@ -18,8 +18,8 @@ const path = require('path');
 const fs = require('fs');
 
 const POS_FILE = path.join(app.getPath('userData'), 'window-pos.json');
-const DEFAULT_SIZE = { width: 320, height: 50 };
-const PICKER_SIZE = { width: 190, height: 380 };
+const DEFAULT_SIZE = { width: 180, height: 30 };
+const PICKER_SIZE = { width: 110, height: 220 };
 const BUBBLE_SIZE = { width: 320, height: 90 };
 const BUBBLE_MARGIN = 20; // 泡泡視窗跟螢幕邊緣留的間距（px）
 const DOCK_THRESHOLD = 24; // 離螢幕邊緣多近算「貼邊」（px）
@@ -246,8 +246,8 @@ ipcMain.handle('get-dock-side', () => dockSide);
    這樣長大縮小的時候才不會整個從貼著的那條邊跑掉。 */
 ipcMain.handle('resize-to', (evt, width, height) => {
   if (!win) return;
-  width = Math.max(40, Math.round(width));
-  height = Math.max(40, Math.round(height));
+  width = Math.max(24, Math.round(width));
+  height = Math.max(24, Math.round(height));
   const cur = win.getBounds();
   const display = screen.getDisplayNearestPoint({ x: cur.x, y: cur.y });
   const area = display.workArea;
@@ -273,8 +273,8 @@ ipcMain.handle('resize-to', (evt, width, height) => {
 /* 選人小視窗量完自己的內容高度後回報過來，主視窗位置不變，只調整選人視窗的大小＋重新貼齊 */
 ipcMain.handle('resize-picker', (evt, width, height) => {
   if (!pickerWin) return;
-  width = Math.max(80, Math.round(width));
-  height = Math.max(80, Math.round(height));
+  width = Math.max(50, Math.round(width));
+  height = Math.max(50, Math.round(height));
   const cur = pickerWin.getBounds();
   if (width === cur.width && height === cur.height) return;
   pickerWin.setBounds({ x: cur.x, y: cur.y, width, height });

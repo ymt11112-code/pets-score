@@ -19,7 +19,7 @@
 
   /* Toast 是用 position:fixed 貼在視窗（=body）右下角，但這個視窗會依內容縮到剛好的大小，
      太小的時候 toast 會被裁到看不見，所以量完內容大小後，額外多留一段透明的高度給它顯示。 */
-  const TOAST_RESERVE = 70;
+  const TOAST_RESERVE = 36;
 
   let dockSide = 'none'; // 'none' | 'left' | 'right' | 'top' | 'bottom'
   let selected = new Set(); // 由 main process 統一保管，這裡只是鏡射（見 onSelectionChanged）

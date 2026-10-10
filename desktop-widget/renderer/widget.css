@@ -11,10 +11,10 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
      選人面板一打開，內容變多、更容易踩到這個迴圈，畫面就會不斷抖動、按鈕點不到。
      改成明確指定 width:max-content，就是強制用「假設空間無限大」去算自然寬度，
      不再看目前視窗實際多寬，才能真正量出穩定不變的大小。 */
-  display: inline-flex; flex-direction: column; gap: 6px; width: max-content;
-  background: #fff; border: 1.5px solid var(--line); border-radius: 16px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, .28); padding: 7px;
-  max-width: 280px;
+  display: inline-flex; flex-direction: column; gap: 3px; width: max-content;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .26); padding: 4px;
+  max-width: 160px;
 }
 /* 貼邊變直幅時，所有東西（控制列＋規則按鈕＋面板）都疊成同一條窄窄的單排選單，
    不要分成「控制列一欄、規則按鈕另一欄」的兩欄並排，那樣反而佔比較多橫向空間。
@@ -23,57 +23,57 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 
 /* ---------- 主橫幅（控制列） ---------- */
 .dw-bar {
-  display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+  display: flex; align-items: center; gap: 3px; flex-wrap: nowrap;
 }
 .dw-root.is-vertical .dw-bar { flex-direction: column; align-items: stretch; }
 
 .dw-grip {
-  width: 18px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  width: 12px; height: 16px; border-radius: 5px; flex-shrink: 0;
   background: var(--bg-soft); display: grid; place-items: center;
-  color: var(--ink-mute); font-size: 12px; cursor: grab; letter-spacing: -1px;
+  color: var(--ink-mute); font-size: 8px; cursor: grab; letter-spacing: -1px;
   -webkit-app-region: drag; user-select: none;
 }
-.dw-root.is-vertical .dw-grip { width: 28px; height: 18px; }
+.dw-root.is-vertical .dw-grip { width: 16px; height: 12px; }
 .dw-grip:active { cursor: grabbing; }
 
 .dw-pill {
   flex-shrink: 0; background: var(--gold-soft); color: var(--gold-deep); font-weight: 800;
-  font-size: 12px; padding: 6px 10px; border-radius: 999px; white-space: nowrap;
+  font-size: 10px; padding: 3px 6px; border-radius: 999px; white-space: nowrap;
 }
 
 .dw-btn {
-  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
-  background: var(--bg-soft); border: 1.5px solid transparent; color: var(--ink);
-  border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 700; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+  background: var(--bg-soft); border: 1px solid transparent; color: var(--ink);
+  border-radius: 999px; padding: 3px 6px; font-size: 10px; font-weight: 700; white-space: nowrap;
 }
 .dw-btn:hover { border-color: var(--green); background: #fff; }
 .dw-btn.is-active { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
-.dw-btn.is-icon-only { padding: 6px; }
+.dw-btn.is-icon-only { padding: 3px; }
 .dw-root.is-vertical .dw-btn { justify-content: center; }
 .dw-root.is-vertical .dw-pill { text-align: center; }
 
 /* 純圖示工具鈕（紀錄／隱藏／結束）的小群組：永遠橫排在一起，不管主橫幅是橫是直，
    避免直幅時每顆都各自撐成一整條、浪費一堆高度 */
-.dw-btnrow { display: flex; flex-direction: row; gap: 4px; }
+.dw-btnrow { display: flex; flex-direction: row; gap: 2px; }
 .dw-btnrow .dw-btn { flex: 1 1 0; }
 
-.dw-seg { display: inline-flex; background: var(--bg-soft); border-radius: 999px; padding: 3px; gap: 2px; flex-shrink: 0; }
+.dw-seg { display: inline-flex; background: var(--bg-soft); border-radius: 999px; padding: 2px; gap: 1px; flex-shrink: 0; }
 .dw-root.is-vertical .dw-seg { flex-direction: column; }
-.dw-seg__btn { padding: 5px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+.dw-seg__btn { padding: 3px 6px; border-radius: 999px; font-size: 9.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
 .dw-seg__btn.is-active { background: #fff; color: var(--brand); box-shadow: var(--shadow-sm); }
 
 /* ---------- 規則按鈕（依分類篩選後顯示） ---------- */
 .dw-rules {
-  display: flex; flex-wrap: wrap; gap: 5px; max-width: 260px;
+  display: flex; flex-wrap: wrap; gap: 3px; max-width: 150px;
 }
 .dw-root.is-vertical .dw-rules {
   flex-direction: column; flex-wrap: nowrap; max-width: none; align-items: stretch;
-  max-height: 420px; overflow-y: auto;
+  max-height: 300px; overflow-y: auto;
 }
 .dw-rule {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: var(--bg-soft); border: 1.5px solid transparent; border-radius: 999px;
-  padding: 6px 10px; font-size: 12px; font-weight: 800; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--bg-soft); border: 1px solid transparent; border-radius: 999px;
+  padding: 3px 6px; font-size: 10px; font-weight: 800; white-space: nowrap;
 }
 .dw-rule:hover { border-color: var(--green); background: #fff; }
 .dw-root.is-vertical .dw-rule { justify-content: space-between; }
@@ -82,7 +82,7 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
 /* max-width 這裡不能省：.dw-root 是 width:max-content，純文字沒有寬度上限的話，
    瀏覽器會把這整句不換行的寬度當作「自然寬度」去算，一句長一點的提示文字就能把
    整個小工具撐得很寬（例如切到還沒加進底部工具列的分類時顯示的提示語）。 */
-.dw-rules-empty { font-size: 11.5px; color: var(--ink-mute); padding: 4px 2px; max-width: 240px; }
+.dw-rules-empty { font-size: 10px; color: var(--ink-mute); padding: 3px 2px; max-width: 150px; }
 
 /* ---------- 選人小視窗（picker.html/picker.js，跟主視窗是各自獨立的視窗） ---------- */
 /* 這裡故意用明確的固定寬度，不能靠 width:max-content/auto 自動算——
@@ -90,14 +90,14 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
    瀏覽器算「這個元素攤平不換行要多寬」當作它對外層的寬度貢獻，
    會把幾十個 chip 全部排成一整行去計算，導致整個視窗被撐成好幾千 px 寬。
    （這條規則要蓋掉 .dw-root 的 width:max-content，所以特別把它放在後面。） */
-.dw-picker-win { width: 118px; }
+.dw-picker-win { width: 82px; }
 .dw-btn--block { width: 100%; justify-content: center; }
 .dw-picker__list {
-  display: flex; flex-wrap: wrap; gap: 5px;
+  display: flex; flex-wrap: wrap; gap: 3px;
 }
 .dw-chip {
-  padding: 5px 9px; border-radius: 999px; background: #fff; border: 1.5px solid var(--line);
-  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+  padding: 3px 6px; border-radius: 999px; background: #fff; border: 1px solid var(--line);
+  font-size: 10px; font-weight: 700; white-space: nowrap;
 }
 .dw-chip.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
 .dw-chip.is-off-disabled { opacity: .45; }
@@ -105,33 +105,35 @@ html, body { width: 100%; height: 100%; margin: 0; background: transparent; over
    故意不設 max-height/overflow，讓視窗直接長高顯示全部學生，不用捲動
    （main.js 的 resize-picker 還是會把視窗整體夾在螢幕高度內，當安全網）。 */
 .dw-num-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px;
 }
 .dw-chip--num {
-  padding: 8px 4px; text-align: center; border-radius: 10px;
-  background: #fff; border: 1.5px solid var(--line); font-size: 13px; font-weight: 800;
+  padding: 4px 2px; text-align: center; border-radius: 7px;
+  background: #fff; border: 1px solid var(--line); font-size: 11px; font-weight: 800;
 }
 .dw-chip--num.is-on { background: var(--green-soft); border-color: var(--green); color: var(--brand); }
 .dw-chip--num.is-off-disabled { opacity: .45; }
 
 /* ---------- 點數紀錄（開闔卡片） ---------- */
-.dw-ledger { background: var(--bg-soft); border-radius: 12px; padding: 4px 4px; width: 260px; }
-.dw-root.is-vertical .dw-ledger { width: 200px; }
-.dw-ledger__body { max-height: 200px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
-.dw-ledger__row { display: flex; align-items: baseline; gap: 5px; font-size: 11px; padding: 3px 4px; }
+.dw-ledger { background: var(--bg-soft); border-radius: 8px; padding: 3px; width: 160px; }
+.dw-root.is-vertical .dw-ledger { width: 130px; }
+.dw-ledger__body { max-height: 140px; overflow-y: auto; padding: 2px; display: flex; flex-direction: column; gap: 2px; }
+.dw-ledger__row { display: flex; align-items: baseline; gap: 3px; font-size: 9.5px; padding: 2px 3px; }
 .dw-ledger__row-who { color: var(--ink-soft); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dw-ledger__row-pts { font-weight: 800; color: var(--green); flex-shrink: 0; }
 .dw-ledger__row-pts.is-minus { color: var(--red); }
 .dw-ledger__row.is-undone { opacity: .4; text-decoration: line-through; }
-.dw-ledger__empty { font-size: 11.5px; color: var(--ink-mute); padding: 6px; }
+.dw-ledger__empty { font-size: 10px; color: var(--ink-mute); padding: 4px; }
 
 /* ---------- 同步狀態 / 設定表單 ---------- */
-.dw-syncline { font-size: 11px; color: var(--ink-mute); display: flex; align-items: center; gap: 5px; padding: 0 2px; }
+.dw-syncline { font-size: 9px; color: var(--ink-mute); display: flex; align-items: center; gap: 3px; padding: 0 1px; }
 /* 同步失敗時 message 可能是一串很長的錯誤訊息；跟 .dw-rules-empty 同樣的理由，
    沒有寬度上限的文字會把整個 width:max-content 的小工具撐寬，這裡直接截斷顯示省略號。 */
-.dw-syncline__msg { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dw-dot { width: 7px; height: 7px; border-radius: 50%; background: #cbd5c9; flex-shrink: 0; }
+.dw-syncline__msg { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dw-dot { width: 5px; height: 5px; border-radius: 50%; background: #cbd5c9; flex-shrink: 0; }
 .dw-dot.is-ok { background: #2fbf71; }
 .dw-dot.is-error { background: #ff5a4e; }
 
-.dw-setup { display: flex; flex-direction: column; gap: 8px; width: 300px; padding: 4px; }
+/* 設定表單（第一次輸入 Google Sheets 網址）保留比較寬鬆的寬度，裡面是要打字的輸入框，
+   縮太小反而不好用；這裡不用「減半」。 */
+.dw-setup { display: flex; flex-direction: column; gap: 8px; width: 240px; padding: 4px; }
