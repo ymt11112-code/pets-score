@@ -1246,16 +1246,31 @@
     });
   }
 
+  /* 這隻寵物有沒有任何造型圖（共用圖、任一條路線圖，或單張固定圖 pet.img 都算）。
+     沒有圖的寵物只會顯示 emoji，不適合當學生第一隻抽到的寵物。 */
+  function petHasArt(petId) {
+    const pet = M.petById(petId);
+    if (pet && pet.img) return true;
+    if ((state.petImages[petId] || []).some(Boolean)) return true;
+    const byPath = (state.petPathImages || {})[petId] || {};
+    return Object.keys(byPath).some((pid) => (byPath[pid] || []).some(Boolean));
+  }
+
+  /* 第一隻寵物的抽獎池：普通／稀有級（排除傳說級，傳說級要靠之後花金幣的收藏系統才能拿到），
+     而且一定要有造型圖——老師之後替其他寵物補上圖片，它們就會自動加進抽獎池。 */
+  function firstDrawPool() {
+    return M.allPets().filter((p) => (p.rarity || 'common') !== 'legendary' && petHasArt(p.id));
+  }
+
   /* 學生還沒有主寵物時（老師新增學生時把寵物留白，交給學生自己抽），可以免費抽一隻當第一隻
-     主寵物——只會抽到普通／稀有級（排除傳說級，傳說級要靠之後花金幣的收藏系統才能拿到），
-     照各分級的抽獎權重加權隨機，抽到什麼就是什麼，不能重抽、也不能指定。一旦 petId 有值
-     就不會再觸發這個流程了。 */
+     主寵物——從 firstDrawPool 裡照各分級的抽獎權重加權隨機，抽到什麼就是什麼，不能重抽、
+     也不能指定。一旦 petId 有值就不會再觸發這個流程了。 */
   function drawFirstPet(studentId) {
     const t = student(studentId);
     if (!t) return { ok: false, msg: '找不到學生' };
     if (t.petId) return { ok: false, msg: '已經有寵物了' };
-    const pool = M.allPets().filter((p) => (p.rarity || 'common') !== 'legendary');
-    if (!pool.length) return { ok: false, msg: '目前沒有可以抽的寵物，請聯絡老師' };
+    const pool = firstDrawPool();
+    if (!pool.length) return { ok: false, msg: '目前沒有可以抽的寵物（有造型圖的普通／稀有寵物），請聯絡老師' };
     const totalWeight = pool.reduce((sum, p) => sum + Math.max(1, petRarityOf(p.id).weight || 1), 0);
     let roll = Math.random() * totalWeight;
     let picked = pool[pool.length - 1];
@@ -1662,7 +1677,7 @@
     groupChestInfo, openGroupChest, drawGroupChestLottery,
     award, awardClass, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
-    canCollectPets, adoptPet, drawPetGacha, drawFirstPet, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
+    canCollectPets, adoptPet, drawPetGacha, drawFirstPet, firstDrawPool, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
     sendMessage, studentMessages, unreadMessageCount, markMessagesRead, claimMessageReward,
     attendanceOf, isAbsent, setAttendance, setAllAttendance,
     getGithubConfig, saveGithubConfig, githubUploadImage, githubListFiles,

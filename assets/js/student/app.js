@@ -126,8 +126,9 @@
       onClose: () => { firstPetDrawOpen = false; },
     });
     drawBtn.addEventListener('click', () => {
+      const pool = S.firstDrawPool();
+      if (!pool.length) { U.toast('目前還沒有可以抽的寵物，請老師先替寵物補上造型圖片', 'warn'); return; }
       drawBtn.disabled = true;
-      const pool = M.allPets().filter((p) => (p.rarity || 'common') !== 'legendary');
       stage.classList.add('is-rolling');
       let n = 0;
       const iv = setInterval(() => {
