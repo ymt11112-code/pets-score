@@ -7,7 +7,8 @@
   const S = window.PetStore;
   const { $, $$, el } = U;
 
-  let page = window.matchMedia('(max-width: 860px)').matches ? 'classroom' : 'overview';
+  let page = 'overview';
+  let drawController=null;
   let selected = new Set();
   let filterGroup = '';
   let keyword = '';
@@ -891,30 +892,7 @@
     });
   }
 
-  function openRandomDraw() {
-    const s = S.get();
-    const pool = s.students.filter((x) => !S.isAbsent(x.id));
-    if (!pool.length) return U.toast('目前沒有可以抽籤的學生', 'warn');
-    const stage = el('div', { class: 'picker-stage' }, [
-      el('div', { class: 'picker-stage__emoji', text: '🎲' }),
-      el('div', { class: 'picker-stage__name', text: '抽籤中…' }),
-      el('div', { class: 'picker-stage__meta', text: '' }),
-    ]);
-    const handle = U.modal({ title: '隨機抽籤', body: stage });
-    stage.classList.add('is-rolling');
-    let n = 0;
-    const iv = setInterval(() => {
-      const r = pool[Math.floor(Math.random() * pool.length)];
-      stage.children[0].textContent = M.petById(r.petId).emoji;
-      stage.children[1].textContent = r.name;
-      stage.children[2].textContent = (S.group(r.groupId) || {}).name || '';
-      if (++n > 16) {
-        clearInterval(iv);
-        stage.classList.remove('is-rolling');
-        setTimeout(() => { handle.close(); openStudentProfile(r.id); }, 450);
-      }
-    }, 70);
-  }
+  function openRandomDraw() { floatOpen=false; renderFloatWidget(); go('tools'); }
 
   function openTimerModal() {
     U.modal({ title: '課堂計時器', body: el('div', { class: 'stack' }, [el('p', { class: 'card__sub', text: '計時器在目前裝置運作；關閉面板後仍會繼續倒數。' }), timerWidget()]) });
@@ -1401,60 +1379,24 @@
   /* ================= 課堂小工具 ================= */
   let timerState = { total: 300, left: 300, running: false, handle: null };
 
+  function drawSnapshot(){const state=S.get();return {className:state.classInfo.className,students:state.students,absentIds:state.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),draw:window.PetDrawEngine.normalize(state.drawCenter)};}
   function pageTools() {
-    const s = S.get();
-
-    /* 隨機抽點 */
-    const stage = el('div', { class: 'picker-stage' }, [
-      el('div', { class: 'picker-stage__emoji', text: '🎲' }),
-      el('div', { class: 'picker-stage__name', text: '準備抽籤' }),
-      el('div', { class: 'picker-stage__meta', text: '點下方按鈕開始' }),
-    ]);
-    let excludePicked = true;
-    let pickedIds = [];
-    let lastPicked = null;
-
-    function roll() {
-      let pool = s.students.filter((x) => !excludePicked || pickedIds.indexOf(x.id) < 0);
-      if (!pool.length) { pickedIds = []; pool = s.students.slice(); U.toast('所有人都抽過了，重新開始一輪', 'warn'); }
-      stage.classList.add('is-rolling');
-      let n = 0;
-      const iv = setInterval(() => {
-        const r = pool[Math.floor(Math.random() * pool.length)];
-        stage.children[0].textContent = M.petById(r.petId).emoji;
-        stage.children[1].textContent = r.name;
-        stage.children[2].textContent = (S.group(r.groupId) || {}).name || '';
-        if (++n > 16) {
-          clearInterval(iv);
-          stage.classList.remove('is-rolling');
-          lastPicked = r;
-          pickedIds.push(r.id);
-          stage.children[2].textContent = (S.group(r.groupId) || {}).name + ' · 已抽 ' + pickedIds.length + ' / ' + s.students.length;
-        }
-      }, 70);
-    }
-
-    return el('div', {}, [
-      pageHead('課堂小工具', '隨機抽點與計時器，投影在教室螢幕上也清楚。'),
-      el('div', { class: 'tool-grid' }, [
-        card('隨機抽點', '抽到的同學可以直接加點。', [
-          stage,
-          el('div', { class: 'row', style: { gap: '10px', marginTop: '14px', flexWrap: 'wrap' } }, [
-            el('button', { class: 'btn btn--primary btn--lg', text: '🎲 開始抽籤', onclick: roll }),
-            el('button', { class: 'btn btn--green', text: '⭐ 給抽到的人加點', onclick: () => {
-              if (!lastPicked) return U.toast('請先抽籤', 'warn');
-              applyRule([lastPicked.id], s.rules[0]);
-            } }),
-            el('button', { class: 'btn btn--ghost', text: '↻ 重設抽過名單', onclick: () => { pickedIds = []; U.toast('已重設'); } }),
-          ]),
-          el('label', { class: 'row', style: { gap: '8px', marginTop: '12px', cursor: 'pointer' } }, [
-            el('input', { class: 'checkbox', type: 'checkbox', checked: 'checked', onchange: (e) => { excludePicked = e.target.checked; } }),
-            el('span', { class: 'muted', style: { fontSize: '13.5px' }, text: '抽過的人本輪不重複' }),
-          ]),
-        ]),
-        card('課堂計時器', null, [timerWidget()]),
-      ]),
-    ]);
+    const E=window.PetDrawEngine;
+    if(!drawController)drawController=window.PetDrawCenter.create({
+      getSnapshot:drawSnapshot,
+      configure:async patch=>{S.commit(s=>E.settings(s,patch));return drawSnapshot();},
+      draw:async request=>{let result;S.commit(s=>{result=E.run(s,s.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),request);});return result;},
+      reset:async()=>{S.commit(s=>E.reset(s));return drawSnapshot();},
+      avatar:id=>window.PetDrawAvatar(id,64),
+      select:async ids=>openFeedbackModal(ids),
+      back:()=>go('overview')
+    });
+    else drawController.update(drawSnapshot());
+    return el('div',{},[el('div',{class:'row',style:{gap:'8px',flexWrap:'wrap',marginBottom:'12px'}},[
+      el('button',{class:'btn btn--ghost',text:'⏱️ 計時器',onclick:openTimerModal}),
+      el('button',{class:'btn btn--ghost',text:'📋 出席',onclick:openAttendance}),
+      el('button',{class:'btn btn--ghost',text:'✅ 今日任務',onclick:openDailyTasksQuick})
+    ]),drawController.element]);
   }
 
   /* 計時器元件（課堂小工具頁與批次加點的浮動計時器共用） */
@@ -4101,10 +4043,7 @@
 
   /* ---------- 路由 ---------- */
   const PAGES = {
-    classroom: () => window.PetClassroom.render(applyRule, desktopLauncherOptions, {
-      timer: openTimerModal, pick: openRandomDraw, attendance: openAttendance, tasks: openDailyTasksQuick,
-      go, refresh: render, timerLabel: () => fmtTimer(timerState.left),
-    }), guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
+    draw: pageTools, guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
     pets: pagePets, 'pet-settings': pagePetSettings, badges: pageBadges, messages: pageMessages, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
     storyline: pageStoryline,
@@ -4128,8 +4067,8 @@
     document.body.classList.toggle('is-classroom', page === 'classroom');
     document.body.classList.remove('is-remote-home');
     const host = $('#page');
-    host.innerHTML = '';
-    host.appendChild((PAGES[page] || pageOverview)());
+    if((page==='tools'||page==='draw')&&drawController&&host.contains(drawController.element))drawController.update(drawSnapshot());
+    else {host.innerHTML = '';host.appendChild((PAGES[page] || pageOverview)());}
     $$('.side__item').forEach((b) => b.classList.toggle('is-active', b.dataset.page === page));
     const st = S.get().settings || {};
     document.body.classList.toggle('no-avatar-frame', st.avatarFrame === false);
@@ -4279,6 +4218,9 @@
     return el('div', { class: 'float-panel__body' }, [
       el('div', { class: 'row', style: { justifyContent: 'space-between', marginBottom: '6px' } }, [countEl]),
       pipRow,
+      el('div',{class:'quick-tool-shortcuts'},[
+        ['⏱️','計時器',openTimerModal],['🎲','抽籤',openRandomDraw],['📋','出席',openAttendance],['✅','今日任務',openDailyTasksQuick]
+      ].map(([icon,label,click])=>el('button',{type:'button',class:'btn btn--ghost',text:icon+' '+label,onclick:click}))),
       searchInput,
       listEl,
       dockEl,
@@ -4375,10 +4317,13 @@
   S.init().then(() => {
     const hash = location.hash.slice(1);
     if (PAGES[hash]) page = hash;
+    if(hash==='classroom')floatOpen=true;
+    $('#quickAdd').addEventListener('click',()=>{floatOpen=true;renderFloatWidget();});
     $$('.side__item').forEach((b) => b.addEventListener('click', () => go(b.dataset.page)));
     bindSideToggle();
     window.addEventListener('hashchange', () => {
       const h = location.hash.slice(1);
+      if(h==='classroom'){floatOpen=true;renderFloatWidget();return;}
       if (PAGES[h] && h !== page) { page = h; render(); }
     });
     S.subscribe(render);

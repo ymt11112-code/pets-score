@@ -673,3 +673,10 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
   .rule-edit-heading > .field:last-child { grid-column:2; }
 }
 .rule-edit-heading .input { height:46px; }
+
+.rule-icons__item:has(.clay-icon) { min-height:78px; padding:8px; }
+.rule-icons__item .clay-icon { width:56px; height:56px; }
+
+.quick-tool-shortcuts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:8px 0; }
+.quick-tool-shortcuts .btn { padding:8px 4px; font-size:14px; }
+@media(max-width:520px){ .float-panel:not(.is-dock-bottom) { width:calc(100vw - 16px); max-width:380px; max-height:calc(100dvh - 24px); } }

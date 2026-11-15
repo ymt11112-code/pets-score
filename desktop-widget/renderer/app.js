@@ -26,6 +26,50 @@
   let pickerOpen = false; // 選人是另一個視窗，這裡只記著「現在是不是開著」，用來讓按鈕顯示反白
   let ledgerOpen = false;
   let activeCategory = 'class';
+  let ruleKind = 'add';
+  let widthOpen = false;
+  let collapsed = false;
+  let pawGesture = null;
+  const WIDTH_KEY = 'classpet.widgetWidths.v1';
+  let widths = { vertical: 180, horizontal: 420 };
+  try { const saved = JSON.parse(localStorage.getItem(WIDTH_KEY) || '{}');
+    for (const mode of ['vertical', 'horizontal']) if (Number.isFinite(saved[mode])) widths[mode] = Math.max(140, Math.min(900, saved[mode]));
+  } catch (e) { /* 使用預設寬度 */ }
+  function currentWidth() { return Math.min(widths[isVertical() ? 'vertical' : 'horizontal'], Math.max(140, screen.availWidth - 16)); }
+  function setWidth(value, wrap) {
+    widths[isVertical() ? 'vertical' : 'horizontal'] = Math.max(140, Math.min(900, Number(value) || 180));
+    try { localStorage.setItem(WIDTH_KEY, JSON.stringify(widths)); } catch (e) { /* 忽略無法存檔 */ }
+    wrap.style.setProperty('--widget-width', currentWidth() + 'px');
+    const output = wrap.querySelector('.dw-width-value');
+    if (output) output.textContent = currentWidth() + ' px';
+    const slider = wrap.querySelector('.dw-width-range');
+    if (slider) slider.value = currentWidth();
+    reportSize(wrap);
+  }
+  function widthControls() {
+    if (!widthOpen) return null;
+    return el('label', { class: 'dw-width-controls' }, [
+      el('span', { text: '寬度' }),
+      el('input', { class: 'dw-width-range', type: 'range', min: '140', max: String(Math.min(900, Math.max(140, screen.availWidth - 16))), step: '10', value: currentWidth(), 'aria-label': '桌面工具寬度', oninput: e => setWidth(e.target.value, e.target.closest('.dw-main')) }),
+      el('output', { class: 'dw-width-value', text: currentWidth() + ' px' })
+    ]);
+  }
+  function resizeGrip(wrap) {
+    const grip = el('div', { class: 'dw-resize-grip' + (dockSide === 'right' ? ' is-left' : ''), title: '左右拖曳調整寬度', 'aria-hidden': 'true', text: '↔' });
+    let startX = 0, startWidth = 0, dragging = false;
+    grip.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      startX = e.screenX; startWidth = currentWidth(); dragging = true;
+      grip.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+    grip.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      setWidth(startWidth + (dockSide === 'right' ? startX - e.screenX : e.screenX - startX), wrap);
+    });
+    const end = () => { dragging = false; };
+    grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
+    return grip;
+  }
 
   /* 加點通知泡泡：每次 paint（= 每次資料有變動，包含雲端同步拉回來的）都比對一次目前的
      點數紀錄，找出「上次沒看過」的紀錄，送去 main process 跳泡泡。seenLedgerIds 開機時
@@ -64,11 +108,64 @@
   function reportSize(wrapEl) {
     if (!window.desktopWidget) return;
     const r = wrapEl.getBoundingClientRect();
-    window.desktopWidget.resizeTo(Math.ceil(r.width), Math.ceil(r.height) + TOAST_RESERVE);
+    window.desktopWidget.resizeTo(Math.ceil(r.width), Math.ceil(r.height) + (collapsed ? 0 : TOAST_RESERVE));
   }
 
-  function gripEl() {
-    return el('div', { class: 'dw-grip', title: '拖曳移動位置', text: '⋮⋮' });
+  function collapseWidget() {
+    collapsed = true;
+    pickerOpen = false;
+    if (window.desktopWidget) window.desktopWidget.closePicker();
+    paint();
+  }
+
+  function titlebar(connected) {
+    return el('header', { class: 'dw-titlebar' }, [
+      el('div', { class: 'dw-window-controls', 'aria-label': '視窗控制' }, [
+        el('button', { class: 'dw-window-btn' + (widthOpen ? ' is-active' : ''), title: '調整寬度', 'aria-label': '調整寬度', onclick: () => { widthOpen = !widthOpen; paint(); } }, ['↔']),
+        connected ? el('button', { class: 'dw-window-btn' + (ledgerOpen ? ' is-active' : ''), title: '近 50 筆點數紀錄', 'aria-label': '點數紀錄', onclick: () => { ledgerOpen = !ledgerOpen; paint(); } }, ['📜']) : null,
+        el('button', { class: 'dw-window-btn', title: '隱藏到系統匣', 'aria-label': '隱藏到系統匣', onclick: () => window.desktopWidget && window.desktopWidget.hideWindow() }, ['－']),
+        el('button', { class: 'dw-window-btn', title: '收合成小腳掌', 'aria-label': '收合成小腳掌', 'aria-expanded': 'true', onclick: collapseWidget }, ['▴']),
+        el('button', { class: 'dw-window-btn dw-window-btn--close', title: '結束程式', 'aria-label': '結束程式', onclick: () => window.desktopWidget && window.desktopWidget.quitApp() }, ['✕']),
+      ]),
+      el('div', { class: 'dw-titlebar__drag', title: '按住這一整條即可拖曳移動' }, ['🐾 班級加點 · 拖曳移動']),
+    ]);
+  }
+
+  function pawTab() {
+    const tab = el('button', { class: 'dw-paw-tab', title: '點一下展開；按住拖曳移動', 'aria-label': '展開班級加點工具', 'aria-expanded': 'false', text: '🐾' });
+    tab.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      const gesture = { x: e.screenX, y: e.screenY, lastX: e.screenX, lastY: e.screenY, moved: false, bounds: null };
+      pawGesture = gesture;
+      tab.setPointerCapture(e.pointerId);
+      if (window.desktopWidget) window.desktopWidget.getWindowBounds().then(bounds => {
+        if (pawGesture !== gesture) return;
+        gesture.bounds = bounds;
+        if (gesture.moved && bounds) window.desktopWidget.moveWindow(bounds.x + gesture.lastX - gesture.x, bounds.y + gesture.lastY - gesture.y);
+      }).catch(() => {});
+      e.preventDefault();
+    });
+    tab.addEventListener('pointermove', e => {
+      const g = pawGesture;
+      if (!g) return;
+      g.lastX = e.screenX; g.lastY = e.screenY;
+      if (Math.hypot(e.screenX - g.x, e.screenY - g.y) > 5) g.moved = true;
+      if (g.moved && g.bounds && window.desktopWidget) window.desktopWidget.moveWindow(g.bounds.x + e.screenX - g.x, g.bounds.y + e.screenY - g.y);
+    });
+    tab.addEventListener('pointerup', e => {
+      const g = pawGesture;
+      if (!g) return;
+      pawGesture = null;
+      if (tab.hasPointerCapture(e.pointerId)) tab.releasePointerCapture(e.pointerId);
+      if (!g.moved) collapsed = false;
+      paint();
+    });
+    tab.addEventListener('pointercancel', () => { pawGesture = null; paint(); });
+    tab.addEventListener('click', e => { if (e.detail === 0) { collapsed = false; paint(); } });
+    tab.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); collapsed = false; paint(); }
+    });
+    return tab;
   }
 
   function syncDot() {
@@ -110,23 +207,27 @@
     ));
   }
 
-  /* 小工具要顯示哪些規則、順序怎麼排，直接沿用網頁版「系統設定→底部工具列」的設定
-     （state.toolbar），老師只要在網頁版那邊編輯過一次，桌面小工具就會跟著變；
-     util: 開頭的是網頁版專屬工具（出席、計時器…），這裡用不到所以過濾掉。 */
-  function toolbarRuleIds(s) {
-    const order = (s.toolbar && s.toolbar.length ? s.toolbar : M.DEFAULT_TOOLBAR);
-    return order.filter((id) => id.indexOf('util:') !== 0);
+  // 與網頁規則設定使用相同的分類、加扣分篩選和陣列順序，不受底部工具列限制。
+  function ruleKindTabs(s) {
+    const categories = s.ruleCategories && s.ruleCategories.length ? s.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
+    const category = categories.some(c => c.id === activeCategory) ? activeCategory : categories[0].id;
+    const inCategory = (s.rules || []).filter(r => (r.category || categories[0].id) === category);
+    return el('div', { class: 'dw-kind', role: 'group', 'aria-label': '加扣分規則' }, ['add', 'deduct'].map(kind => {
+      const count = inCategory.filter(r => kind === 'add' ? r.points >= 0 : r.points < 0).length;
+      return el('button', { class: 'dw-kind__btn' + (ruleKind === kind ? ' is-active' : ''),
+        text: (kind === 'add' ? '加分' : '扣分') + ' (' + count + ')', 'aria-pressed': String(ruleKind === kind),
+        onclick: () => { ruleKind = kind; paint(); }
+      });
+    }));
   }
 
   function ruleChips(s) {
-    const byId = {};
-    (s.rules || []).forEach((r) => { byId[r.id] = r; });
-    const rules = toolbarRuleIds(s)
-      .map((id) => byId[id])
-      .filter((r) => r && (r.category || 'class') === activeCategory);
-    if (!rules.length) return el('div', { class: 'dw-rules-empty', text: '這個分類目前沒有規則顯示在工具列，可以到網頁版「系統設定→底部工具列」加入規則，或到「規則設定」調整規則的分類。' });
+    const categories = s.ruleCategories && s.ruleCategories.length ? s.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
+    const rules = (s.rules || []).filter(r =>
+      (r.category || categories[0].id) === activeCategory && (ruleKind === 'add' ? r.points >= 0 : r.points < 0));
+    if (!rules.length) return el('div', { class: 'dw-rules-empty', text: '這個分類目前沒有' + (ruleKind === 'add' ? '加分' : '扣分') + '規則，請至網頁「規則設定」新增。' });
     return el('div', { class: 'dw-rules' }, rules.map((r) => el('button', {
-      class: 'dw-rule',
+      class: 'dw-rule', title: r.label + ' ' + (r.points >= 0 ? '+' : '') + r.points,
       onclick: () => {
         if (!selected.size) return U.toast('請先點「選人」挑學生', 'warn');
         /* 這裡是本機自己按的，馬上就看得到下面這行 toast 了，不用再跳一次右下角泡泡
@@ -140,7 +241,7 @@
       },
     }, [
       el('span', { text: r.icon }),
-      el('span', { text: r.label }),
+      el('span', { class: 'dw-rule__label', text: r.label }),
       el('span', { class: 'dw-rule__pts' + (r.points < 0 ? ' is-minus' : ''), text: (r.points >= 0 ? '+' : '') + r.points }),
     ])));
   }
@@ -166,9 +267,14 @@
     paint();
   }
 
+  function classroomToolButtons() {
+    return el('div', { class: 'dw-class-tools', 'aria-label': '課堂小工具' }, [
+        ['attendance', '📋', '出席'], ['draw', '🎲', '抽籤'], ['timer', '⏱️', '計時器'], ['tasks', '✅', '今日任務']
+      ].map(([kind, image, label]) => el('button', { class: 'dw-class-tool', title: label, 'aria-label': label, onclick: () => window.desktopWidget.openTool(kind) }, [el('span', { text: image }), el('span', { text: label })])));
+  }
+
   function mainBody(s) {
     const bar = el('div', { class: 'dw-bar' }, [
-      gripEl(),
       el('div', { class: 'dw-btnrow' }, [
         el('span', { class: 'dw-pill', text: '已選 ' + selected.size + ' 位' }),
         selected.size
@@ -182,18 +288,14 @@
         el('span', { text: '👥' }), el('span', { text: '選人' }),
       ]),
       categoryTabs(s),
-      /* 這三個純圖示的工具鈕故意包成一個橫排小群組（dw-btnrow），
-         不管主橫幅是橫是直，它們都並排在一起，不會直幅時各自撐成一整條、浪費空間 */
-      el('div', { class: 'dw-btnrow' }, [
-        el('button', { class: 'dw-btn is-icon-only' + (ledgerOpen ? ' is-active' : ''), title: '近 50 筆點數紀錄', onclick: () => { ledgerOpen = !ledgerOpen; paint(); } }, [el('span', { text: '📜' })]),
-        el('button', { class: 'dw-btn is-icon-only', title: '隱藏到系統匣', onclick: () => window.desktopWidget && window.desktopWidget.hideWindow() }, [el('span', { text: '－' })]),
-        el('button', { class: 'dw-btn is-icon-only', title: '結束程式', onclick: () => window.desktopWidget && window.desktopWidget.quitApp() }, [el('span', { text: '✕' })]),
-      ]),
     ]);
 
     const nodes = [
       el('div', { class: 'dw-syncline' }, [syncDot(), el('span', { class: 'dw-syncline__msg', text: S.getSync().message || '' })]),
+      classroomToolButtons(),
       bar,
+      widthControls(),
+      ruleKindTabs(s),
       ruleChips(s),
       ledgerPanel(s),
     ];
@@ -201,23 +303,32 @@
   }
 
   function paint() {
+    if (pawGesture) return;
+    if (S.getConfig().mode === 'sheet') checkForNewLedgerEntries(S.get());
+    // 同步與貼邊事件不重建腳掌，避免中斷焦點或連續操作。
+    if (collapsed && root.querySelector('.dw-collapsed')) return;
     root.innerHTML = '';
+    if (collapsed) {
+      const mini = el('div', { class: 'dw-collapsed' }, [pawTab()]);
+      root.appendChild(mini);
+      reportSize(mini);
+      return;
+    }
     const vertical = isVertical();
-    const wrap = el('div', { class: 'dw-root ' + (vertical ? 'is-vertical' : 'is-horizontal') });
+    const wrap = el('div', { class: 'dw-root dw-main ' + (vertical ? 'is-vertical' : 'is-horizontal') });
+    wrap.style.setProperty('--widget-width', currentWidth() + 'px');
+    wrap.style.maxHeight = Math.max(120, screen.availHeight - TOAST_RESERVE - 24) + 'px';
     const cfg = S.getConfig();
     const connected = cfg.mode === 'sheet' && !!cfg.sheetUrl;
+    wrap.appendChild(titlebar(connected));
     if (connected) {
-      checkForNewLedgerEntries(S.get());
       mainBody(S.get()).forEach((n) => wrap.appendChild(n));
     } else {
-      const head = el('div', { class: 'dw-bar' }, [
-        gripEl(),
-        el('span', { style: { fontWeight: 800, fontSize: '12px' }, text: '⭐ 班級加點小工具' }),
-        el('button', { class: 'dw-btn is-icon-only', title: '結束程式', onclick: () => window.desktopWidget && window.desktopWidget.quitApp() }, [el('span', { text: '✕' })]),
-      ]);
-      wrap.appendChild(head);
+      wrap.appendChild(classroomToolButtons());
+      if (widthOpen) wrap.appendChild(widthControls());
       wrap.appendChild(setupBody());
     }
+    wrap.appendChild(resizeGrip(wrap));
     root.appendChild(wrap);
     reportSize(wrap);
   }
@@ -235,10 +346,57 @@
     window.desktopWidget.onPickerClosed(() => { pickerOpen = false; paint(); });
   }
 
+  if (window.desktopWidget) window.desktopWidget.onExpandWidget(() => {
+    collapsed = false;
+    pawGesture = null;
+    if (S.get()) paint();
+  });
+
+  function toolSnapshot() {
+    const state = S.get();
+    if (!state) throw new Error('班級資料尚未載入');
+    return {
+      day: U.todayKey(), className: state.classInfo.className,
+      students: state.students.map(st => {const avatar=window.PetDrawAvatar(st,64);avatar.querySelectorAll('img').forEach(img=>{const src=img.getAttribute('src');if(src&&src.startsWith('assets/'))img.src='https://ymt11112-code.github.io/pets-score/'+src;});return {id:st.id,no:st.no,name:st.name,groupId:st.groupId,avatarHtml:avatar.outerHTML};}),
+      draw:window.PetDrawEngine.normalize(state.drawCenter),
+      attendance: Object.assign({}, S.attendanceOf()), sync: S.getSync(),
+      tasks: state.dailyTasks.map(({ id, icon, title, target, xp, doneBy }) => ({ id, icon, title, target, xp, doneBy: (doneBy || []).slice() })),
+    };
+  }
+  if (window.desktopWidget) window.desktopWidget.onToolCommand(async request => {
+    try {
+      if (request.type === 'attendance') {
+        const { id, absent } = request.payload;
+        if (!S.student(id)) throw new Error('找不到這位學生');
+        const status=typeof absent==='boolean'?(absent?'absent':''):absent;
+        S.setAttendance(id,status);
+        if (window.PetAttendance.isExcluded(status)) await window.desktopWidget.selectMany([id], false);
+      } else if (request.type === 'all-attendance') {
+        const ids = S.get().students.map(student => student.id);
+        const status=typeof request.payload.absent==='boolean'?(request.payload.absent?'absent':''):request.payload.absent;
+        S.setAllAttendance(ids,status);
+        if (window.PetAttendance.isExcluded(status)) await window.desktopWidget.selectMany(ids, false);
+      } else if(request.type==='draw-config') {
+        S.commit(s=>window.PetDrawEngine.settings(s,request.payload));
+      } else if(request.type==='draw-run') {
+        S.commit(s=>window.PetDrawEngine.run(s,s.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),request.payload));
+      } else if(request.type==='draw-reset') {
+        S.commit(s=>window.PetDrawEngine.reset(s));
+      } else if (request.type === 'task-students') {
+        const { taskId, ids } = request.payload;
+        if (!S.get().dailyTasks.some(task => task.id === taskId)) throw new Error('找不到這項任務');
+        const validIds = Array.from(new Set(ids)).filter(id => !!S.student(id));
+        S.setDailyTaskStudents(taskId, validIds);
+      } else if (request.type !== 'snapshot') throw new Error('不支援的工具操作');
+      window.desktopWidget.toolResult({ id: request.id, state: toolSnapshot() });
+    } catch (error) { window.desktopWidget.toolResult({ id: request.id, error: error.message }); }
+  });
+
   S.init().then(() => {
     // 開機當下已經存在的紀錄全部當作「看過了」，不然一開機就會把過去累積的紀錄全部跳出來
     seenLedgerIds = new Set((S.get().ledger || []).map((e) => e.id));
     S.subscribe(paint);
+    S.subscribe(() => window.desktopWidget && window.desktopWidget.publishToolState(toolSnapshot()));
     Promise.all([initDock(), initSelection()]).then(paint);
   });
 })();

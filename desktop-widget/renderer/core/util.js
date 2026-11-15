@@ -1,9 +1,89 @@
-/* 共用小工具（classic script，掛在 window.PetUtil） */
+﻿/* 共用小工具（classic script，掛在 window.PetUtil） */
 (function (global) {
   'use strict';
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+  const CLAY_ICONS = [
+    ['peak','回答優秀','🏔️','優秀 高峰 挑戰 突破','positive'],
+    ['thumb','回答完整','👍','完整 回答 鼓勵 讚','positive'],
+    ['hand','舉手參與','🙋','回答正確 參與 舉手','positive'],
+    ['bulb','勇敢發想','💡','思考 發想 創意 專注','positive'],
+    ['help','合作互助','🤝','合作 幫忙 友善 小組','positive'],
+    ['work','作業完成','📚','作業 繳交 努力 完成','positive'],
+    ['trophy','全班超棒','🏆','全班 小組 超棒 優良 優秀','positive'],
+    ['shield','自律守規','🛡️','自律 守規 當天蓋掉','positive'],
+    ['clock','守時提醒','⏰','遲到 太慢 準時 守時','reminder'],
+    ['bag','記得用品','🎒','健忘 忘記 用品 缺交','reminder'],
+    ['retry','訂正再試','✏️','訂正 缺交 修正 再試','reminder'],
+    ['moon','午休安靜','🌙','午休 安靜 違規 休息','reminder'],
+  ].map(([id,label,fallback,keywords,tone],index)=>({id,icon:'clay:'+id,label,fallback,keywords,tone,index,sheet:'v1',cols:4,rows:3})).concat([
+    ["star","星星","⭐"],
+    ["sparkles","閃亮星光","✨"],
+    ["heart","愛心","❤️"],
+    ["happy-heart","微笑愛心","💖"],
+    ["clap","拍手","👏"],
+    ["strong","力量","💪"],
+    ["crown","皇冠","👑"],
+    ["medal","獎牌","🏅"],
+    ["sun","太陽","☀️"],
+    ["rainbow","彩虹","🌈"],
+    ["sprout","幼苗","🌱"],
+    ["tree","大樹","🌳"],
+    ["globe","地球","🌍"],
+    ["planet","星球","🪐"],
+    ["rocket","火箭","🚀"],
+    ["butterfly","蝴蝶","🦋"],
+    ["book","書本","📕"],
+    ["open-book","打開的書","📖"],
+    ["pencil","鉛筆","✏️"],
+    ["palette","調色盤","🎨"],
+    ["microscope","顯微鏡","🔬"],
+    ["search","放大鏡","🔍"],
+    ["microphone","麥克風","🎤"],
+    ["music","音符","🎵"],
+    ["calculator","計算機","🧮"],
+    ["puzzle","拼圖","🧩"],
+    ["soccer","足球","⚽"],
+    ["basketball","籃球","🏀"],
+    ["chess","西洋棋","♞"],
+    ["dice","骰子","🎲"],
+    ["gift","禮物","🎁"],
+    ["party","慶祝","🎉"],
+    ["bell","鈴鐺","🔔"],
+    ["hourglass","沙漏","⏳"],
+    ["stop","手掌","✋"],
+    ["ear","耳朵","👂"],
+    ["chat","對話","💬"],
+    ["recycle","回收","♻️"],
+    ["broom","掃把","🧹"],
+    ["bubbles","泡泡","🫧"],
+    ["water","水滴","💧"],
+    ["apple","蘋果","🍎"],
+    ["chair","椅子","🪑"],
+    ["desk","書桌","🏫"],
+    ["sleep","睡眠雲","😴"],
+    ["think","思考","🤔"],
+    ["turtle","烏龜","🐢"],
+    ["compass","指南針","🧭"]
+  ].map(([id,label,fallback],index)=>({id,icon:"clay:"+id,label,fallback,keywords:label,tone:index>=32?"reminder":"positive",index,sheet:"v2",cols:8,rows:6})));
+  function appendIconText(node, value) {
+    const text = String(value == null ? '' : value);
+    const tokens = text.split(/(clay:[a-z][a-z0-9-]*)/g);
+    tokens.forEach(token => {
+      const info = CLAY_ICONS.find(item => item.icon === token);
+      if (!info || ['OPTION','TEXTAREA','TITLE'].includes(node.tagName)) {
+        node.appendChild(document.createTextNode(info ? info.fallback : token)); return;
+      }
+      const image = document.createElement('span');
+      image.className = 'clay-icon'; image.dataset.clay = info.id; image.dataset.sheet=info.sheet;
+      image.setAttribute('role','img'); image.setAttribute('aria-label',info.label);
+      image.style.backgroundPosition = (info.index % info.cols / (info.cols-1) * 100) + '% ' + (Math.floor(info.index / info.cols) / (info.rows-1) * 100) + '%';
+      node.appendChild(image);
+    });
+  }
+  function setIconText(node, value) { node.textContent = ''; appendIconText(node, value); return node; }
 
   function el(tag, attrs, children) {
     const node = document.createElement(tag);
@@ -13,7 +93,7 @@
         if (v === null || v === undefined || v === false) return;
         if (k === 'class') node.className = v;
         else if (k === 'html') node.innerHTML = v;
-        else if (k === 'text') node.textContent = v;
+        else if (k === 'text') setIconText(node, v);
         else if (k === 'style' && typeof v === 'object') {
           Object.keys(v).forEach((sk) => {
             if (sk.indexOf('--') === 0) node.style.setProperty(sk, v[sk]);
@@ -26,7 +106,7 @@
     }
     (Array.isArray(children) ? children : children ? [children] : []).forEach((c) => {
       if (c === null || c === undefined || c === false) return;
-      node.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+      if (typeof c === 'string' || typeof c === 'number') appendIconText(node, c); else node.appendChild(c);
     });
     return node;
   }
@@ -200,8 +280,9 @@
   }
 
   global.PetUtil = {
-    $, $$, el, uid, pad2, fmtClock, fmtDate, fmtDateTime, todayKey, isToday, daysAgo,
+    $, $$, el, CLAY_ICONS, setIconText, uid, pad2, fmtClock, fmtDate, fmtDateTime, todayKey, isToday, daysAgo,
     startOfDay, startOfWeek, startOfMonth, addDays,
     clamp, shuffle, deepClone, debounce, toast, modal, confirmDialog, download,
   };
 })(window);
+

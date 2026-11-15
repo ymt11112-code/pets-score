@@ -4,10 +4,29 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWidget', {
   getDockSide: () => ipcRenderer.invoke('get-dock-side'),
+  getWindowBounds: () => ipcRenderer.invoke('get-window-bounds'),
+  moveWindow: (x, y) => ipcRenderer.invoke('move-window', x, y),
   onDockChanged: (cb) => ipcRenderer.on('dock-changed', (evt, side) => cb(side)),
   resizeTo: (width, height) => ipcRenderer.invoke('resize-to', width, height),
   resizePicker: (width, height) => ipcRenderer.invoke('resize-picker', width, height),
   openPicker: () => ipcRenderer.invoke('open-picker'),
+  openTool: (kind) => ipcRenderer.invoke('open-tool', kind),
+  onOpenTool: (cb) => ipcRenderer.on('open-tool', (event, kind) => cb(kind)),
+  getToolState: () => ipcRenderer.invoke('get-tool-state'),
+  closeToolWindow: () => ipcRenderer.invoke('close-tool-window'),
+  setToolTaskStudents: (taskId, ids) => ipcRenderer.invoke('set-tool-task-students', taskId, ids),
+  setToolAttendance: (id, absent) => ipcRenderer.invoke('set-tool-attendance', id, absent),
+  setToolAllAttendance: (absent) => ipcRenderer.invoke('set-tool-all-attendance', absent),
+  configureDraw: patch=>ipcRenderer.invoke('configure-draw',patch),
+  runDraw: request=>ipcRenderer.invoke('run-draw',request),
+  resetDraw: ()=>ipcRenderer.invoke('reset-draw'),
+  selectDrawnStudents: ids=>ipcRenderer.invoke('select-drawn-students',ids),
+  selectDrawnStudent: (id) => ipcRenderer.invoke('select-drawn-student', id),
+  toolTimerFinished: () => ipcRenderer.invoke('tool-timer-finished'),
+  onToolCommand: (cb) => ipcRenderer.on('tool-command', (event, request) => cb(request)),
+  toolResult: (result) => ipcRenderer.send('tool-result', result),
+  publishToolState: (state) => ipcRenderer.send('publish-tool-state', state),
+  onToolState: (cb) => ipcRenderer.on('tool-state', (event, state) => cb(state)),
   closePicker: () => ipcRenderer.invoke('close-picker'),
   onPickerClosed: (cb) => ipcRenderer.on('picker-closed', () => cb()),
 
@@ -20,6 +39,7 @@ contextBridge.exposeInMainWorld('desktopWidget', {
 
   hideWindow: () => ipcRenderer.invoke('hide-window'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
+  onExpandWidget: (cb) => ipcRenderer.on('expand-widget', () => cb()),
 
   notifyAward: (payload) => ipcRenderer.invoke('notify-award', payload),
   onShowAward: (cb) => ipcRenderer.on('show-award', (evt, payload) => cb(payload)),

@@ -246,3 +246,6 @@ img { max-width: 100%; display: block; }
   .toast-host { left: 14px; right: 14px; bottom: 14px; }
   .toast { max-width: none; }
 }
+.clay-icon { display:inline-block; width:1.5em; height:1.5em; flex-shrink:0; background-image:url('img/rule-icons/clay-classroom-v1.png'); background-size:400% 300%; background-repeat:no-repeat; vertical-align:-.3em; }
+
+.clay-icon[data-sheet="v2"] { background-image:url('img/rule-icons/clay-classroom-v2.png'); background-size:800% 600%; }

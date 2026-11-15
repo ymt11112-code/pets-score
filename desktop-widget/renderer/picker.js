@@ -12,6 +12,8 @@
   const TOAST_RESERVE = 36;
   let tab = 'students'; // 'students' | 'groups'
   let selected = new Set();
+  let liveAttendance = null;
+  function absentNow(id) { return liveAttendance ? window.PetAttendance.isExcluded(liveAttendance[id] || '') : S.isAbsent(id); }
 
   function reportSize(wrapEl) {
     if (!window.desktopWidget) return;
@@ -22,7 +24,7 @@
   function groupsTab(s) {
     const list = el('div', { class: 'dw-picker__list' });
     (s.groups || []).forEach((g) => {
-      const ids = s.students.filter((x) => x.groupId === g.id && !S.isAbsent(x.id)).map((x) => x.id);
+      const ids = s.students.filter((x) => x.groupId === g.id && !absentNow(x.id)).map((x) => x.id);
       const allOn = ids.length > 0 && ids.every((id) => selected.has(id));
       list.appendChild(el('button', {
         class: 'dw-chip' + (allOn ? ' is-on' : ''), text: g.emoji + ' ' + g.name + '（' + ids.length + '）',
@@ -34,7 +36,7 @@
   }
 
   function studentsTab(s) {
-    const activeIds = s.students.filter((st) => !S.isAbsent(st.id)).map((st) => st.id);
+    const activeIds = s.students.filter((st) => !absentNow(st.id)).map((st) => st.id);
     const allSelected = activeIds.length > 0 && activeIds.every((id) => selected.has(id));
     const allBtn = el('button', {
       class: 'dw-btn dw-btn--block' + (allSelected ? ' is-active' : ''),
@@ -49,7 +51,7 @@
     });
     const listEl = el('div', { class: 'dw-num-grid' });
     s.students.slice().sort((a, b) => a.no - b.no).forEach((st) => {
-      const absent = S.isAbsent(st.id);
+      const absent = absentNow(st.id);
       const on = selected.has(st.id);
       listEl.appendChild(el('button', {
         class: 'dw-chip--num' + (on ? ' is-on' : '') + (absent ? ' is-off-disabled' : ''),
@@ -87,6 +89,8 @@
     window.desktopWidget.getSelection().then((ids) => { selected = new Set(ids || []); paint(); });
     window.desktopWidget.onSelectionChanged((ids) => { selected = new Set(ids || []); paint(); });
   }
+
+  if (window.desktopWidget) window.desktopWidget.onToolState(state => { liveAttendance = state.attendance; if (S.get()) paint(); });
 
   S.init().then(() => {
     S.subscribe(paint);

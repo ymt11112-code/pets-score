@@ -1,0 +1,62 @@
+﻿body { margin:0; background:#f3f9f5; font-size:14px; }
+.dt-header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:18px 18px 12px; }
+.dt-header p { margin:0 0 4px; color:var(--ink-mute); font-size:11px; }
+.dt-header h1 { font-size:21px; }
+.dt-clock-badge { font-size:11px; color:var(--brand); padding:7px 10px; border-radius:999px; background:var(--green-soft); font-variant-numeric:tabular-nums; }
+.dt-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; padding:0 12px 12px; position:sticky; top:0; z-index:3; background:#f3f9f5; }
+.dt-tab { display:flex; flex-direction:column; align-items:center; gap:4px; min-height:58px; padding:8px 3px; border:1px solid var(--line); border-radius:13px; background:#fff; font-size:12px; font-weight:700; }
+.dt-tab span:first-child { font-size:20px; }
+.dt-tab.is-active { color:#fff; background:var(--brand); border-color:var(--brand); }
+.dt-content { padding:0 12px 20px; }
+.dt-panel { display:flex; flex-direction:column; gap:14px; padding:16px; border:1px solid var(--line); border-radius:18px; background:#fff; min-width:0; }
+.dt-panel h2 { font-size:18px; }
+.dt-note { font-size:12px; line-height:1.7; color:var(--ink-mute); }
+.dt-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.dt-section-head > span { font-size:11px; color:var(--ink-mute); }
+.dt-summary { display:flex; align-items:center; justify-content:space-between; padding:12px; border-radius:12px; background:var(--bg-soft); color:var(--brand); }
+.dt-summary > span { font-size:12px; }
+.dt-actions { display:flex; flex-wrap:wrap; gap:7px; }
+.dt-actions .btn { flex:1 1 80px; min-height:42px; padding:9px 8px; font-size:13px; }
+.dt-students { display:grid; grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:7px; }
+.dt-student { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px; padding:9px 4px; min-height:85px; min-width:0; border:2px solid var(--line); border-radius:13px; background:#fff; }
+.dt-student b { font-size:18px; }
+.dt-student > span { font-size:12px; overflow-wrap:anywhere; }
+.dt-student small { font-size:10px; color:var(--ink-mute); }
+.dt-student.is-selected { background:var(--green-soft); border-color:var(--green); }
+.dt-student.is-absent { background:#fff5ef; border-color:#edcdbd; color:#a06b54; }
+.dt-student:disabled,.dt-wide:disabled { opacity:.5; cursor:default; }
+.dt-check { display:flex; align-items:center; gap:8px; min-height:40px; }
+.dt-check input { width:19px; height:19px; accent-color:var(--green); }
+.dt-wide { width:100%; min-height:44px; }
+.dt-draw-stage { padding:24px 12px; min-height:200px; border-radius:16px; background:var(--green-soft); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
+.dt-draw-number { display:grid; place-items:center; width:64px; height:64px; border-radius:50%; background:#fff; font-size:28px; font-weight:900; color:var(--brand); }
+.dt-draw-name { font-size:24px; }
+.dt-draw-stage small { color:var(--ink-soft); font-size:12px; }
+.dt-timer-stage { padding:24px 12px; border-radius:16px; color:#fff; background:var(--brand); }
+.dt-timer-stage.is-finished { background:#987416; }
+.dt-timer-time { text-align:center; font-size:clamp(40px,15vw,68px); font-weight:900; font-variant-numeric:tabular-nums; }
+.dt-timer-bar { height:7px; border-radius:9px; background:#ffffff30; margin-top:15px; overflow:hidden; }
+.dt-timer-progress { height:100%; background:var(--gold); transition:width .2s linear; }
+.dt-presets { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.dt-presets .btn { padding:9px 4px; font-size:13px; min-height:40px; }
+.dt-custom { display:flex; gap:7px; align-items:center; }
+.dt-custom input { min-width:0; flex:1; }
+.dt-custom span { white-space:nowrap; font-size:12px; }
+.dt-custom .btn { padding:10px 13px; }
+.dt-task { display:flex; align-items:center; gap:10px; width:100%; padding:14px 10px; border:1px solid var(--line); border-radius:14px; background:var(--bg-soft); text-align:left; }
+.dt-task-icon { font-size:28px; }
+.dt-task > div { min-width:0; flex:1; display:grid; gap:6px; }
+.dt-task strong { font-size:14px; overflow-wrap:anywhere; }
+.dt-task small { font-size:11px; color:var(--ink-mute); }
+.dt-task progress { width:100%; height:8px; accent-color:var(--green); }
+button:focus-visible { outline:3px solid #1b9ac0; outline-offset:2px; }
+@media(max-width:350px) { .dt-panel { padding:12px; } .dt-header { padding:14px 12px; } .dt-header h1 { font-size:18px; } .dt-clock-badge { font-size:10px; padding:6px; } }
+.dt-attendance-person { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.dt-attendance-person .input { min-width:0; width:100%; padding:7px 3px; font-size:12px; }
+.dt-attendance-person .dt-student { width:100%; }
+.dt-attendance-counts { display:flex; flex-wrap:wrap; gap:6px; font-size:12px; }
+.dt-attendance-counts span { background:var(--bg-soft); border-radius:99px; padding:5px 8px; }
+.attendance-status-present { background:#e1f4e8; border-color:#8ac9a4; }
+.attendance-status-late { background:#fff1ce; border-color:#e4bd5b; }
+.attendance-status-early { background:#fbe4d5; border-color:#deab88; }
+.attendance-status-sick,.attendance-status-personal,.attendance-status-bereavement,.attendance-status-absent { background:#f0e9f6; border-color:#bdacd2; }

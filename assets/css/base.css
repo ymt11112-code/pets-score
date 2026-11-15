@@ -257,3 +257,5 @@ img { max-width: 100%; display: block; }
 
 /* 原創黏土圖示：4×3 透明圖集，代碼僅用於資料儲存。 */
 .clay-icon { display:inline-block; width:1.5em; height:1.5em; flex-shrink:0; background-image:url('../img/rule-icons/clay-classroom-v1.png'); background-size:400% 300%; background-repeat:no-repeat; vertical-align:-.3em; }
+
+.clay-icon[data-sheet="v2"] { background-image:url('../img/rule-icons/clay-classroom-v2.png'); background-size:800% 600%; }

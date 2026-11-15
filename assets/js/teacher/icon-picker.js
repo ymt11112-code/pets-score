@@ -47,7 +47,7 @@
       const value = input.value.trim();
       const item = items.find(x => x.icon === value);
       window.PetUtil.setIconText(preview, value || '⭐');
-      chosen.textContent = item ? item.label : '自訂 emoji';
+      chosen.textContent = value.startsWith('clay:') ? '' : item ? item.label : '自訂 emoji';
       grid.querySelectorAll('button[data-icon]').forEach(button => {
         const selected = button.dataset.icon === value;
         button.classList.toggle('is-selected', selected);
@@ -76,7 +76,7 @@
       else if (category === 'suggested') list = suggested();
       else if (category === 'recent') list = recentIcons().map(icon => items.find(x=>x.icon===icon) || {icon,label:'自訂 emoji'});
       else list = category === 'all' ? items : items.filter(x=>x.group===category);
-      grid.replaceChildren(...list.map(item => el('button', { class: 'rule-icons__item', type: 'button', 'data-icon': item.icon, title: item.label, 'aria-label': item.label, 'aria-pressed': 'false', onclick: () => pick(item) }, [el('span', { class: 'rule-icons__emoji', text: item.icon }), el('span', { class: 'rule-icons__label', text: item.label })])));
+      grid.replaceChildren(...list.map(item => el('button', { class: 'rule-icons__item', type: 'button', 'data-icon': item.icon, title: item.label, 'aria-label': item.label, 'aria-pressed': 'false', onclick: () => pick(item) }, [el('span', { class: 'rule-icons__emoji', text: item.icon }), item.icon.startsWith('clay:') ? null : el('span', { class: 'rule-icons__label', text: item.label })])));
       if (!list.length) grid.append(el('p', { class: 'rule-icons__empty', text: category === 'recent' && !query ? '選過的圖示會出現在這裡。' : '找不到符合的圖示，試試其他關鍵字，或直接貼上 emoji。' }));
       status.textContent = query ? '找到 ' + list.length + ' 個圖示' : category === 'suggested' ? '依規則名稱與加扣分推薦' : list.length + ' 個圖示';
       grid.scrollTop = 0;

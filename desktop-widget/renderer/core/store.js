@@ -17,6 +17,7 @@
   const listeners = [];
   let pollTimer = null;
   let saveTimer = null;
+  let remoteWrites = 0;
   let syncStatus = { state: 'idle', message: '本機模式', at: 0 };
 
   /* ---------- 安全的 localStorage ---------- */
@@ -154,10 +155,12 @@
   }
 
   function pullRemote(silent) {
-    if (config.mode !== 'sheet') return Promise.resolve(state);
+    if (config.mode !== 'sheet' || saveTimer || remoteWrites) return Promise.resolve(state);
+    const requestedVersion = state && state.updatedAt;
     if (!silent) setSync('syncing', '正在從 Google Sheets 讀取…');
     return sheetCall('load')
       .then((res) => {
+        if (saveTimer || remoteWrites || (state && state.updatedAt) !== requestedVersion) return state;
         if (res.state && res.state.students) {
           const incoming = res.state;
           if (!state || (incoming.updatedAt || 0) >= (state.updatedAt || 0)) {
@@ -181,6 +184,7 @@
   function pushRemote(silent) {
     if (config.mode !== 'sheet') return Promise.resolve(state);
     if (!silent) setSync('syncing', '正在儲存到 Google Sheets…');
+    remoteWrites++;
     return sheetCall('save', { state })
       .then(() => {
         setSync('ok', '已儲存至 Google Sheets · ' + U.fmtClock(Date.now()));
@@ -189,13 +193,13 @@
       .catch((err) => {
         setSync('error', err.message + '（資料已暫存在這台裝置）');
         throw err;
-      });
+      }).finally(() => { remoteWrites--; });
   }
 
   function startPolling() {
     stopPolling();
     if (config.mode !== 'sheet') return;
-    const sec = Math.max(8, Number(config.pollSeconds) || 20);
+    const sec = Math.max(4, Math.min(8, Number(config.pollSeconds) || 5));
     pollTimer = setInterval(() => {
       if (document.hidden) return;
       pullRemote(true).catch(() => {});
@@ -215,7 +219,7 @@
   function scheduleRemoteSave() {
     if (config.mode !== 'sheet') return;
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => pushRemote(true).catch(() => {}), 900);
+    saveTimer = setTimeout(() => { saveTimer = null; pushRemote(true).catch(() => {}); }, 400);
   }
 
   /* 內建寵物的識別碼後來從英文品種名（corgi／cat）統一改成跟老師的編號對齊（01dog／02cat），
@@ -745,6 +749,17 @@
     return state;
   }
 
+  // 同瀏覽器不同分頁收到新存檔時，更新畫面與加分提示，不再次上傳。
+  global.addEventListener('storage', (event) => {
+    if (event.key !== LS_STATE || !event.newValue || !state || saveTimer || remoteWrites) return;
+    try {
+      const incoming = JSON.parse(event.newValue);
+      if (incoming.students && (incoming.updatedAt || 0) > (state.updatedAt || 0)) {
+        state = migrate(incoming); emit();
+      }
+    } catch (e) { console.warn('忽略無效的分頁同步資料', e); }
+  });
+
   /* ---------- 查詢 ---------- */
   const get = () => state;
   const getConfig = () => config;
@@ -1066,10 +1081,11 @@
   }
 
   function isAbsent(studentId, dateKey) {
-    return attendanceOf(dateKey)[studentId] === 'absent';
+    return global.PetAttendance.isExcluded(attendanceOf(dateKey)[studentId] || '');
   }
 
   function setAttendance(studentId, status, dateKey) {
+    if (!global.PetAttendance.valid(status)) throw new Error('不支援的出席狀態');
     const day = dateKey || U.todayKey();
     commit((s) => {
       s.attendance = s.attendance || {};
@@ -1080,6 +1096,7 @@
   }
 
   function setAllAttendance(studentIds, status, dateKey) {
+    if (!global.PetAttendance.valid(status)) throw new Error('不支援的出席狀態');
     const day = dateKey || U.todayKey();
     commit((s) => {
       s.attendance = s.attendance || {};

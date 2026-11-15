@@ -1,4 +1,4 @@
-/* 共用小工具（classic script，掛在 window.PetUtil） */
+﻿/* 共用小工具（classic script，掛在 window.PetUtil） */
 (function (global) {
   'use strict';
 
@@ -18,19 +18,68 @@
     ['bag','記得用品','🎒','健忘 忘記 用品 缺交','reminder'],
     ['retry','訂正再試','✏️','訂正 缺交 修正 再試','reminder'],
     ['moon','午休安靜','🌙','午休 安靜 違規 休息','reminder'],
-  ].map(([id,label,fallback,keywords,tone],index)=>({id,icon:'clay:'+id,label,fallback,keywords,tone,index}));
+  ].map(([id,label,fallback,keywords,tone],index)=>({id,icon:'clay:'+id,label,fallback,keywords,tone,index,sheet:'v1',cols:4,rows:3})).concat([
+    ["star","星星","⭐"],
+    ["sparkles","閃亮星光","✨"],
+    ["heart","愛心","❤️"],
+    ["happy-heart","微笑愛心","💖"],
+    ["clap","拍手","👏"],
+    ["strong","力量","💪"],
+    ["crown","皇冠","👑"],
+    ["medal","獎牌","🏅"],
+    ["sun","太陽","☀️"],
+    ["rainbow","彩虹","🌈"],
+    ["sprout","幼苗","🌱"],
+    ["tree","大樹","🌳"],
+    ["globe","地球","🌍"],
+    ["planet","星球","🪐"],
+    ["rocket","火箭","🚀"],
+    ["butterfly","蝴蝶","🦋"],
+    ["book","書本","📕"],
+    ["open-book","打開的書","📖"],
+    ["pencil","鉛筆","✏️"],
+    ["palette","調色盤","🎨"],
+    ["microscope","顯微鏡","🔬"],
+    ["search","放大鏡","🔍"],
+    ["microphone","麥克風","🎤"],
+    ["music","音符","🎵"],
+    ["calculator","計算機","🧮"],
+    ["puzzle","拼圖","🧩"],
+    ["soccer","足球","⚽"],
+    ["basketball","籃球","🏀"],
+    ["chess","西洋棋","♞"],
+    ["dice","骰子","🎲"],
+    ["gift","禮物","🎁"],
+    ["party","慶祝","🎉"],
+    ["bell","鈴鐺","🔔"],
+    ["hourglass","沙漏","⏳"],
+    ["stop","手掌","✋"],
+    ["ear","耳朵","👂"],
+    ["chat","對話","💬"],
+    ["recycle","回收","♻️"],
+    ["broom","掃把","🧹"],
+    ["bubbles","泡泡","🫧"],
+    ["water","水滴","💧"],
+    ["apple","蘋果","🍎"],
+    ["chair","椅子","🪑"],
+    ["desk","書桌","🏫"],
+    ["sleep","睡眠雲","😴"],
+    ["think","思考","🤔"],
+    ["turtle","烏龜","🐢"],
+    ["compass","指南針","🧭"]
+  ].map(([id,label,fallback],index)=>({id,icon:"clay:"+id,label,fallback,keywords:label,tone:index>=32?"reminder":"positive",index,sheet:"v2",cols:8,rows:6})));
   function appendIconText(node, value) {
     const text = String(value == null ? '' : value);
-    const tokens = text.split(/(clay:(?:peak|thumb|hand|bulb|help|work|trophy|shield|clock|bag|retry|moon)\b)/g);
+    const tokens = text.split(/(clay:[a-z][a-z0-9-]*)/g);
     tokens.forEach(token => {
       const info = CLAY_ICONS.find(item => item.icon === token);
       if (!info || ['OPTION','TEXTAREA','TITLE'].includes(node.tagName)) {
         node.appendChild(document.createTextNode(info ? info.fallback : token)); return;
       }
       const image = document.createElement('span');
-      image.className = 'clay-icon'; image.dataset.clay = info.id;
+      image.className = 'clay-icon'; image.dataset.clay = info.id; image.dataset.sheet=info.sheet;
       image.setAttribute('role','img'); image.setAttribute('aria-label',info.label);
-      image.style.backgroundPosition = (info.index % 4 / 3 * 100) + '% ' + (Math.floor(info.index / 4) / 2 * 100) + '%';
+      image.style.backgroundPosition = (info.index % info.cols / (info.cols-1) * 100) + '% ' + (Math.floor(info.index / info.cols) / (info.rows-1) * 100) + '%';
       node.appendChild(image);
     });
   }
@@ -236,3 +285,4 @@
     clamp, shuffle, deepClone, debounce, toast, modal, confirmDialog, download,
   };
 })(window);
+

@@ -1,0 +1,28 @@
+{
+  "version": "20261115-2",
+  "files": [
+    "README.md",
+    "teacher.html",
+    "student.html",
+    "assets/css/base.css",
+    "assets/css/teacher.css",
+    "assets/css/draw-center.css",
+    "assets/js/core/util.js",
+    "assets/js/core/store.js",
+    "assets/js/core/attendance.js",
+    "assets/js/core/award-notices.js",
+    "assets/js/core/draw-engine.js",
+    "assets/js/core/draw-avatar.js",
+    "assets/js/core/draw-center.js",
+    "assets/js/teacher/app.js",
+    "assets/js/teacher/icon-picker.js",
+    "assets/js/teacher/classroom.js",
+    "assets/img/rule-icons/README.md",
+    "assets/img/rule-icons/CLAY_V2.md"
+  ],
+  "image": "assets/img/rule-icons/clay-classroom-v1.png",
+  "images": [
+    "assets/img/rule-icons/clay-classroom-v1.png",
+    "assets/img/rule-icons/clay-classroom-v2.png"
+  ]
+}

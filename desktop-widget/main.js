@@ -3,7 +3,7 @@
    資料邏輯（連線 Google Sheets、加點）完全交給 renderer 那邊的 store.js，
    跟網頁版共用同一份程式碼，不用維護兩套。
 
-   視窗本身是「橫幅」造型，靠左上角的小把手（-webkit-app-region:drag）拖曳。
+   視窗本身是「橫幅」造型，可按住頂部整條標題區（-webkit-app-region:drag）拖曳。
    拖到螢幕邊緣放開，會自動貼齊變成直的（靠左右）或橫的（靠上下），
    節省空間的邏輯（貼邊判斷＋依貼邊方向重新定位）都在這個檔案；
    實際要縮多大則是 renderer 量完自己的排版之後回報過來的（見 resize-to）。
@@ -16,6 +16,10 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { isDesktopLink, registerDesktopLink } = require('./desktop-link');
+const ownsInstance = app.requestSingleInstanceLock();
+if (!ownsInstance) app.quit();
+let desktopOpenPending = process.argv.some(isDesktopLink);
 
 const POS_FILE = path.join(app.getPath('userData'), 'window-pos.json');
 const DEFAULT_SIZE = { width: 180, height: 30 };
@@ -174,6 +178,7 @@ function createWindow() {
   // 'screen-saver' 是 Windows 上少數能蓋過「全螢幕簡報模式」的層級，一般 App 疊不過去
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.webContents.on('did-finish-load', () => { if (desktopOpenPending) showWidgetAgain(); });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
   dockSide = computeDockSide(win.getBounds());
@@ -185,7 +190,7 @@ function createWindow() {
      setBounds，這本身也會觸發 'move' 事件——如果不擋掉，就會變成「resize 觸發 move
      → 150ms 後重新判斷貼邊 → 送 dock-changed → renderer 重新排版 → 又呼叫 resize-to
      → 又觸發 move → ……」的無窮迴圈，畫面就會一直抖動、按鈕點不到。只有「使用者自己
-     拖曳把手」造成的 move 才需要重新判斷貼邊。 */
+     拖曳標題區或小腳掌」造成的 move 才需要重新判斷貼邊。 */
   let settleTimer = null;
   win.on('move', () => {
     if (pickerWin) positionPickerWindow(); // 選人視窗要立刻跟著移動，不用等 150ms settle
@@ -225,6 +230,8 @@ function showWidgetAgain() {
   win.setOpacity(1);
   win.show();
   win.focus();
+  if (win.webContents.isLoadingMainFrame()) desktopOpenPending = true;
+  else { desktopOpenPending = false; win.webContents.send('expand-widget'); }
 }
 
 function createTray() {
@@ -239,6 +246,19 @@ function createTray() {
 }
 
 ipcMain.handle('get-dock-side', () => dockSide);
+// 小腳掌使用 pointer 拖曳，保留同一個按鈕的點擊展開功能。
+ipcMain.handle('get-window-bounds', (evt) => {
+  if (!win || evt.sender !== win.webContents) return null;
+  return win.getBounds();
+});
+ipcMain.handle('move-window', (evt, x, y) => {
+  if (!win || evt.sender !== win.webContents || !Number.isFinite(x) || !Number.isFinite(y)) return;
+  const cur = win.getBounds();
+  const area = screen.getDisplayNearestPoint({ x: Math.round(x + cur.width / 2), y: Math.round(y + cur.height / 2) }).workArea;
+  x = Math.min(Math.max(Math.round(x), area.x), area.x + Math.max(0, area.width - cur.width));
+  y = Math.min(Math.max(Math.round(y), area.y), area.y + Math.max(0, area.height - cur.height));
+  win.setPosition(x, y);
+});
 
 /* renderer 每次排版變動（切分類、展開/收起點數紀錄……）都會量出自己實際需要的大小，
    呼叫這個把視窗實際尺寸調整過去；同時依照目前貼邊方向決定要固定住哪一邊
@@ -324,7 +344,22 @@ ipcMain.handle('bubble-done', () => {
   processBubbleQueue();
 });
 
+require('./tools-window')({ app, BrowserWindow, ipcMain,
+  getMainWindow: () => win, getPickerWindow: () => pickerWin,
+  selectForAward: (id) => { selectedIds = Array.isArray(id)?id:[id]; broadcastSelection(); showWidgetAgain(); },
+});
+
+app.on('second-instance', (event, commandLine) => {
+  // 重複開啟 EXE 或網頁入口時，喚回同一個工具，避免開出多個視窗。
+  desktopOpenPending = true;
+  if (win) showWidgetAgain();
+});
+
 app.whenReady().then(() => {
+  if (!ownsInstance) return;
+  try {
+    if (app.isPackaged && !registerDesktopLink(app)) console.warn('無法註冊網頁開啟入口，請重新執行桌面工具。');
+  } catch (error) { console.warn('網頁開啟入口註冊失敗：', error.message); }
   createWindow();
   createTray();
   createBubbleWindow();
