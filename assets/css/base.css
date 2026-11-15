@@ -246,3 +246,14 @@ img { max-width: 100%; display: block; }
   .toast-host { left: 14px; right: 14px; bottom: 14px; }
   .toast { max-width: none; }
 }
+
+/* 投影端即時加分通知，與一般操作 toast 分開顯示 */
+.award-notices { position:fixed; right:20px; bottom:calc(24px + env(safe-area-inset-bottom,0px)); z-index:150; width:min(520px,calc(100vw - 28px)); pointer-events:none; }
+.award-notice { display:flex; align-items:center; gap:14px; padding:20px 22px; border-radius:24px; border-left:8px solid #2caa83; background:rgba(245,255,250,.97); color:#244c43; box-shadow:0 12px 40px #12372e30; font-size:22px; line-height:1.45; overflow-wrap:anywhere; }
+.award-notice__icon { font-size:30px; }
+.award-notice button { pointer-events:auto; flex-shrink:0; min-width:44px; min-height:44px; font-size:24px; color:#42675d; margin-left:auto; }
+@media(max-width:640px) { .award-notices { right:14px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); } .award-notice { padding:14px; font-size:17px; gap:8px; } }
+@media(max-width:640px) { .award-notices { top:12px; bottom:auto; } }
+
+/* 原創黏土圖示：4×3 透明圖集，代碼僅用於資料儲存。 */
+.clay-icon { display:inline-block; width:1.5em; height:1.5em; flex-shrink:0; background-image:url('../img/rule-icons/clay-classroom-v1.png'); background-size:400% 300%; background-repeat:no-repeat; vertical-align:-.3em; }

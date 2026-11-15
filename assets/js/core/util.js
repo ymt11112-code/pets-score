@@ -5,6 +5,37 @@
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
+  const CLAY_ICONS = [
+    ['peak','回答優秀','🏔️','優秀 高峰 挑戰 突破','positive'],
+    ['thumb','回答完整','👍','完整 回答 鼓勵 讚','positive'],
+    ['hand','舉手參與','🙋','回答正確 參與 舉手','positive'],
+    ['bulb','勇敢發想','💡','思考 發想 創意 專注','positive'],
+    ['help','合作互助','🤝','合作 幫忙 友善 小組','positive'],
+    ['work','作業完成','📚','作業 繳交 努力 完成','positive'],
+    ['trophy','全班超棒','🏆','全班 小組 超棒 優良 優秀','positive'],
+    ['shield','自律守規','🛡️','自律 守規 當天蓋掉','positive'],
+    ['clock','守時提醒','⏰','遲到 太慢 準時 守時','reminder'],
+    ['bag','記得用品','🎒','健忘 忘記 用品 缺交','reminder'],
+    ['retry','訂正再試','✏️','訂正 缺交 修正 再試','reminder'],
+    ['moon','午休安靜','🌙','午休 安靜 違規 休息','reminder'],
+  ].map(([id,label,fallback,keywords,tone],index)=>({id,icon:'clay:'+id,label,fallback,keywords,tone,index}));
+  function appendIconText(node, value) {
+    const text = String(value == null ? '' : value);
+    const tokens = text.split(/(clay:(?:peak|thumb|hand|bulb|help|work|trophy|shield|clock|bag|retry|moon)\b)/g);
+    tokens.forEach(token => {
+      const info = CLAY_ICONS.find(item => item.icon === token);
+      if (!info || ['OPTION','TEXTAREA','TITLE'].includes(node.tagName)) {
+        node.appendChild(document.createTextNode(info ? info.fallback : token)); return;
+      }
+      const image = document.createElement('span');
+      image.className = 'clay-icon'; image.dataset.clay = info.id;
+      image.setAttribute('role','img'); image.setAttribute('aria-label',info.label);
+      image.style.backgroundPosition = (info.index % 4 / 3 * 100) + '% ' + (Math.floor(info.index / 4) / 2 * 100) + '%';
+      node.appendChild(image);
+    });
+  }
+  function setIconText(node, value) { node.textContent = ''; appendIconText(node, value); return node; }
+
   function el(tag, attrs, children) {
     const node = document.createElement(tag);
     if (attrs) {
@@ -13,7 +44,7 @@
         if (v === null || v === undefined || v === false) return;
         if (k === 'class') node.className = v;
         else if (k === 'html') node.innerHTML = v;
-        else if (k === 'text') node.textContent = v;
+        else if (k === 'text') setIconText(node, v);
         else if (k === 'style' && typeof v === 'object') {
           Object.keys(v).forEach((sk) => {
             if (sk.indexOf('--') === 0) node.style.setProperty(sk, v[sk]);
@@ -26,7 +57,7 @@
     }
     (Array.isArray(children) ? children : children ? [children] : []).forEach((c) => {
       if (c === null || c === undefined || c === false) return;
-      node.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+      if (typeof c === 'string' || typeof c === 'number') appendIconText(node, c); else node.appendChild(c);
     });
     return node;
   }
@@ -200,7 +231,7 @@
   }
 
   global.PetUtil = {
-    $, $$, el, uid, pad2, fmtClock, fmtDate, fmtDateTime, todayKey, isToday, daysAgo,
+    $, $$, el, CLAY_ICONS, setIconText, uid, pad2, fmtClock, fmtDate, fmtDateTime, todayKey, isToday, daysAgo,
     startOfDay, startOfWeek, startOfMonth, addDays,
     clamp, shuffle, deepClone, debounce, toast, modal, confirmDialog, download,
   };

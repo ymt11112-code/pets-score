@@ -7,7 +7,7 @@
   const S = window.PetStore;
   const { $, $$, el } = U;
 
-  let page = 'overview';
+  let page = window.matchMedia('(max-width: 860px)').matches ? 'classroom' : 'overview';
   let selected = new Set();
   let filterGroup = '';
   let keyword = '';
@@ -118,7 +118,7 @@
     const st = S.get().settings || {};
     const notifyOn = isPositive ? st.notifyAward !== false : st.notifyDeduct !== false;
     const soundOn = isPositive ? !!st.soundAward : !!st.soundDeduct;
-    if (notifyOn) U.toast(ids.length + ' 位學生 ' + ruleObj.label + ' ' + sign + ruleObj.points + ' 點');
+    if (notifyOn && (!isPositive || !window.PetAwardNotices)) U.toast(ids.length + ' 位學生 ' + ruleObj.label + ' ' + sign + ruleObj.points + ' 點');
     if (soundOn) playAwardChime(isPositive);
     if (ups.length) {
       U.toast('🎉 ' + ups.map((u) => u.name + ' Lv.' + u.level).join('、') + ' 升級了！');
@@ -618,7 +618,7 @@
 
   function dockBar() {
     const s = S.get();
-    const order = (s.toolbar && s.toolbar.length ? s.toolbar : M.DEFAULT_TOOLBAR);
+    const order = (Array.isArray(s.toolbar) ? s.toolbar : M.DEFAULT_TOOLBAR);
     const items = order.map((id) => dockItem(id, s)).filter(Boolean);
     const row1 = items.slice(0, 6);
     const row2 = items.slice(6);
@@ -635,12 +635,9 @@
       : null;
 
     const editBtn = el('button', {
-      class: 'dock-btn', text: '✏️ 編輯', title: '編輯底部工具列項目、顯示設定等',
+      class: 'dock-btn', text: '✏️ 設定快捷列', title: '選擇網頁批次加點快捷列的常用項目與順序',
       onclick: () => {
-        collapsedSections.toolbar = false;
-        go('system');
-        const node = document.getElementById('sec-toolbar');
-        if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        openRuleSection('toolbar');
       },
     });
 
@@ -920,42 +917,34 @@
   }
 
   function openTimerModal() {
-    U.modal({ title: '課堂計時器', body: timerWidget() });
+    U.modal({ title: '課堂計時器', body: el('div', { class: 'stack' }, [el('p', { class: 'card__sub', text: '計時器在目前裝置運作；關閉面板後仍會繼續倒數。' }), timerWidget()]) });
   }
 
   function openAttendance() {
-    const s = S.get();
-    const day = U.todayKey();
-    const grid = el('div', { class: 'avatar-grid' });
-
-    function paint() {
-      grid.innerHTML = '';
-      s.students.forEach((st) => {
-        const absent = S.isAbsent(st.id, day);
-        grid.appendChild(el('button', { class: 'avatar-card' + (absent ? ' is-absent' : ' is-on'), onclick: () => { S.setAttendance(st.id, absent ? '' : 'absent', day); paint(); } }, [
-          el('div', { class: 'avatar-card__face' }, [
-            M.petFace(M.petById(st.petId), 40, M.levelFromXp(st.xp).level, st.petPathId),
-            el('span', { class: absent ? 'avatar-card__badge avatar-card__badge--absent' : 'avatar-card__check', text: absent ? '假' : '✓' }),
-          ]),
-          el('div', { class: 'avatar-card__label', text: U.pad2(st.no) + ' ' + st.name }),
-        ]));
-      });
+    const A=window.PetAttendance, day=U.todayKey();
+    const grid=el('div',{class:'attendance-grid'}), summary=el('p',{class:'attendance-summary',role:'status'});
+    const bulk=el('select',{class:'input','aria-label':'全班出席狀態'},A.statuses.map(status=>el('option',{value:status.id,text:status.label})));
+    function paint(){
+      const state=S.get(), record=S.attendanceOf(day);
+      summary.textContent=A.statuses.map(status=>status.label+' '+state.students.filter(st=>(record[st.id]||'')===status.id).length+' 位').concat(state.students.some(st=>record[st.id]==='absent')?['未分類請假 '+state.students.filter(st=>record[st.id]==='absent').length+' 位']:[]).join(' · ');
+      grid.replaceChildren(...state.students.slice().sort((a,b)=>a.no-b.no).map(st=>{
+        const status=record[st.id]||'';
+        const select=el('select',{class:'input attendance-select','aria-label':st.name+'出席狀態',onchange:e=>{S.setAttendance(st.id,e.target.value,day);paint();}},[
+          ...(status==='absent'?[el('option',{value:'absent',text:A.label('absent')})]:[]),
+          ...A.statuses.map(item=>el('option',{value:item.id,text:item.label}))
+        ]);select.value=status;
+        return el('div',{class:'attendance-person','data-student':st.id},[
+          el('button',{type:'button',class:'attendance-cycle attendance-status-'+(status||'present'),'aria-label':st.name+'：'+A.label(status)+'；點擊切換下一狀態',onclick:()=>{S.setAttendance(st.id,A.next(status),day);paint();}},[
+            petCell(st,40),el('strong',{text:U.pad2(st.no)+' '+st.name}),el('span',{text:A.label(status)})
+          ]),select
+        ]);
+      }));
     }
     paint();
-
-    U.modal({
-      title: '出席狀況・' + U.fmtDate(Date.now()),
-      wide: true,
-      body: el('div', { class: 'stack' }, [
-        el('p', { class: 'card__sub', text: '點一下頭像切換「到校／請假」。請假的學生今天不會出現在批次加點的選取名單中。' }),
-        el('div', { class: 'row', style: { gap: '8px' } }, [
-          el('button', { class: 'btn btn--ghost btn--sm', text: '全部到校', onclick: () => { S.setAllAttendance(s.students.map((x) => x.id), '', day); paint(); } }),
-          el('button', { class: 'btn btn--ghost btn--sm', text: '全部請假', onclick: () => { S.setAllAttendance(s.students.map((x) => x.id), 'absent', day); paint(); } }),
-        ]),
-        grid,
-      ]),
-      actions: [{ label: '完成', kind: 'primary' }],
-    });
+    U.modal({title:'出席狀況・'+U.fmtDate(Date.now()),wide:true,body:el('div',{class:'stack'},[
+      el('p',{class:'card__sub',text:'點學生依序切換六種狀態，或直接用下拉選單設定。病假、事假、喪假與早退會排除抽籤；遲到仍可參加。'}),
+      summary,el('div',{class:'row',style:{flexWrap:'wrap'}},[bulk,el('button',{class:'btn btn--ghost',text:'套用全班',onclick:()=>{S.setAllAttendance(S.get().students.map(st=>st.id),bulk.value,day);paint();}})]),grid
+    ]),actions:[{label:'完成',kind:'primary'}]});
   }
 
   /* 挑某一項今日任務「完成的學生名單」：點座號切換、也可以整組一起勾，排序可以切依座號／依組別，
@@ -1205,14 +1194,14 @@
     let n = 0;
     const iv = setInterval(() => {
       const r = prizes[Math.floor(Math.random() * prizes.length)];
-      stage.children[0].textContent = r.icon;
+      U.setIconText(stage.children[0], r.icon);
       stage.children[1].textContent = r.name;
       if (++n > 16) {
         clearInterval(iv);
         stage.classList.remove('is-rolling');
         const result = S.drawGroupChestLottery(g.id);
         if (result.ok) {
-          stage.children[0].textContent = result.prize.icon;
+          U.setIconText(stage.children[0], result.prize.icon);
           stage.children[1].textContent = result.prize.name;
           stage.children[2].textContent = '🎉 ' + g.name + ' 抽中了！';
         } else {
@@ -1483,9 +1472,10 @@
     ]);
 
     function paintTimer() {
-      timeEl.textContent = fmtTimer(timerState.left);
-      timeEl.classList.toggle('is-warn', timerState.left <= 30);
-      fillEl.style.width = (timerState.left / timerState.total * 100) + '%';
+      // 重開面板後，也要更新新的計時顯示，不只更新原本已關閉的節點。
+      $$('.timer-stage__time').forEach(node => { node.textContent = fmtTimer(timerState.left); node.classList.toggle('is-warn', timerState.left <= 30); });
+      $$('.timer-stage__fill').forEach(node => { node.style.width = (timerState.left / timerState.total * 100) + '%'; });
+      $$('[data-remote-timer]').forEach(node => { node.textContent = fmtTimer(timerState.left); });
     }
     function startTimer() {
       if (timerState.running) return;
@@ -2771,7 +2761,7 @@
         }));
       });
       const active = S.rule(activeRuleId);
-      activeLabel.textContent = '目前用來加分的規則：' + (active ? active.icon + ' ' + active.label + '（+' + active.points + ' 點）' : activeRuleId);
+      U.setIconText(activeLabel, '目前用來加分的規則：' + (active ? active.icon + ' ' + active.label + '（+' + active.points + ' 點）' : activeRuleId));
     }
 
     function paint() {
@@ -2951,10 +2941,11 @@
         const dayRecord = s.attendance[U.todayKey(d)];
         if (!dayRecord) return el('td', { style: { textAlign: 'center' } }, [el('span', { class: 'muted', text: '—' })]);
         recordedCount += 1;
-        const absent = dayRecord[st.id] === 'absent';
+        const status = dayRecord[st.id] || '';
+        const absent = window.PetAttendance.isExcluded(status);
         if (!absent) presentCount += 1;
         return el('td', { style: { textAlign: 'center' } }, [
-          el('span', { class: 'pill' + (absent ? ' pill--red' : ''), text: absent ? '請假' : '到校' }),
+          el('span', { class: 'pill' + (absent ? ' pill--red' : ''), text: window.PetAttendance.label(status) }),
         ]);
       });
       const pct = recordedCount ? Math.round((presentCount / recordedCount) * 100) : null;
@@ -3105,19 +3096,8 @@
 
   /* 規則設定頁幾個編輯視窗共用的圖示選擇格：點了直接把選到的 emoji 填進對應的輸入框，
      輸入框本身還是可以手動打字/貼上，點選只是比較快的捷徑。 */
-  const ICON_PICKER_EMOJIS = [
-    '⭐', '🌟', '✨', '🏆', '🥇', '🎖️', '👍', '👏', '❤️', '💪', '🔥', '🎯',
-    '📚', '📖', '✏️', '📝', '🎓', '🧠', '💡', '🔍', '🧩', '🎨', '🎵', '🎤',
-    '👥', '🤝', '🌱', '🧹', '⏰', '✅', '📌', '🎁', '🪑', '🎲', '🧑‍🏫', '🌈',
-    '🐶', '🐱', '🐹', '🦊', '🐸', '🦉', '🐢', '🐝', '🦄', '🐧',
-    '🍎', '🍪', '🍬', '🎂', '⚽', '🏀', '🎮', '🚀', '🛡️', '⚡',
-    '💭', '😊', '😢', '⚠️', '🚫', '🔧', '📋', '🙌',
-  ];
-  function iconPicker(iconInput) {
-    return el('div', { class: 'emoji-picker' }, ICON_PICKER_EMOJIS.map((em) => el('button', {
-      class: 'emoji-picker__btn', text: em, type: 'button',
-      onclick: () => { iconInput.value = em; },
-    })));
+  function iconPicker(iconInput, options) {
+    return window.PetIconPicker.create(iconInput, options);
   }
 
   /* ================= 規則設定 ================= */
@@ -3127,11 +3107,16 @@
     function openEditRule(r, isNew) {
       const s2 = S.get();
       const cats = s2.ruleCategories && s2.ruleCategories.length ? s2.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
-      const iconInput = el('input', { class: 'input', value: r.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
+      const iconInput = el('input', { class: 'rule-icon-input', type: 'hidden', value: r.icon, style: { maxWidth: '76px', textAlign: 'center', fontSize: '30px', flexShrink: '0' } });
       const nameInput = el('input', { class: 'input grow', value: r.label, placeholder: '規則名稱' });
       const ptsInput = el('input', { class: 'input', type: 'number', value: r.points });
       const xpInput = el('input', { class: 'input', type: 'number', value: r.xp });
       const coinsInput = el('input', { class: 'input', type: 'number', value: r.coins });
+      const iconLibrary = iconPicker(iconInput, { nameInput, pointsInput: ptsInput });
+      const iconButton = el('button', { type:'button',class:'rule-current-icon','aria-label':'選擇規則圖示',onclick:()=>{iconLibrary.scrollIntoView({behavior:'smooth',block:'center'});iconLibrary.querySelector('[data-category="clay"]').click();} }, [iconInput]);
+      function paintRuleIcon() { const field=iconButton.querySelector('.rule-current-icon__image'); if(field) U.setIconText(field,iconInput.value); }
+      iconButton.appendChild(el('span',{class:'rule-current-icon__image',text:iconInput.value}));
+      iconInput.addEventListener('input',paintRuleIcon);
       const catSelect = el('select', { class: 'input' }, cats.map((c) => el('option', { value: c.id, text: c.label, selected: (r.category || cats[0].id) === c.id })));
       const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
 
@@ -3175,10 +3160,9 @@
       U.modal({
         title: isNew ? '新增規則' : '編輯規則',
         body: el('div', { class: 'stack' }, [
-          el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
-          iconPicker(iconInput),
+          el('div', { class: 'rule-edit-heading' }, [iconButton, field('名稱', nameInput), field('分類', catSelect)]),
+          iconLibrary,
           el('div', { class: 'row', style: { gap: '10px' } }, [field('課堂點數', ptsInput), field('寵物 XP', xpInput), field('金幣', coinsInput)]),
-          field('分類', catSelect),
         ]),
         actions,
       });
@@ -3389,7 +3373,7 @@
     }
 
     /* ---- 今日任務：格子卡片，點卡片開編輯視窗（圖示、名稱、全班目標、XP）。完成名單不在這裡改，
-       到「今日任務進度」（底部工具列「今日任務」）用座號點選，done 會自動跟著名單算。 ---- */
+       到「今日任務進度」（批次加點快捷列「今日任務」）用座號點選，done 會自動跟著名單算。 ---- */
     function openEditTask(t, isNew) {
       const iconInput = el('input', { class: 'input', value: t.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
       const nameInput = el('input', { class: 'input grow', value: t.title, placeholder: '任務名稱' });
@@ -3462,22 +3446,24 @@
     }
 
     return el('div', {}, [
-      pageHead('規則設定', '自訂加分規則、兌換商店與每日任務，改完立即生效。',
+      pageHead('規則設定', '先在共用規則庫設定加扣分，再挑選網頁批次加點的常用快捷按鈕。',
         sectionJumpBar([
+          { id: 'rules', label: '⭐ 共用規則庫' },
+          { id: 'categories', label: '🏷️ 共用分類' },
+          { id: 'toolbar', label: '⚡ 網頁快捷列' },
           { id: 'tasks', label: '📗 今日任務' },
-          { id: 'categories', label: '🏷️ 規則分類' },
-          { id: 'rules', label: '⭐ 加分規則' },
           { id: 'shop', label: '🎁 兌換商店' },
         ])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [
-        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標、達成後的 XP；完成名單請到底部工具列「今日任務」設定，XP 目前僅顯示於學生前台，尚未自動加總發放。', [
-          taskCardGrid(),
+        sectionCard('rules', '加扣分規則庫（所有裝置共用）', '統一新增、編輯與刪除規則，設定點數、XP、金幣和分類。網頁、手機與桌面工具共用；新增後可在下方選擇是否加入網頁快捷列。', [
+          ruleCardGrid(),
         ]),
-        sectionCard('categories', '規則分類', '桌面小工具用這些分類把規則按鈕分區塊顯示；點卡片可以改名、刪除，拖曳可以排序。', [
+        sectionCard('categories', '共用規則分類', '分類用於網頁規則篩選與桌面工具分頁；點卡片可改名、刪除，拖曳可排序。', [
           categoryCardGrid(),
         ]),
-        sectionCard('rules', '加分規則', '點卡片可以編輯；上面可以切換加分／扣分，也可以依分類篩選。', [
-          ruleCardGrid(),
+        batchShortcutSettingsCard(),
+        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標、達成後的 XP；完成名單請到批次加點快捷列「今日任務」設定，XP 目前僅顯示於學生前台，尚未自動加總發放。', [
+          taskCardGrid(),
         ]),
         sectionCard('shop', '兌換商店', '學生用課堂點數兌換；點卡片可以編輯。', [
           shopCardGrid(),
@@ -3688,13 +3674,77 @@
     ]);
   }
 
+  function openRuleSection(id) {
+    collapsedSections[id] = false;
+    go('rules');
+    const node = document.getElementById('sec-' + id);
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function batchShortcutSettingsCard() {
+    const s = S.get();
+    /* ---- 批次加點底部工具列的項目 ---- */
+    const allTools = M.TOOLBAR_TOOLS.map((t) => ({ id: t.id, icon: t.icon, label: t.label }))
+      .concat(s.rules.map((r) => ({ id: r.id, icon: r.icon, label: r.label + '（' + (r.points >= 0 ? '+' : '') + r.points + ' 點）' })));
+    const order = (Array.isArray(s.toolbar) ? s.toolbar : M.DEFAULT_TOOLBAR).filter((id) => allTools.some((t) => t.id === id));
+    const hidden = allTools.filter((t) => order.indexOf(t.id) < 0).map((t) => t.id);
+
+    function moveToolbar(idx, dir) {
+      S.commit((d) => {
+        const arr = order.slice();
+        const j = idx + dir;
+        if (j < 0 || j >= arr.length) return;
+        const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+        d.toolbar = arr;
+      });
+    }
+    function hideToolbarItem(idx) {
+      S.commit((d) => {
+        const arr = order.slice();
+        arr.splice(idx, 1);
+        d.toolbar = arr;
+      });
+    }
+    function showToolbarItem(id) {
+      S.commit((d) => {
+        const arr = order.slice();
+        arr.push(id);
+        d.toolbar = arr;
+      });
+    }
+
+    return sectionCard('toolbar', '網頁批次加點快捷列', '選擇網頁「批次加點」下方要放的常用規則與課堂工具；前 6 個直接顯示，其餘收在「更多」。移出快捷列會保留規則庫與桌面工具的規則。', [
+      el('div', { class: 'stack' }, order.map((id, idx) => {
+        const tool = allTools.find((t) => t.id === id);
+        if (!tool) return null;
+        return el('div', { class: 'rule-edit' }, [
+          el('span', { class: 'rule-edit__icon', text: tool.icon }),
+          el('span', { class: 'grow', text: tool.label + (idx < 6 ? '（直接顯示）' : '（更多）') }),
+          el('button', { class: 'btn btn--ghost btn--sm', text: '▲', title: '上移', onclick: () => moveToolbar(idx, -1) }),
+          el('button', { class: 'btn btn--ghost btn--sm', text: '▼', title: '下移', onclick: () => moveToolbar(idx, 1) }),
+          el('button', { class: 'btn btn--danger btn--sm', text: '移出快捷列', onclick: () => hideToolbarItem(idx) }),
+        ]);
+      })),
+      hidden.length ? el('p', { class: 'card__sub', style: { marginTop: '14px' }, text: '可加入快捷列的規則與工具：' }) : null,
+      hidden.length ? el('div', { class: 'stack' }, hidden.map((id) => {
+        const tool = allTools.find((t) => t.id === id);
+        if (!tool) return null;
+        return el('div', { class: 'rule-edit' }, [
+          el('span', { class: 'rule-edit__icon', text: tool.icon }),
+          el('span', { class: 'grow', text: tool.label }),
+          el('button', { class: 'btn btn--green btn--sm', text: '＋ 加入快捷列', onclick: () => showToolbarItem(id) }),
+        ]);
+      })) : null,
+    ]);
+
+  }
+
   /* ================= 系統設定 ================= */
   function pageSystemSettings() {
     const s = S.get();
 
-    /* 這兩張卡片其實都是「批次加點」頁面會用到的設定（頭像顯示、底部工具列），
-       預設收合、只露出標題，點上面的標籤才展開並捲過去，跟寵物設定頁同一套做法。 */
-    ['display', 'toolbar'].forEach((id) => {
+    /* 顯示選項預設收合；快捷列僅保留導向規則設定的入口。 */
+    ['display'].forEach((id) => {
       if (!(id in collapsedSections)) collapsedSections[id] = true;
     });
 
@@ -3811,78 +3861,14 @@
       ]),
     ]);
 
-    /* ---- 批次加點底部工具列的項目 ---- */
-    const allTools = M.TOOLBAR_TOOLS.map((t) => ({ id: t.id, icon: t.icon, label: t.label }))
-      .concat(s.rules.map((r) => ({ id: r.id, icon: r.icon, label: r.label })));
-    const order = (s.toolbar && s.toolbar.length ? s.toolbar : M.DEFAULT_TOOLBAR).filter((id) => allTools.some((t) => t.id === id));
-    const hidden = allTools.filter((t) => order.indexOf(t.id) < 0).map((t) => t.id);
-
-    function moveToolbar(idx, dir) {
-      S.commit((d) => {
-        const arr = (d.toolbar && d.toolbar.length ? d.toolbar : M.DEFAULT_TOOLBAR.slice()).slice();
-        const j = idx + dir;
-        if (j < 0 || j >= arr.length) return;
-        const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
-        d.toolbar = arr;
-      });
-    }
-    function hideToolbarItem(idx) {
-      S.commit((d) => {
-        const arr = (d.toolbar && d.toolbar.length ? d.toolbar : M.DEFAULT_TOOLBAR.slice()).slice();
-        arr.splice(idx, 1);
-        d.toolbar = arr;
-      });
-    }
-    function showToolbarItem(id) {
-      S.commit((d) => {
-        const arr = (d.toolbar && d.toolbar.length ? d.toolbar : M.DEFAULT_TOOLBAR.slice()).slice();
-        arr.push(id);
-        d.toolbar = arr;
-      });
-    }
-
-    /* 規則的分類決定桌面小工具要把這顆按鈕分到哪一頁，順便放在這裡編輯，不用跑去「規則設定」
-       找；分類項目本身（新增/改名/刪除/排序）在「規則設定→規則分類」管理。
-       util: 開頭的內建工具沒有分類可選。 */
-    function categorySelect(id) {
-      const rule = s.rules.find((r) => r.id === id);
-      if (!rule) return null;
-      const cats = s.ruleCategories && s.ruleCategories.length ? s.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
-      return el('select', {
-        class: 'input rule-edit__cat', title: '桌面小工具的分類（項目可以到「規則設定→規則分類」調整）',
-        onchange: (e) => S.commit((d) => { const rr = d.rules.find((x) => x.id === id); if (rr) rr.category = e.target.value; }, { silent: true }),
-      }, cats.map((c) => el('option', { value: c.id, text: c.label, selected: (rule.category || cats[0].id) === c.id })));
-    }
-
-    const toolbarCard = sectionCard('toolbar', '⭐ 批次加點的底部工具列', '前 6 個項目會排在第一排，其餘收在「更多」裡；可以隱藏、加入或調整順序。規則右邊的分類是給桌面小工具用的（上課用／作業類／星野主線）。', [
-      el('div', { class: 'stack' }, order.map((id, idx) => {
-        const tool = allTools.find((t) => t.id === id);
-        if (!tool) return null;
-        return el('div', { class: 'rule-edit' }, [
-          el('span', { class: 'rule-edit__icon', text: tool.icon }),
-          el('span', { class: 'grow', text: tool.label + (idx < 6 ? '' : '（第二排）') }),
-          categorySelect(id),
-          el('button', { class: 'btn btn--ghost btn--sm', text: '▲', title: '上移', onclick: () => moveToolbar(idx, -1) }),
-          el('button', { class: 'btn btn--ghost btn--sm', text: '▼', title: '下移', onclick: () => moveToolbar(idx, 1) }),
-          el('button', { class: 'btn btn--danger btn--sm', text: '隱藏', onclick: () => hideToolbarItem(idx) }),
-        ]);
-      })),
-      hidden.length ? el('p', { class: 'card__sub', style: { marginTop: '14px' }, text: '未顯示的項目：' }) : null,
-      hidden.length ? el('div', { class: 'stack' }, hidden.map((id) => {
-        const tool = allTools.find((t) => t.id === id);
-        if (!tool) return null;
-        return el('div', { class: 'rule-edit' }, [
-          el('span', { class: 'rule-edit__icon', text: tool.icon }),
-          el('span', { class: 'grow', text: tool.label }),
-          categorySelect(id),
-          el('button', { class: 'btn btn--green btn--sm', text: '＋ 加入面板', onclick: () => showToolbarItem(id) }),
-        ]);
-      })) : null,
+    const toolbarCard = card('網頁批次加點快捷列', '快捷列已集中到「規則設定」管理。這裡的顯示設定與規則庫分開儲存。', [
+      el('p', { class: 'card__sub', text: '快捷列只決定網頁批次加點下方的常用按鈕與順序；名稱、點數、XP、金幣和分類統一到規則庫修改。桌面工具依分類顯示全部規則。' }),
+      el('button', { class: 'btn btn--primary', text: '設定網頁快捷列 →', onclick: () => openRuleSection('toolbar') }),
     ]);
 
     return el('div', {}, [
-      pageHead('系統設定', '目前兩張卡片都是「批次加點」頁面的設定（頭像顯示方式、底部工具列），參考 ClassDojo 的「Options」選單整理，改完立即生效。',
-        sectionJumpBar([{ id: 'display', label: '🎨 批次加點頁面設定' }, { id: 'toolbar', label: '⭐ 底部工具列' }])),
+      pageHead('系統設定', '調整頁面顯示、提示音效與加分連動。加扣分規則及網頁快捷列統一到「規則設定」管理。',
+        sectionJumpBar([{ id: 'display', label: '🎨 批次加點頁面設定' }])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [displayCard, toolbarCard]),
     ]);
   }
@@ -3995,10 +3981,10 @@
       ['🌟', '星野主線', '設定合作闖關的故事關卡，發放身分路線獎勵。'],
       ['⏱️', '點數紀錄', '每一筆加扣點都有紀錄，加錯了可以撤銷或直接編輯。'],
       ['🎁', '兌換管理', '學生在前台用點數兌換獎勵後，在這裡確認發放。'],
-      ['🛡️', '規則設定', '自訂加分規則、兌換商店與每日任務，改完立即生效。'],
+      ['🛡️', '規則設定', '管理所有裝置共用的加扣分規則庫、分類，以及網頁批次加點快捷列。'],
       ['🐾', '寵物設定', '寵物種類、造型圖片、等級門檻、身分路線與收藏設定都在這裡。'],
       ['🏅', '徽章管理', '設定徽章的名稱、圖片與解鎖條件，查看全班解鎖情況。'],
-      ['🛠️', '系統設定', '顯示樣式與批次加點的底部工具列都在這裡。'],
+      ['🛠️', '系統設定', '設定顯示樣式、提示與音效；快捷列請到「規則設定 → 網頁快捷列」。'],
       ['☁️', '資料與同步', '選擇資料存在本機或同步到 Google 試算表，並可備份。'],
     ];
 
@@ -4097,7 +4083,7 @@
     const host = $('#batchbar');
     host.innerHTML = '';
     const showSetting = S.get().settings ? S.get().settings.showBatchBar !== false : true;
-    if (!selected.size || page === 'batch' || !showSetting) {
+    if (!selected.size || page === 'batch' || page === 'classroom' || !showSetting) {
       host.classList.remove('is-in');
       return;
     }
@@ -4115,7 +4101,10 @@
 
   /* ---------- 路由 ---------- */
   const PAGES = {
-    guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
+    classroom: () => window.PetClassroom.render(applyRule, desktopLauncherOptions, {
+      timer: openTimerModal, pick: openRandomDraw, attendance: openAttendance, tasks: openDailyTasksQuick,
+      go, refresh: render, timerLabel: () => fmtTimer(timerState.left),
+    }), guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
     pets: pagePets, 'pet-settings': pagePetSettings, badges: pageBadges, messages: pageMessages, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
     storyline: pageStoryline,
@@ -4136,6 +4125,8 @@
   }
 
   function render() {
+    document.body.classList.toggle('is-classroom', page === 'classroom');
+    document.body.classList.remove('is-remote-home');
     const host = $('#page');
     host.innerHTML = '';
     host.appendChild((PAGES[page] || pageOverview)());
@@ -4166,6 +4157,8 @@
   let floatOpen = false;
   let floatSelected = new Set();
   let floatPipWin = null;
+  let floatDock = '';
+  window.addEventListener('resize', () => { if (S.get()) renderFloatWidget(); });
 
   function loadFloatPos() {
     try {
@@ -4193,6 +4186,12 @@
       moved = false;
       startX = e.clientX; startY = e.clientY;
       const rect = moveEl.getBoundingClientRect();
+      if (moveEl.classList.contains('is-dock-bottom') || moveEl.classList.contains('is-dock-right')) {
+        floatDock = ''; moveEl.classList.remove('is-dock-bottom', 'is-dock-right');
+        moveEl.style.left = Math.min(rect.left, window.innerWidth - moveEl.offsetWidth) + 'px';
+        moveEl.style.top = Math.min(rect.top, window.innerHeight - moveEl.offsetHeight) + 'px';
+        moveEl.style.right = 'auto';
+      }
       baseX = rect.left; baseY = rect.top;
       try { handleEl.setPointerCapture(e.pointerId); } catch (err) { /* 部分瀏覽器／測試環境沒有這個 API */ }
     });
@@ -4221,6 +4220,18 @@
     });
   }
 
+  function desktopLauncherOptions() {
+    const windows = /Windows/i.test(navigator.userAgent);
+    return el('div', { class: 'desktop-launch-options' }, [
+      windows ? el('a', { class: 'btn btn--primary', href: 'classpet://open', text: '🐾 開啟桌面小工具' }) : null,
+      documentPipSupported() ? el('button', { class: 'btn btn--ghost', text: '🪟 使用網頁置頂小視窗', onclick: openFloatPip }) : null,
+      windows ? el('details', { class: 'desktop-launch-help' }, [
+        el('summary', { text: '第一次使用／點了沒有開啟？' }),
+        el('p', { text: '請先開啟「班級加點小工具 1.3.0.exe」一次，再回來按上方按鈕。若瀏覽器詢問，請允許開啟。移動 EXE 後請重新執行一次。桌面工具使用原有班級連線設定。' }),
+      ]) : el('p', { class: 'muted', text: '桌面小工具適用 Windows；這台裝置可繼續使用網頁加點。' }),
+    ]);
+  }
+
   function documentPipSupported() {
     return typeof window !== 'undefined' && 'documentPictureInPicture' in window;
   }
@@ -4240,7 +4251,7 @@
         .forEach((st) => {
           const on = floatSelected.has(st.id);
           listEl.appendChild(el('button', {
-            class: 'float-chip' + (on ? ' is-on' : ''), text: U.pad2(st.no) + ' ' + st.name,
+            'aria-pressed': String(on), class: 'float-chip' + (on ? ' is-on' : ''), text: U.pad2(st.no) + ' ' + st.name,
             onclick: () => { on ? floatSelected.delete(st.id) : floatSelected.add(st.id); paintList(); countEl.textContent = '已選 ' + floatSelected.size; },
           }));
         });
@@ -4259,10 +4270,11 @@
     });
 
     const pipRow = floatPipWin
-      ? null
-      : documentPipSupported()
-        ? el('button', { class: 'btn btn--ghost btn--sm', style: { width: '100%', marginTop: '10px' }, text: '🪟 彈出獨立小視窗', onclick: openFloatPip })
-        : el('p', { class: 'muted', style: { fontSize: '12px', marginTop: '10px', textAlign: 'center' }, text: '這個瀏覽器不支援「彈出獨立小視窗」，請改用 Chrome 或 Edge。' });
+      ? el('div', { class: 'row' }, [
+          el('button', { class: 'btn btn--ghost', text: '↕ 直排', onclick: () => { floatPipWin.document.body.classList.remove('pip-horizontal'); floatPipWin.resizeTo(320, 560); } }),
+          el('button', { class: 'btn btn--ghost', text: '↔ 橫排', onclick: () => { floatPipWin.document.body.classList.add('pip-horizontal'); floatPipWin.resizeTo(900, 260); } }),
+        ])
+      : desktopLauncherOptions();
 
     return el('div', { class: 'float-panel__body' }, [
       el('div', { class: 'row', style: { justifyContent: 'space-between', marginBottom: '6px' } }, [countEl]),
@@ -4288,8 +4300,10 @@
     if (!host) return;
     host.innerHTML = '';
     const pos = loadFloatPos();
+    pos.x = Math.max(0, Math.min(pos.x, window.innerWidth - (floatOpen ? Math.min(320, window.innerWidth) : 56)));
+    pos.y = Math.max(0, Math.min(pos.y, window.innerHeight - (floatOpen ? Math.min(460, window.innerHeight) : 56)));
     if (!floatOpen) {
-      const fab = el('span', { class: 'float-fab', text: '⭐', style: { left: pos.x + 'px', top: pos.y + 'px' } });
+      const fab = el('span', { class: 'float-fab', text: '⭐', role: 'button', tabindex: '0', 'aria-label': '開啟快速加點', onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); floatOpen = true; renderFloatWidget(); } }, style: { left: pos.x + 'px', top: pos.y + 'px' } });
       makeDraggable(fab, fab, saveFloatPos, () => { floatOpen = true; renderFloatWidget(); });
       host.appendChild(fab);
       return;
@@ -4298,8 +4312,17 @@
       el('span', { text: '⭐ 快速加點' }),
       el('button', { class: 'float-panel__close', text: '✕', onclick: () => { floatOpen = false; renderFloatWidget(); } }),
     ]);
-    const panel = el('div', { class: 'float-panel', style: { left: pos.x + 'px', top: pos.y + 'px' } }, [panelHead, floatPanelBody()]);
-    makeDraggable(panelHead, panel, saveFloatPos, null);
+    const panel = el('div', { class: 'float-panel' + (floatDock ? ' is-dock-' + floatDock : ''), style: { left: pos.x + 'px', top: pos.y + 'px' } }, [panelHead, floatPanelBody()]);
+    makeDraggable(panelHead, panel, (p) => {
+      const rect = panel.getBoundingClientRect();
+      const bottom = window.innerHeight - rect.bottom;
+      const right = window.innerWidth - rect.right;
+      floatDock = '';
+      panel.classList.remove('is-dock-bottom', 'is-dock-right');
+      if (right < 32 && right <= bottom) { floatDock = 'right'; panel.classList.add('is-dock-right'); panel.style.left = 'auto'; panel.style.right = '0'; panel.style.top = '0'; }
+      else if (bottom < 32) { floatDock = 'bottom'; panel.classList.add('is-dock-bottom'); panel.style.left = '0'; panel.style.top = 'auto'; }
+      saveFloatPos(p);
+    }, null);
     host.appendChild(panel);
   }
 
@@ -4343,6 +4366,10 @@
       try { localStorage.setItem('classpet.sideCollapsed', collapsed ? '1' : '0'); } catch (e) { /* 忽略 */ }
     });
   }
+
+  window.matchMedia('(max-width: 860px)').addEventListener('change', () => {
+    if (S.get() && page === 'classroom') render();
+  });
 
   /* ---------- 啟動 ---------- */
   S.init().then(() => {
