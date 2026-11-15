@@ -265,3 +265,7 @@
 .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-name { grid-row:1 / span 2; }
 .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-seat { grid-column:3; grid-row:1; line-height:1; }
 .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-task { grid-column:3; grid-row:2; font-size:12px; padding:2px; line-height:1.1; }
+
+.dc-workspace .dc-result-card .pet-face--emoji { font-size:28px!important; line-height:1; }
+.dc-workspace .dc-results:is([data-count='4'],[data-count='5']) .pet-face--emoji { font-size:23px!important; }
+.dc-workspace .dc-results:is([data-count='4'],[data-count='5']) .draw-pet-cos { font-size:14px; }
