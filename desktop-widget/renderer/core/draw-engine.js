@@ -2,12 +2,16 @@
 (function(root){
   'use strict';
   const STYLES=['wheel','race','bomb','slot','gacha','cards','scratch'];
-  const DEFAULTS={style:'wheel',count:1,excludeDrawn:true,sound:true,volume:45,duration:4,taskMode:'none',questionFrom:1,questionTo:20,taskText:'獲得掌聲\n分享解題方法\n帶領大家伸展',choreText:'擦黑板\n掃地\n拖地\n整理書櫃\n倒回收\n擦窗臺',customText:'第一個任務\n第二個任務',groupCount:0};
+  const DEFAULTS={style:'wheel',count:1,excludeDrawn:true,sound:true,volume:70,soundTrack:'drums',revealSound:'fanfare',soundIntensity:2,wheelPalette:'forest',duration:4,taskMode:'none',questionFrom:1,questionTo:20,taskText:'獲得掌聲\n分享解題方法\n帶領大家伸展',choreText:'擦黑板\n掃地\n拖地\n整理書櫃\n倒回收\n擦窗臺',customText:'第一個任務\n第二個任務',groupCount:0};
   const integer=(value,min,max,fallback)=>Number.isFinite(Number(value))?Math.max(min,Math.min(max,Math.round(Number(value)))):fallback;
   const random=()=>{if(root.crypto&&root.crypto.getRandomValues){const n=new Uint32Array(1);root.crypto.getRandomValues(n);return n[0]/4294967296;}return Math.random();};
   function normalize(raw){
     const source=raw&&typeof raw==='object'?raw:{};const cfg=Object.assign({},DEFAULTS,source.config||{});
     cfg.style=STYLES.includes(cfg.style)?cfg.style:'wheel';cfg.count=integer(cfg.count,1,5,1);cfg.duration=integer(cfg.duration,1,8,4);cfg.volume=integer(cfg.volume,0,100,45);cfg.groupCount=integer(cfg.groupCount,0,10,0);
+    cfg.soundTrack=['drums','heartbeat','arcade','suspense','bells','none'].includes(cfg.soundTrack)?cfg.soundTrack:'drums';
+    cfg.revealSound=['fanfare','applause','fireworks','chime','none'].includes(cfg.revealSound)?cfg.revealSound:'fanfare';
+    cfg.soundIntensity=integer(cfg.soundIntensity,1,3,2);
+    cfg.wheelPalette=['forest','ocean','sunset','candy','neon','mono'].includes(cfg.wheelPalette)?cfg.wheelPalette:'forest';
     cfg.excludeDrawn=cfg.excludeDrawn!==false;cfg.sound=cfg.sound!==false;cfg.taskMode=['none','questions','reward','chores','custom'].includes(cfg.taskMode)?cfg.taskMode:'none';
     cfg.questionFrom=integer(cfg.questionFrom,1,999,1);cfg.questionTo=integer(cfg.questionTo,cfg.questionFrom,Math.min(999,cfg.questionFrom+499),Math.max(cfg.questionFrom,20));
     ['taskText','choreText','customText'].forEach(key=>cfg[key]=String(cfg[key]||'').slice(0,6000));

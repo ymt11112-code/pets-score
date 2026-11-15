@@ -1,5 +1,5 @@
 {
-  "version": "20261116-2",
+  "version": "20261116-3",
   "files": [
     "README.md",
     "teacher.html",
@@ -18,7 +18,8 @@
     "assets/js/teacher/icon-picker.js",
     "assets/js/teacher/classroom.js",
     "assets/img/rule-icons/README.md",
-    "assets/img/rule-icons/CLAY_V2.md"
+    "assets/img/rule-icons/CLAY_V2.md",
+    "assets/js/core/draw-sounds.js"
   ],
   "image": "assets/img/rule-icons/clay-classroom-v1.png",
   "images": [
