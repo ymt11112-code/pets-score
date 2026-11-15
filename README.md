@@ -215,3 +215,7 @@ Windows 的「快速加點」現在提供「開啟桌面小工具」主要按鈕
 - 桌面需更新1.5.0，支援同一抽籤資料、多人帶回加點與60個圖示。
 
 驗證：scripts/test-draw-engine.cjs、scripts/test-attendance.cjs、scripts/test-web-ui.cjs、scripts/test-touch-and-quick.cjs、scripts/test-native-draw.cjs。介面測試使用獨立資料，不操作真實班級。
+
+## 20261116-1：抽籤固定左右版面
+
+設定卡片預設收合並放到抽籤區下方。動畫與結果左右同屏，開始抽籤、揭曉與更新歷史不會自動捲頁。五人結果採緊湊姓名列；整輪長名單使用右欄內部捲動。桌面更新為1.5.1。驗證：node scripts/test-draw-layout.cjs（捲軸及區塊位置不變、五人同時可見、手機左右排列）。

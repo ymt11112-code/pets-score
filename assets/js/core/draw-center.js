@@ -27,7 +27,7 @@
   }
   function create(adapter){
     let snapshot=adapter.getSnapshot(),data=E.normalize(snapshot.draw),running=false,projected=false,disposed=false,frame=null,presentation=0,revealNow=null;
-    const audio=sounds();const rootEl=el('section',{class:'draw-center'});let refs={},notice='',weightSearch='';
+    const audio=sounds();const rootEl=el('section',{class:'draw-center'});let refs={},notice='',weightSearch='',settingsOpen=false;
     const currentPool=()=>E.candidates(snapshot,data);
     const formatStudent=st=>U.pad2(st.no)+' '+st.name;
     function btn(text,click,kind,attrs){return el('button',Object.assign({type:'button',class:'dc-button '+(kind||''),text,onclick:click},attrs||{}));}
@@ -81,7 +81,7 @@
     }
     function avatar(result){if(adapter.avatar)return adapter.avatar(result.studentId||result.id);return el('span',{class:'dc-avatar',text:result.emoji||'🐾'});}
     function paintResults(result){
-      refs.results.replaceChildren();if(!result)return;
+      refs.results.dataset.count=String(result?result.results.length:0);refs.results.replaceChildren();if(!result){refs.results.append(el('div',{class:'dc-result-placeholder'},[el('span',{text:running?'🎲':'🐾','aria-hidden':'true'}),el('h2',{text:running?'抽籤中…':'抽籤結果'}),el('p',{text:running?'結果將在這裡揭曉':'按「開始抽籤」，抽中的同學會顯示在這裡。'})]));return;}
       refs.results.append(el('h2',{text:result.order?'本次排序／分組結果':'本次抽中 '+result.results.length+' 位'}));
       if(result.results.length>5){const table=el('table',{class:'dc-order-table'},[el('thead',{},[el('tr',{},['名次','學生','任務','組別'].map(text=>el('th',{text})))]),el('tbody',{},result.results.map(item=>el('tr',{},[el('td',{text:item.rank}),el('td',{text:U.pad2(item.no)+' '+item.name}),el('td',{text:item.task||'—'}),el('td',{text:item.group?'第 '+item.group+' 組':'—'})])))]);refs.results.append(el('div',{class:'dc-order-scroll'},[table]));}
       else refs.results.append(el('div',{class:'dc-results-grid'},result.results.map(item=>el('article',{class:'dc-result-card'},[avatar(item),el('span',{class:'dc-result-seat',text:U.pad2(item.no)+' 號'}),el('strong',{class:'dc-result-name',text:item.name}),item.task?el('span',{class:'dc-result-task',text:item.task}):null,item.group?el('small',{text:'第 '+item.group+' 組'}):null]))));
@@ -96,11 +96,13 @@
         btn(projected?'結束投影':'⛶ 大字投影',()=>toggleProject()),adapter.back?btn('返回',()=>{cancelPresentation();if(projected)toggleProject(false);adapter.back();}):null
       ])]);rootEl.append(header);
       rootEl.append(el('div',{class:'dc-style-list','aria-label':'抽籤樣式'},THEMES.map(([id,image,label])=>btn(image+' '+label,()=>{if(running)return;configure({config:{style:id}});render();},'',{'data-style':id,'data-lock':'','aria-pressed':String(data.config.style===id)}))));
-      rootEl.append(settings());refs.stage=el('div',{class:'dc-stage','aria-label':'抽籤動畫區'});rootEl.append(refs.stage);
+      const workspace=el('div',{class:'dc-workspace'}),drawPane=el('div',{class:'dc-draw-pane'});rootEl.append(workspace);workspace.append(drawPane);
+      refs.stage=el('div',{class:'dc-stage','aria-label':'抽籤動畫區'});drawPane.append(refs.stage);
       buildScene(null,currentPool(),false);
       refs.start=btn('開始抽籤',()=>start(false),'dc-primary',{'data-draw-start':''});refs.order=btn('抽出整輪排序',()=>start(true),'',{'data-lock':'','data-draw-order':''});refs.reveal=btn('直接揭曉全部結果',()=>{if(revealNow)revealNow();},'');refs.reveal.hidden=true;
-      rootEl.append(el('div',{class:'dc-toolbar'},[refs.start,refs.order,btn('↻ 一鍵重置名單',async()=>{if(running)return;try{const next=await adapter.reset();if(next)update(next);notice='已開始新的一輪，原始學生名單完整保留。';render();}catch(error){setNotice(error.message);}},'',{'data-lock':'','data-reset-round':''}),refs.reveal]),refs.notice);
-      refs.results=el('div',{class:'dc-results','aria-live':'polite'});rootEl.append(refs.results);if(!running)paintResults(data.last);
+      drawPane.append(el('div',{class:'dc-toolbar'},[refs.start,refs.order,btn('↻ 一鍵重置名單',async()=>{if(running)return;try{const next=await adapter.reset();if(next)update(next);notice='已開始新的一輪，原始學生名單完整保留。';render();}catch(error){setNotice(error.message);}},'',{'data-lock':'','data-reset-round':''}),refs.reveal]),refs.notice);
+      refs.results=el('div',{class:'dc-results','aria-live':'polite','aria-label':'本次抽籤結果'});workspace.append(refs.results);paintResults(running?null:data.last);
+      const configCard=el('details',{class:'dc-settings-card',open:settingsOpen?'open':null},[el('summary',{text:'⚙️ 抽籤設定（人數、任務、音效與權重）'}),settings()]);configCard.addEventListener('toggle',()=>{settingsOpen=configCard.open;});rootEl.append(configCard);
       rootEl.append(history());refresh();
     }
     function buildScene(result,pool,animate){
@@ -145,7 +147,7 @@
       revealNow=()=>{canvases.forEach(canvas=>{canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);canvas.style.pointerEvents='none';});finishResult(result);};
     }
     function finishResult(result){
-      if(!running||disposed)return;running=false;revealNow=null;audio.finish(data.config);paintResults(result);const oldHistory=rootEl.querySelector('.dc-history');if(oldHistory)oldHistory.replaceWith(history());refresh();refs.results.scrollIntoView({behavior:'smooth',block:'nearest'});
+      if(!running||disposed)return;running=false;revealNow=null;audio.finish(data.config);paintResults(result);const oldHistory=rootEl.querySelector('.dc-history');if(oldHistory)oldHistory.replaceWith(history());refresh();
       if(result.results.length<result.requested)setNotice('本輪只剩 '+result.results.length+' 位，已全部抽出；按重置可開始新一輪。');else setNotice('已抽出 '+result.results.length+' 位，本輪紀錄已保存。');
     }
     async function start(order){
@@ -154,7 +156,7 @@
         const result=await adapter.draw({order:!!order});if(disposed||token!==presentation)return;
         const cfg=data.config,reduce=root.matchMedia&&root.matchMedia('(prefers-reduced-motion: reduce)').matches;
         const duration=reduce?350:cfg.duration*1000*(cfg.style==='bomb'?.7+Math.random()*.7:1);
-        const scene=buildScene(result,pool,true);refs.results.replaceChildren();
+        const scene=buildScene(result,pool,true);paintResults(null);
         if(scene.wheel){const index=pool.findIndex(st=>st.id===result.results[0].studentId);scene.wheel.spin(index,duration);}
         if(scene.taskWheel){const choices=E.tasks(cfg),index=choices.indexOf(result.results[0].task);scene.taskWheel.spin(index,duration);}
         if(cfg.style==='scratch'){setNotice('用手指或滑鼠刮開卡片；也可以按「直接揭曉全部結果」。');refresh();return;}
