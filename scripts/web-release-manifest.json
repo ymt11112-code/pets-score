@@ -1,5 +1,5 @@
 {
-  "version": "20261116-8",
+  "version": "20261117-1",
   "files": [
     "README.md",
     "teacher.html",
@@ -27,11 +27,20 @@
     "student-guide.html",
     "docs/學生遊戲說明.md",
     "assets/js/core/model.js",
-    "assets/js/student/app.js"
+    "assets/js/student/app.js",
+    "assets/js/teacher/phone-remote.js",
+    "assets/js/teacher/remote-shortcuts.js",
+    "assets/js/vendor/qrcode.js",
+    "assets/js/vendor/qrcode.LICENSE",
+    "apps-script/Code.gs",
+    "docs/手機連線設定.md",
+    "assets/img/remote/clay-classroom-remote-v1.png",
+    "assets/img/remote/README.txt"
   ],
   "image": "assets/img/rule-icons/clay-classroom-v1.png",
   "images": [
     "assets/img/rule-icons/clay-classroom-v1.png",
-    "assets/img/rule-icons/clay-classroom-v2.png"
+    "assets/img/rule-icons/clay-classroom-v2.png",
+    "assets/img/remote/clay-classroom-remote-v1.png"
   ]
 }

@@ -737,3 +737,59 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .rule-score-fields>.field { min-width:0; }
 .rule-management-code { display:block; color:var(--ink-mute); font-size:12px; margin-bottom:3px; }
 @media(max-width:640px) { .rule-edit-heading { grid-template-columns:64px minmax(0,1fr); } .rule-edit-heading>.field:last-child {grid-column:2;} .rule-edit-heading>.field:nth-child(3) {grid-column:2;} .rule-score-fields .input {padding:10px; min-width:0;} }
+
+.phone-pair-stage { align-items:stretch; }
+.phone-pair-qr { width:min(360px,100%); margin:auto; padding:8px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+.phone-pair-qr svg { width:100%; height:auto; display:block; }
+.phone-pair-link { width:100%; font-size:12px; overflow-wrap:anywhere; word-break:break-all; }
+.phone-pair-status { font-weight:700; color:var(--brand); overflow-wrap:anywhere; }
+.phone-timer-time { font-size:clamp(54px,13vw,100px); font-weight:900; text-align:center; font-variant-numeric:tabular-nums; }
+.phone-timer-buttons {display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.phone-timer-buttons button {min-height:50px;}
+.remote-screen-timer .timer-stage__time { font-size:clamp(72px,12vw,150px); }
+.remote-screen-timer .timer-stage { padding:32px 20px; }
+/* 手機課堂控制台：原創黏土插畫、單手操作主鍵與六個教材位置。 */
+.mobile-quick-shell { padding-bottom:80px; }
+.mobile-quick-home { padding:8px 5px 20px; }
+.mobile-quick-home .remote-header { margin-bottom:14px; }
+.mobile-quick-home .remote-eyebrow { color:#73978c; letter-spacing:.08em; }
+.mobile-quick-home .remote-connection { border:1px solid #d5e9df; border-radius:20px; background:#fff; box-shadow:0 5px 15px #164a3510; }
+.remote-art-hero { display:flex; align-items:center; justify-content:space-between; gap:4px; min-height:112px; margin:14px 0 4px; padding:12px 4px 4px 10px; }
+.remote-art-hero>div { min-width:0; flex:1; }
+.remote-hero-kicker {font-size:10px;letter-spacing:.1em;color:#72958b;font-weight:700;}
+.remote-art-hero h2 {font-size:21px;line-height:1.4;margin:5px 0;color:#154e44;}
+.remote-art-hero p {font-size:11px;color:#78948b;line-height:1.7;margin:0;}
+.remote-art-hero img {width:46%;max-width:190px;height:auto;object-fit:contain;filter:drop-shadow(0 9px 10px #426b4214);}
+.mobile-quick-home .remote-section-title {margin:14px 4px 12px;}
+.mobile-quick-home .remote-section-title h2 {font-size:16px;}
+.mobile-quick-home .remote-section-title>span {background:#ffefc3;padding:5px 11px;border-radius:20px;color:#98701c;font-size:11px;font-weight:800;}
+.mobile-quick-home .remote-pad {max-width:360px;grid-template-rows:88px 112px 88px;margin-bottom:24px;}
+.mobile-quick-home .remote-pad:before,.mobile-quick-home .remote-pad:after {background:#d7ebe0;box-shadow:inset 0 3px 9px #598e7010;}
+.mobile-quick-home .remote-pad__button {width:88px;height:88px;gap:5px;background:linear-gradient(145deg,#ffffff,#f3faf5);border:1px solid #d9e8dd;box-shadow:0 5px 10px #305b3210,inset 0 2px 1px #ffffff;}
+.mobile-quick-home .remote-pad__button--center {width:112px;height:112px;background:linear-gradient(145deg,#ffe28d,#f5c64d);border:6px solid #f1f8f1;color:#614c1c;box-shadow:0 8px 18px #a7821e26;}
+.remote-clay-icon {font-size:42px;line-height:1;display:inline-flex;}
+.mobile-quick-home .remote-pad__button--center .remote-clay-icon {font-size:51px;}
+.mobile-quick-home .remote-pad__button strong {font-size:12px;}
+.mobile-quick-home .remote-pad__button:active {transform:translateY(2px);box-shadow:inset 0 3px 7px #436e2920;}
+.mobile-shortcuts {margin:6px 0 22px;}
+.mobile-shortcuts .remote-section-title small {font-size:11px;color:#7a958b;}
+.mobile-shortcuts-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;}
+.mobile-shortcut {display:flex;min-width:0;flex-direction:column;align-items:center;gap:8px;min-height:98px;padding:13px 6px;border:1.5px dashed #cfdfd4;border-radius:19px;background:#ffffff70;color:#8ca69b;}
+.mobile-shortcut.is-ready {border:1px solid #d4e6dc;background:#fff;box-shadow:0 5px 12px #234f3210;color:#345a4c;}
+.mobile-shortcut:nth-child(3n+2).is-ready {background:#fffaf0;border-color:#eee1bf;}
+.mobile-shortcut:nth-child(3n).is-ready {background:#f6f3ff;border-color:#e6def2;}
+.mobile-shortcut-icon {display:grid;place-items:center;width:40px;height:40px;border-radius:14px;font-size:30px;background:#eff5ef;}
+.mobile-shortcut.is-ready .mobile-shortcut-icon {background:none;}
+.mobile-shortcut strong {font-size:11px;line-height:1.5;overflow-wrap:anywhere;}
+.mobile-shortcuts-status {font-size:11px;line-height:1.6;color:#82998e;margin:10px 2px 0;}
+.mobile-quick-home .remote-tools {grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:16px 0;border-top:1px solid #dae8df;}
+.mobile-quick-home .remote-tool {font-size:10px;min-height:70px;gap:8px;}
+.mobile-quick-home .remote-tool__circle {width:46px;height:46px;font-size:20px;}
+.remote-nav__item .remote-clay-icon {font-size:27px;}
+.lesson-shortcut-setting {border:1px solid var(--line);padding:12px 16px;border-radius:14px;background:var(--bg-soft);}
+.lesson-shortcut-setting>summary {cursor:pointer;font-weight:800;color:var(--brand);}
+.lesson-shortcut-setting>.stack {padding-top:12px;}
+.lesson-shortcut-setting [hidden] {display:none!important;}
+.topbar__right {flex-wrap:wrap;}
+@media(max-width:350px){.remote-art-hero h2{font-size:18px;}.mobile-quick-home .remote-pad__button{width:80px;height:80px;}.mobile-quick-home .remote-pad__button--center{width:100px;height:100px;}}
+@media(max-width:860px) { .is-remote-home .side {display:none!important;} }

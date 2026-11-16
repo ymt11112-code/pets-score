@@ -34,6 +34,8 @@ function doPost(e) {
     if (e && e.postData && e.postData.contents) req = JSON.parse(e.postData.contents);
     var classKey = String(req.classKey || 'default');
 
+    if (/^remote(Create|Join|Status|Send|Poll|Close)$/.test(req.action || '')) return json(phoneRemote(req));
+
     switch (req.action) {
       case 'load':
         return json({ ok: true, state: readState(classKey) });
@@ -168,4 +170,69 @@ function levelFromXp(totalXp) {
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+/* 手機遙控通道：只寫 Script Properties，不修改學生 state／可讀工作表。 */
+function phoneRemote(req) {
+  var props = PropertiesService.getScriptProperties();
+  var token = String(req.token || '');
+  if (!/^[a-f0-9]{48}$/.test(token)) throw new Error('配對碼無效，請重新掃碼');
+  var key = 'phoneRemote:' + token;
+  var now = Date.now();
+  if (req.action === 'remoteCreate') {
+    if (!/^[a-f0-9]{48}$/.test(String(req.hostSecret || ''))) throw new Error('電腦配對碼無效');
+    if (props.getProperty(key)) throw new Error('配對已存在，請重新產生');
+    var state = readState(String(req.classKey || 'default'));
+    if (!state || !Array.isArray(state.students)) throw new Error('請先完成班級雲端同步，再連接手機');
+    var all = props.getProperties();
+    Object.keys(all).filter(function(k) { return k.indexOf('phoneRemote:') === 0; }).forEach(function(k) {
+      try { if (JSON.parse(all[k]).expires < now) props.deleteProperty(k); } catch (_) { props.deleteProperty(k); }
+    });
+    var session = {classKey:String(req.classKey || 'default'),className:String((state.classInfo || {}).className || '我的班級'),hostSecret:String(req.hostSecret),expires:now+14400000,seq:0,ack:0,commands:[],seen:[],lastHost:now,lastPhone:0,timer:null};
+    props.setProperty(key, JSON.stringify(session));
+    return {ok:true,expires:session.expires,className:session.className,serverNow:now};
+  }
+  var raw = props.getProperty(key);
+  if (!raw) throw new Error('配對已結束，請重新掃描電腦的 QR code');
+  var s = JSON.parse(raw);
+  if (s.expires < now) { props.deleteProperty(key); throw new Error('配對已過期，請重新掃碼'); }
+  if (s.classKey !== String(req.classKey || 'default')) throw new Error('配對班級不符');
+  var host = String(req.hostSecret || '') === s.hostSecret;
+  if (req.action === 'remoteClose') {
+    if (!host) throw new Error('只有電腦可結束配對');
+    props.deleteProperty(key); return {ok:true};
+  }
+  if (req.action === 'remotePoll') {
+    if (!host) throw new Error('電腦驗證失敗');
+    s.lastHost = now;
+    s.ack = Math.max(s.ack, Math.min(s.seq, Math.max(0, Number(req.ack) || 0)));
+    s.commands = s.commands.filter(function(c) { return c.seq > s.ack && c.at >= now-30000; });
+    var t = req.timer || {};
+    s.shortcuts = (Array.isArray(req.shortcuts)?req.shortcuts:[]).slice(0,6).filter(function(x){return /^s[1-6]$/.test(x.id);}).map(function(x){return {id:x.id,title:String(x.title||'教材捷徑').slice(0,30),type:x.type==='pdf'?'pdf':'url',ready:!!x.ready,configured:!!x.configured};});
+    if(req.result&&Number(req.result.seq)<=s.ack)s.result={seq:Number(req.result.seq),ok:!!req.result.ok,message:String(req.result.message||'').slice(0,120)};
+    s.timer = {mode:t.mode === 'up'?'up':'down',total:Math.max(1,Math.min(10800,Number(t.total)||60)),seconds:Math.max(0,Math.min(604800,Number(t.seconds)||0)),running:!!t.running,done:!!t.done,at:now};
+    props.setProperty(key,JSON.stringify(s));
+    return {ok:true,commands:s.commands,lastPhone:s.lastPhone,expires:s.expires,serverNow:now};
+  }
+  if (req.action === 'remoteJoin' || req.action === 'remoteStatus') {
+    s.lastPhone=now;props.setProperty(key,JSON.stringify(s));
+    return {ok:true,className:s.className,lastHost:s.lastHost,timer:s.timer,ack:s.ack,shortcuts:s.shortcuts||[],result:s.result||null,expires:s.expires,serverNow:now};
+  }
+  if (req.action === 'remoteSend') {
+    if (now-s.lastHost>15000) throw new Error('電腦目前沒有回應，請保持電腦網頁開啟');
+    var c=req.command || {},allowed=['open','start','pause','resume','reset','shortcut'];
+    if (allowed.indexOf(c.kind)<0 || !/^[a-f0-9]{32}$/.test(String(c.id||''))) throw new Error('不支援的控制指令');
+    if(c.kind==='shortcut'&&!/^s[1-6]$/.test(String(c.shortcutId||'')))throw new Error('無效的教材捷徑');
+    s.commands=s.commands.filter(function(x){return x.seq>s.ack&&x.at>=now-30000;});
+    s.seen=s.seen||[];
+    var old=s.seen.filter(function(x){return x.id===c.id;})[0];
+    if(!old){
+      if(s.commands.length>=12) throw new Error('電腦處理中，請稍候再操作');
+      old={seq:++s.seq,id:String(c.id),kind:c.kind,shortcutId:c.kind==='shortcut'?String(c.shortcutId):'',mode:c.mode==='up'?'up':'down',seconds:Math.max(1,Math.min(10800,Math.round(Number(c.seconds)||60))),at:now};
+      s.commands.push(old);
+      s.seen.push({id:old.id,seq:old.seq});s.seen=s.seen.slice(-24);
+    }
+    s.lastPhone=now;props.setProperty(key,JSON.stringify(s));
+    return {ok:true,seq:old.seq,serverNow:now};
+  }
+  throw new Error('不支援的手機控制操作');
 }

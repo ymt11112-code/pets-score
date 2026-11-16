@@ -894,8 +894,12 @@
 
   function openRandomDraw() { floatOpen=false; renderFloatWidget(); go('tools'); }
 
-  function openTimerModal() {
-    U.modal({ title: '課堂計時器', body: el('div', { class: 'stack' }, [el('p', { class: 'card__sub', text: '計時器在目前裝置運作；關閉面板後仍會繼續倒數。' }), timerWidget()]) });
+  let timerModalHandle=null;
+  function openTimerModal(fromRemote) {
+    if(fromRemote!==true&&window.PetPhoneRemote.phoneTimer())return;
+    if(timerModalHandle&&timerModalHandle.box.isConnected)return;
+    timerModalHandle=U.modal({ wide:fromRemote===true, onClose:()=>{timerModalHandle=null;},title: '課堂計時器', body: el('div', { class: 'stack' }, [el('p', { class: 'card__sub', text: '計時器在這台電腦／裝置運作；配對的手機可遙控，關閉面板後仍會繼續倒數。' }), timerWidget()]) });
+    if(fromRemote===true)timerModalHandle.box.classList.add('remote-screen-timer');
   }
 
   function openAttendance() {
@@ -4022,7 +4026,7 @@
 
   /* ---------- 路由 ---------- */
   function openQuickPoints(){floatPickerOpen=false;if(window.matchMedia('(max-width:860px)').matches){floatOpen=false;window.PetMobileQuick.open();go('quick');}else{if(page==='quick')go('overview');floatOpen=true;renderFloatWidget();}}
-  function pageMobileQuick(){return window.PetMobileQuick.render({go,refresh:render,closePicker:()=>{floatPickerOpen=false;},selectionCount:()=>floatSelected.size,awardPanel:floatPanelBody,timer:openTimerModal,pick:openRandomDraw,attendance:openAttendance,tasks:openDailyTasksQuick});}
+  function pageMobileQuick(){return window.PetMobileQuick.render({go,refresh:render,closePicker:()=>{floatPickerOpen=false;},selectionCount:()=>floatSelected.size,awardPanel:floatPanelBody,timer:openTimerModal,pick:openRandomDraw,attendance:openAttendance,tasks:openDailyTasksQuick,connect:()=>window.PetPhoneRemote.openPair()});}
   const PAGES = {
     quick:pageMobileQuick,
     draw: pageTools, guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
@@ -4270,6 +4274,7 @@
 
   /* ---------- 啟動 ---------- */
   S.init().then(() => {
+    window.PetPhoneRemote.init({clock:lessonClock,openTimer:openTimerModal,go});
     const hash = location.hash.slice(1);
     if (PAGES[hash]) page = hash;
     if(hash==='classroom')page='quick';
