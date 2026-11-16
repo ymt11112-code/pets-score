@@ -3794,7 +3794,7 @@
     return el('div', {}, [
       pageHead('系統設定', '調整頁面顯示、提示音效與加分連動。加扣分規則及網頁快捷列統一到「規則設定」管理。',
         sectionJumpBar([{ id: 'display', label: '🎨 批次加點頁面設定' }])),
-      el('div', { class: 'stack', style: { gap: '18px' } }, [card('📱 連接手機','配對手機、設定教材捷徑與桌面電子書，統一在這裡管理。',[el('div',{class:'row',style:{gap:'8px',flexWrap:'wrap'}},[el('button',{id:'connectPhone',class:'btn btn--primary',text:'連接手機／顯示 QR code',onclick:()=>window.PetPhoneRemote.openPair()}),el('button',{id:'remoteShortcutSettings',class:'btn btn--ghost',text:'設定教材捷徑',onclick:()=>window.PetRemoteShortcuts.settings()}),el('a',{class:'btn btn--ghost',href:'classpet://ebooks',text:'開啟桌面電子書設定'})]),el('p',{class:'muted',text:'雲端只更新 Code.gs，不需要 Index.html。儲存後更新原部署的版本，沿用原本網址。'}),el('button',{class:'btn btn--ghost',text:'複製新版 Apps Script／查看步驟',onclick:()=>window.PetPhoneRemote.backendHelp('更新 Code.gs 後即可啟用手機與電子書控制。')})]),displayCard, toolbarCard]),
+      el('div', { class: 'stack', style: { gap: '18px' } }, [card('📱 連接手機','配對手機、設定教材捷徑與桌面電子書，統一在這裡管理。',[el('div',{class:'row',style:{gap:'8px',flexWrap:'wrap'}},[el('button',{id:'connectPhoneSettings',class:'btn btn--primary',text:'連接手機／顯示 QR code',onclick:()=>window.PetPhoneRemote.openPair()}),el('button',{id:'remoteShortcutSettings',class:'btn btn--ghost',text:'設定教材捷徑',onclick:()=>window.PetRemoteShortcuts.settings()}),el('a',{class:'btn btn--ghost',href:'classpet://ebooks',text:'開啟桌面電子書設定'})]),el('p',{class:'muted',text:'雲端只更新 Code.gs，不需要 Index.html。儲存後更新原部署的版本，沿用原本網址。'}),el('button',{class:'btn btn--ghost',text:'複製新版 Apps Script／查看步驟',onclick:()=>window.PetPhoneRemote.backendHelp('更新 Code.gs 後即可啟用手機與電子書控制。')})]),displayCard, toolbarCard]),
     ]);
   }
 
