@@ -8,7 +8,8 @@
   if(!kinds.some(x=>x[0]===active))active='attendance';
   let state=null,busy=false,drawController=null;
   let editingTask=null, taskDraft=new Set();
-  const timer={total:300,left:300,running:false,deadline:0,handle:null};
+  const lessonClock=window.PetLessonTimer.clock;
+  const timer={total:300,left:300,running:false,mode:'down',done:false};
   let audio=null;
   const A=window.PetAttendance;
   const isAbsent=id=>state && A.isExcluded(state.attendance[id]||'');
@@ -59,29 +60,22 @@
   function format(seconds){return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');}
   function paintClock() {
     document.querySelectorAll('.dt-timer-time').forEach(node=>node.textContent=format(timer.left));
-    document.querySelectorAll('.dt-timer-progress').forEach(node=>node.style.width=(timer.left/timer.total*100)+'%');
-    document.querySelector('[data-tool-clock]').textContent=timer.running?'倒數 '+format(timer.left):timer.left===0?'⏰ 時間到':'計時器待命';
+    document.querySelectorAll('.dt-timer-progress').forEach(node=>node.style.width=(timer.mode==='up'?100:timer.left/timer.total*100)+'%');
+    document.querySelector('[data-tool-clock]').textContent=timer.running?(timer.mode==='up'?'正向 ':'倒數 ')+format(timer.left):timer.done?'⏰ 時間到':'計時器待命';
   }
-  function stopClock(){if(timer.running)timer.left=Math.max(0,Math.ceil((timer.deadline-Date.now())/1000));timer.running=false;clearInterval(timer.handle);timer.handle=null;}
-  function setClock(seconds){stopClock();timer.total=seconds;timer.left=seconds;render();}
+  function stopClock(){lessonClock.pause();}
+  function setClock(seconds){lessonClock.configure({mode:'down',seconds});render();}
   function alarm(){
     try{if(!audio)return;[0,.25,.5].forEach(delay=>{const oscillator=audio.createOscillator(),gain=audio.createGain(),at=audio.currentTime+delay;oscillator.connect(gain);gain.connect(audio.destination);oscillator.frequency.value=880;gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(.16,at+.02);gain.gain.exponentialRampToValueAtTime(.0001,at+.2);oscillator.start(at);oscillator.stop(at+.22);});}catch(e){}
   }
-  function startClock(){
-    if(timer.running)return;
-    if(!timer.left)timer.left=timer.total;
-    try{if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();}catch(e){}
-    timer.running=true;timer.deadline=Date.now()+timer.left*1000;
-    timer.handle=setInterval(()=>{
-      timer.left=Math.max(0,Math.ceil((timer.deadline-Date.now())/1000));paintClock();
-      if(timer.left===0){stopClock();alarm();render();U.toast('⏰ 時間到！');bridge.toolTimerFinished();}
-    },200);render();
-  }
+  function unlockAlarm(){try{if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume().catch(()=>{});}catch{}}
+  function startClock(){unlockAlarm();lessonClock.start();render();}
+  lessonClock.subscribe((state,event)=>{timer.total=state.total;timer.left=state.seconds;timer.running=state.running;timer.mode=state.mode;timer.done=state.done;paintClock();if(event==='start')unlockAlarm();if(event==='finish'){alarm();if(active==='timer')render();U.toast('⏰ 時間到！');bridge.toolTimerFinished();}});
   function timerPanel(){
     const custom=el('input',{class:'input',type:'number',min:'0.0167',max:'180',step:'any',value:timer.total/60,'aria-label':'自訂分鐘'});
     return el('section',{class:'dt-panel'},[
-      el('h2',{text:'課堂計時器'}),note('關閉此工具視窗後仍會繼續倒數，時間到會顯示提醒。'),
-      el('div',{class:'dt-timer-stage'+(timer.left===0?' is-finished':'')},[
+      el('h2',{text:timer.mode==='up'?'正向計時器':'課堂計時器'}),note('關閉此工具視窗後仍會繼續倒數，時間到會顯示提醒。'),
+      el('div',{class:'dt-timer-stage'+(timer.done?' is-finished':'')},[
         el('div',{class:'dt-timer-time',role:'timer',text:format(timer.left)}),
         el('div',{class:'dt-timer-bar'},[el('div',{class:'dt-timer-progress',style:{width:timer.left/timer.total*100+'%'}})])
       ]),

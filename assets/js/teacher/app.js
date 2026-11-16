@@ -1377,7 +1377,14 @@
   }
 
   /* ================= 課堂小工具 ================= */
-  let timerState = { total: 300, left: 300, running: false, handle: null };
+  const lessonClock=window.PetLessonTimer.clock;
+  lessonClock.subscribe((t,event)=>{
+    $$('.timer-stage__time').forEach(node=>{node.textContent=fmtTimer(t.seconds);node.classList.toggle('is-warn',t.mode==='down'&&t.seconds<=30);});
+    $$('.timer-stage__fill').forEach(node=>node.style.width=(t.mode==='up'?100:t.seconds/t.total*100)+'%');
+    $$('[data-lesson-mode]').forEach(node=>node.value=t.mode);
+    $$('.timer-stage').forEach(node=>node.classList.toggle('is-flash',t.done));
+    if(event==='finish'){U.toast('⏰ 時間到！');playAlarm();}
+  });
 
   function drawSnapshot(){const state=S.get();return {className:state.classInfo.className,students:state.students,absentIds:state.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),draw:window.PetDrawEngine.normalize(state.drawCenter)};}
   function pageTools() {
@@ -1401,55 +1408,22 @@
 
   /* 計時器元件（課堂小工具頁與批次加點的浮動計時器共用） */
   function timerWidget() {
-    const timeEl = el('div', { class: 'timer-stage__time', text: fmtTimer(timerState.left) });
-    const fillEl = el('div', { class: 'timer-stage__fill', style: { width: (timerState.left / timerState.total * 100) + '%' } });
-    const stageEl = el('div', { class: 'timer-stage' }, [
-      timeEl,
-      el('div', { class: 'timer-stage__bar' }, [fillEl]),
-      el('div', { class: 'row', style: { gap: '10px', justifyContent: 'center' } }, [
-        el('button', { class: 'btn btn--primary', text: '▶ 開始', onclick: () => startTimer() }),
-        el('button', { class: 'btn btn--ghost', text: '⏸ 暫停', onclick: () => stopTimer() }),
-        el('button', { class: 'btn btn--ghost', text: '↻ 重設', onclick: () => setTimer(timerState.total) }),
+    const t=lessonClock.get(),seconds=el('input',{class:'input',type:'number',min:1,max:10800,value:t.total,'aria-label':'自訂秒數'});
+    return el('div',{class:'stack'},[
+      el('div',{class:'timer-stage'},[
+        el('div',{class:'timer-stage__time',text:fmtTimer(t.seconds)}),
+        el('div',{class:'timer-stage__bar'},[el('div',{class:'timer-stage__fill',style:{width:(t.mode==='up'?100:t.seconds/t.total*100)+'%'}})]),
+        el('div',{class:'row',style:{gap:'10px',justifyContent:'center'}},[
+          el('button',{class:'btn btn--primary',text:'▶ 開始',onclick:()=>lessonClock.start()}),
+          el('button',{class:'btn btn--ghost',text:'⏸ 暫停',onclick:()=>lessonClock.pause()}),
+          el('button',{class:'btn btn--ghost',text:'↻ 重設',onclick:()=>lessonClock.reset()})
+        ])
       ]),
-    ]);
-
-    function paintTimer() {
-      // 重開面板後，也要更新新的計時顯示，不只更新原本已關閉的節點。
-      $$('.timer-stage__time').forEach(node => { node.textContent = fmtTimer(timerState.left); node.classList.toggle('is-warn', timerState.left <= 30); });
-      $$('.timer-stage__fill').forEach(node => { node.style.width = (timerState.left / timerState.total * 100) + '%'; });
-      $$('[data-remote-timer]').forEach(node => { node.textContent = fmtTimer(timerState.left); });
-    }
-    function startTimer() {
-      if (timerState.running) return;
-      stageEl.classList.remove('is-flash');
-      timerState.running = true;
-      timerState.handle = setInterval(() => {
-        timerState.left = Math.max(0, timerState.left - 1);
-        paintTimer();
-        if (timerState.left === 0) {
-          stopTimer();
-          stageEl.classList.add('is-flash');
-          U.toast('⏰ 時間到！');
-          try { playAlarm(); } catch (e) { /* 部分瀏覽器不允許自動播放 */ }
-        }
-      }, 1000);
-    }
-    function stopTimer() {
-      timerState.running = false;
-      clearInterval(timerState.handle);
-    }
-    function setTimer(sec) {
-      stopTimer();
-      stageEl.classList.remove('is-flash');
-      timerState.total = sec;
-      timerState.left = sec;
-      paintTimer();
-    }
-
-    return el('div', {}, [
-      stageEl,
-      el('div', { class: 'timer-presets', style: { marginTop: '14px' } },
-        [1, 3, 5, 10, 15, 20].map((m) => el('button', { class: 'btn btn--ghost btn--sm', text: m + ' 分', onclick: () => setTimer(m * 60) }))),
+      el('div',{class:'row',style:{gap:'8px'}},[
+        el('select',{class:'input','aria-label':'課堂計時方式','data-lesson-mode':'',onchange:e=>lessonClock.configure({mode:e.target.value,seconds:lessonClock.get().total})},[['down','倒數計時'],['up','從0秒正向計時']].map(([value,text])=>el('option',{value,text,selected:t.mode===value?'selected':null})))
+      ]),
+      el('div',{class:'row',style:{gap:'8px'}},[seconds,el('span',{text:'秒'}),el('button',{class:'btn btn--ghost',text:'設定',onclick:()=>lessonClock.configure({mode:lessonClock.get().mode,seconds:seconds.value})})]),
+      el('div',{class:'timer-presets'},[15,30,60,120,180,300].map(sec=>el('button',{class:'btn btn--ghost btn--sm',text:sec+' 秒',onclick:()=>lessonClock.configure({mode:'down',seconds:sec})})))
     ]);
   }
 
@@ -4097,6 +4071,7 @@
   let floatSelected = new Set();
   let floatPipWin = null;
   let floatDock = '';
+  let floatPickerOpen=false;
   window.addEventListener('resize', () => { if (S.get()) renderFloatWidget(); });
 
   function loadFloatPos() {
@@ -4166,7 +4141,7 @@
       documentPipSupported() ? el('button', { class: 'btn btn--ghost', text: '🪟 使用網頁置頂小視窗', onclick: openFloatPip }) : null,
       windows ? el('details', { class: 'desktop-launch-help' }, [
         el('summary', { text: '第一次使用／點了沒有開啟？' }),
-        el('p', { text: '請先開啟「班級加點小工具 1.3.0.exe」一次，再回來按上方按鈕。若瀏覽器詢問，請允許開啟。移動 EXE 後請重新執行一次。桌面工具使用原有班級連線設定。' }),
+        el('p', { text: '請先開啟「班級加點小工具 1.7.0.exe」一次，再回來按上方按鈕。若瀏覽器詢問，請允許開啟。移動 EXE 後請重新執行一次。桌面工具使用原有班級連線設定。' }),
       ]) : el('p', { class: 'muted', text: '桌面小工具適用 Windows；這台裝置可繼續使用網頁加點。' }),
     ]);
   }
@@ -4176,55 +4151,21 @@
   }
 
   function floatPanelBody() {
-    const s = S.get();
-    const searchInput = el('input', { class: 'input', placeholder: '搜尋姓名或座號…' });
-    const listEl = el('div', { class: 'float-list' });
-    const dockEl = el('div', { class: 'float-dock' });
-    const countEl = el('b', { text: '已選 ' + floatSelected.size });
-
-    function paintList() {
-      listEl.innerHTML = '';
-      const q = searchInput.value.trim();
-      sortStudents(s.students, s)
-        .filter((st) => !q || (U.pad2(st.no) + st.name).indexOf(q) >= 0)
-        .forEach((st) => {
-          const on = floatSelected.has(st.id);
-          listEl.appendChild(el('button', {
-            'aria-pressed': String(on), class: 'float-chip' + (on ? ' is-on' : ''), text: U.pad2(st.no) + ' ' + st.name,
-            onclick: () => { on ? floatSelected.delete(st.id) : floatSelected.add(st.id); paintList(); countEl.textContent = '已選 ' + floatSelected.size; },
-          }));
-        });
-    }
-    searchInput.addEventListener('input', paintList);
-    paintList();
-
-    (s.rules || []).filter((r) => r.id).forEach((r) => {
-      dockEl.appendChild(el('button', {
-        class: 'float-rulebtn',
-        onclick: () => {
-          if (!floatSelected.size) return U.toast('請先點選學生', 'warn');
-          applyRule(Array.from(floatSelected), r);
-        },
-      }, [el('span', { text: r.icon }), el('span', { text: r.label }), el('span', { text: (r.points >= 0 ? '+' : '') + r.points })]));
+    const pipRow=floatPipWin?el('div',{class:'row'},[
+      el('button',{class:'btn btn--ghost',text:'↕ 直排',onclick:()=>{floatPipWin.document.body.classList.remove('pip-horizontal');floatPipWin.resizeTo(320,560);}}),
+      el('button',{class:'btn btn--ghost',text:'↔ 橫排',onclick:()=>{floatPipWin.document.body.classList.add('pip-horizontal');floatPipWin.resizeTo(900,320);}})
+    ]):desktopLauncherOptions();
+    return window.PetQuickPoints.panel({selected:floatSelected,launcher:pipRow,pickerOpen:floatPickerOpen,togglePicker:()=>{floatPickerOpen=!floatPickerOpen;renderFloatWidget();},applyRule,
+      tools:[['⏱️','計時器',openTimerModal],['🎲','抽籤',openRandomDraw],['📋','出席',openAttendance],['✅','今日任務',openDailyTasksQuick]]
     });
-
-    const pipRow = floatPipWin
-      ? el('div', { class: 'row' }, [
-          el('button', { class: 'btn btn--ghost', text: '↕ 直排', onclick: () => { floatPipWin.document.body.classList.remove('pip-horizontal'); floatPipWin.resizeTo(320, 560); } }),
-          el('button', { class: 'btn btn--ghost', text: '↔ 橫排', onclick: () => { floatPipWin.document.body.classList.add('pip-horizontal'); floatPipWin.resizeTo(900, 260); } }),
-        ])
-      : desktopLauncherOptions();
-
-    return el('div', { class: 'float-panel__body' }, [
-      el('div', { class: 'row', style: { justifyContent: 'space-between', marginBottom: '6px' } }, [countEl]),
-      pipRow,
-      el('div',{class:'quick-tool-shortcuts'},[
-        ['⏱️','計時器',openTimerModal],['🎲','抽籤',openRandomDraw],['📋','出席',openAttendance],['✅','今日任務',openDailyTasksQuick]
-      ].map(([icon,label,click])=>el('button',{type:'button',class:'btn btn--ghost',text:icon+' '+label,onclick:click}))),
-      searchInput,
-      listEl,
-      dockEl,
-    ]);
+  }
+  function appendFloatPicker(host,panel,view) {
+    if(!floatPickerOpen)return;
+    const picker=window.PetQuickPoints.picker({selected:floatSelected,close:()=>{floatPickerOpen=false;renderFloatWidget();}});host.appendChild(picker);
+    const rect=panel.getBoundingClientRect(),width=Math.min(210,view.innerWidth-16),height=Math.min(620,view.innerHeight-16);picker.style.width=width+'px';picker.style.maxHeight=height+'px';const actualHeight=picker.getBoundingClientRect().height;
+    if(rect.left>=width+16){picker.style.left=(rect.left-width-8)+'px';picker.style.top=Math.max(8,Math.min(rect.top,view.innerHeight-actualHeight-8))+'px';}
+    else if(view.innerWidth-rect.right>=width+16){picker.style.left=(rect.right+8)+'px';picker.style.top=Math.max(8,Math.min(rect.top,view.innerHeight-actualHeight-8))+'px';}
+    else {picker.style.width=Math.min(340,view.innerWidth-16)+'px';picker.style.left=Math.max(8,(view.innerWidth-Math.min(340,view.innerWidth-16))/2)+'px';picker.style.top='8px';picker.classList.add('is-overlay');}
   }
 
   function renderFloatWidget() {
@@ -4236,6 +4177,7 @@
         style: { position: 'static', width: '100%', maxHeight: 'none', boxShadow: 'none', borderRadius: 0 },
       }, [floatPanelBody()]);
       floatPipWin.document.body.appendChild(panel);
+      appendFloatPicker(floatPipWin.document.body,panel,floatPipWin);
       return;
     }
     const host = $('#floatWidget');
@@ -4252,7 +4194,7 @@
     }
     const panelHead = el('div', { class: 'float-panel__head' }, [
       el('span', { text: '⭐ 快速加點' }),
-      el('button', { class: 'float-panel__close', text: '✕', onclick: () => { floatOpen = false; renderFloatWidget(); } }),
+      el('button', { class: 'float-panel__close', text: '✕', onclick: () => { floatOpen = false; floatPickerOpen=false; renderFloatWidget(); } }),
     ]);
     const panel = el('div', { class: 'float-panel' + (floatDock ? ' is-dock-' + floatDock : ''), style: { left: pos.x + 'px', top: pos.y + 'px' } }, [panelHead, floatPanelBody()]);
     makeDraggable(panelHead, panel, (p) => {
@@ -4264,8 +4206,11 @@
       if (right < 32 && right <= bottom) { floatDock = 'right'; panel.classList.add('is-dock-right'); panel.style.left = 'auto'; panel.style.right = '0'; panel.style.top = '0'; }
       else if (bottom < 32) { floatDock = 'bottom'; panel.classList.add('is-dock-bottom'); panel.style.left = '0'; panel.style.top = 'auto'; }
       saveFloatPos(p);
+      const picker=host.querySelector('.quick-picker');if(picker)picker.remove();appendFloatPicker(host,panel,window);
     }, null);
     host.appendChild(panel);
+    if(!floatDock){const rect=panel.getBoundingClientRect();panel.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-rect.width-8))+'px';panel.style.top=Math.max(8,Math.min(rect.top,window.innerHeight-rect.height-8))+'px';}
+    appendFloatPicker(host,panel,window);
   }
 
   /* 彈出成真正的獨立小視窗（Document Picture-in-Picture），會一直浮在所有視窗最上層，
