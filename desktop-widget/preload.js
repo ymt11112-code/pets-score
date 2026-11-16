@@ -3,6 +3,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWidget', {
+  getLauncherState:()=>ipcRenderer.invoke('get-launcher-settings'),
+  chooseLauncherFolder:()=>ipcRenderer.invoke('choose-launcher-folder'),
+  testDesktopLauncher:()=>ipcRenderer.invoke('test-desktop-launcher'),
   onDesktopTimerCommand:cb=>ipcRenderer.on('desktop-timer-command',(event,command)=>cb(command)),
   desktopTimerResult:result=>ipcRenderer.send('desktop-timer-result',result),
   publishDesktopTimer:state=>ipcRenderer.send('desktop-timer-state',state),

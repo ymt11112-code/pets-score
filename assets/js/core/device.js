@@ -1,0 +1,2 @@
+﻿/* 依裝置而不是視窗寬度區分 PC、手機與平板；觸控筆電仍可使用桌面模式。 */
+(function(root){function isMobileOrTablet(){const n=root.navigator||{},ua=n.userAgent||'';if(n.userAgentData&&n.userAgentData.mobile)return true;if(/Android|iPhone|iPad|iPod/i.test(ua))return true;if(/Macintosh/i.test(ua)&&(n.maxTouchPoints||0)>1)return true;return !!(root.matchMedia&&root.matchMedia('(pointer:coarse)').matches&&!root.matchMedia('(any-pointer:fine)').matches);}root.PetDevice={isMobileOrTablet};})(window);

@@ -1,5 +1,5 @@
 {
-  "version": "20261117-5",
+  "version": "20261117-6",
   "files": [
     "README.md",
     "teacher.html",
@@ -35,7 +35,8 @@
     "apps-script/Code.gs",
     "docs/手機連線設定.md",
     "assets/img/remote/clay-classroom-remote-v1.png",
-    "assets/img/remote/README.txt"
+    "assets/img/remote/README.txt",
+    "assets/js/core/device.js"
   ],
   "image": "assets/img/rule-icons/clay-classroom-v1.png",
   "images": [

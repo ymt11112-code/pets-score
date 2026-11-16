@@ -793,3 +793,5 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .topbar__right {flex-wrap:wrap;}
 @media(max-width:350px){.remote-art-hero h2{font-size:18px;}.mobile-quick-home .remote-pad__button{width:80px;height:80px;}.mobile-quick-home .remote-pad__button--center{width:100px;height:100px;}}
 @media(max-width:860px) { .is-remote-home .side {display:none!important;} }
+.is-remote-device.is-remote-home .side,.is-remote-device.is-remote-home .topbar {display:none!important;}
+.float-fab {text-decoration:none;}

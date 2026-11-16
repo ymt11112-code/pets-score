@@ -1,0 +1,19 @@
+﻿const fs=require('fs'),path=require('path');
+function candidate(name){const m=/^班級加點小工具 (\d+)\.(\d+)\.(\d+)( \(\d+\))?\.exe$/i.exec(name);if(!m)return null;const v=m.slice(1,4).map(Number);return v.every(n=>Number.isInteger(n)&&n<=2147483647)?v:null;}
+function compare(a,b){for(let i=0;i<3;i++){const n=(a[i]||0)-(b[i]||0);if(n)return n;}return 0;}
+function latest(folder){try{if(!path.isAbsolute(folder))return null;return fs.readdirSync(folder,{withFileTypes:true}).filter(x=>x.isFile()&&candidate(x.name)).map(x=>({path:path.join(folder,x.name),version:candidate(x.name),name:x.name})).sort((a,b)=>compare(b.version,a.version)||fs.statSync(b.path).mtimeMs-fs.statSync(a.path).mtimeMs)[0]||null;}catch{return null;}}
+function install({app,BrowserWindow,ipcMain,dialog,getMainWindow,showMainWindow,getCurrentExecutable}){
+ let panel=null;const dir=path.join(app.getPath('userData'),'desktop-launcher'),config=path.join(dir,'folder.txt'),installed=path.join(dir,'ClassPetLauncher.exe');
+ const current=()=>getCurrentExecutable?getCurrentExecutable():(process.env.PORTABLE_EXECUTABLE_FILE||process.execPath);
+ function folder(){try{return fs.readFileSync(config,'utf8').trim();}catch{return path.dirname(current());}}
+ function snapshot(){const found=latest(folder());return {folder:folder(),latest:found?found.name:'',version:found?found.version.join('.'):'',currentVersion:app.getVersion()};}
+ function register(){if(!app.isPackaged||process.platform!=='win32')return false;const source=path.join(process.resourcesPath,'ClassPetLauncher.exe');if(!fs.existsSync(source))return false;fs.mkdirSync(dir,{recursive:true});if(!fs.existsSync(installed)||!fs.readFileSync(installed).equals(fs.readFileSync(source)))fs.copyFileSync(source,installed);if(!fs.existsSync(config))fs.writeFileSync(config,folder(),'utf8');fs.writeFileSync(path.join(dir,'fallback.txt'),current(),'utf8');return app.setAsDefaultProtocolClient('classpet',installed);}
+ function upgrade(uri){if(!app.isPackaged||!require('./desktop-link').isDesktopLink(uri))return false;const found=latest(folder()),version=String(app.getVersion()).split('.').slice(0,3).map(Number);if(!found||compare(found.version,version)<=0)return false;app.relaunch({execPath:found.path,args:[uri]});app.quit();return true;}
+ function trusted(event){if(event.sender!==panel?.webContents)throw Error('不允許此視窗設定啟動資料夾');}
+ function open(){if(panel&&!panel.isDestroyed()){panel.show();panel.focus();return;}panel=new BrowserWindow({width:720,height:560,minWidth:460,minHeight:450,title:'桌面小工具啟動資料夾',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});panel.webContents.setWindowOpenHandler(()=>({action:'deny'}));panel.webContents.on('will-navigate',e=>e.preventDefault());panel.loadFile(path.join(__dirname,'renderer','launcher.html'));panel.on('closed',()=>panel=null);}
+ ipcMain.handle('get-launcher-settings',event=>{trusted(event);return snapshot();});
+ ipcMain.handle('choose-launcher-folder',async event=>{trusted(event);const result=await dialog.showOpenDialog(panel,{title:'選擇桌面小工具 EXE 所在資料夾',defaultPath:folder(),properties:['openDirectory']});if(result.canceled)return snapshot();const picked=result.filePaths[0];if(!latest(picked))throw Error('此資料夾沒有「班級加點小工具 版本號.exe」，請選擇 EXE 所在資料夾。');fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(config+'.tmp',picked,'utf8');fs.renameSync(config+'.tmp',config);register();return snapshot();});
+ ipcMain.handle('test-desktop-launcher',event=>{trusted(event);if(!latest(folder()))throw Error('請先設定桌面小工具資料夾');if(upgrade('classpet://open'))return;if(showMainWindow)showMainWindow();else{getMainWindow()?.show();getMainWindow()?.webContents.send('expand-widget');}});
+ return {open,register,upgrade,snapshot};
+}
+module.exports={candidate,compare,latest,install};

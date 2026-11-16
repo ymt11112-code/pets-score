@@ -7,7 +7,8 @@
   const S = window.PetStore;
   const { $, $$, el } = U;
 
-  let page = window.matchMedia('(max-width: 860px)').matches?'quick':'overview';
+  document.body.classList.toggle('is-remote-device',window.PetDevice.isMobileOrTablet());
+  let page = window.PetDevice.isMobileOrTablet()?'quick':'overview';
   let drawController=null;
   let selected = new Set();
   let filterGroup = '';
@@ -3796,7 +3797,7 @@
     return el('div', {}, [
       pageHead('系統設定', '調整頁面顯示、提示音效與加分連動。加扣分規則及網頁快捷列統一到「規則設定」管理。',
         sectionJumpBar([{ id: 'display', label: '🎨 批次加點頁面設定' }])),
-      el('div', { class: 'stack', style: { gap: '18px' } }, [card('📱 連接手機','配對手機、設定教材捷徑與桌面電子書，統一在這裡管理。',[el('div',{class:'row',style:{gap:'8px',flexWrap:'wrap'}},[el('button',{id:'connectPhoneSettings',class:'btn btn--primary',text:'連接手機／顯示 QR code',onclick:()=>window.PetPhoneRemote.openPair()}),el('button',{id:'remoteShortcutSettings',class:'btn btn--ghost',text:'設定教材捷徑',onclick:()=>window.PetRemoteShortcuts.settings()}),el('a',{class:'btn btn--ghost',href:'classpet://ebooks',text:'開啟桌面手機控制設定'})]),el('p',{class:'muted',text:'雲端只更新 Code.gs，不需要 Index.html。儲存後更新原部署的版本，沿用原本網址。'}),el('button',{class:'btn btn--ghost',text:'複製新版 Apps Script／查看步驟',onclick:()=>window.PetPhoneRemote.backendHelp('更新 Code.gs 後即可啟用手機與電子書控制。')})]),displayCard, toolbarCard]),
+      el('div', { class: 'stack', style: { gap: '18px' } }, [card('🖥️ 桌面小工具啟動資料夾','上方快速加點使用網頁；PC 的浮動星星開最新版桌面工具，手機與平板則開遙控器。',[el('p',{class:'muted',text:'按下方按鈕，在 Windows 視窗選擇 EXE 所在資料夾。路徑只存本機，不會上傳；之後放入新版 EXE，啟動器會依版本號挑選最新一份。第一次請先執行 1.13.0 以上桌面工具。'}),el('div',{class:'row',style:{gap:'8px',flexWrap:'wrap'}},[el('a',{class:'btn btn--primary',href:'classpet://launcher',text:'設定／選擇桌面工具資料夾'}),el('a',{class:'btn btn--ghost',href:'classpet://open',text:'測試開啟最新版'})])]),card('📱 連接手機','配對手機、設定教材捷徑與桌面電子書，統一在這裡管理。',[el('div',{class:'row',style:{gap:'8px',flexWrap:'wrap'}},[el('button',{id:'connectPhoneSettings',class:'btn btn--primary',text:'連接手機／顯示 QR code',onclick:()=>window.PetPhoneRemote.openPair()}),el('button',{id:'remoteShortcutSettings',class:'btn btn--ghost',text:'設定教材捷徑',onclick:()=>window.PetRemoteShortcuts.settings()}),el('a',{class:'btn btn--ghost',href:'classpet://ebooks',text:'開啟桌面手機控制設定'})]),el('p',{class:'muted',text:'雲端只更新 Code.gs，不需要 Index.html。儲存後更新原部署的版本，沿用原本網址。'}),el('button',{class:'btn btn--ghost',text:'複製新版 Apps Script／查看步驟',onclick:()=>window.PetPhoneRemote.backendHelp('更新 Code.gs 後即可啟用手機與電子書控制。')})]),displayCard, toolbarCard]),
     ]);
   }
 
@@ -4027,7 +4028,7 @@
   }
 
   /* ---------- 路由 ---------- */
-  function openQuickPoints(){floatPickerOpen=false;if(window.matchMedia('(max-width:860px)').matches){floatOpen=false;window.PetMobileQuick.open();go('quick');}else{if(page==='quick')go('overview');floatOpen=true;renderFloatWidget();}}
+  function openQuickPoints(){floatPickerOpen=false;if(window.PetDevice.isMobileOrTablet()){if(window.PetPhoneRemote.isPhone())window.PetPhoneRemote.desktopTool('points');floatOpen=false;window.PetMobileQuick.open('award');go('quick');}else{if(page==='quick')go('overview');floatOpen=true;renderFloatWidget();}}
   function pageMobileQuick(){return window.PetMobileQuick.render({go,refresh:render,closePicker:()=>{floatPickerOpen=false;},selectionCount:()=>floatSelected.size,awardPanel:floatPanelBody,timer:openTimerModal,pick:openRandomDraw,attendance:openAttendance,tasks:openDailyTasksQuick,connect:()=>window.PetPhoneRemote.openPair()});}
   const PAGES = {
     quick:pageMobileQuick,
@@ -4052,6 +4053,7 @@
   }
 
   function render() {
+    document.body.classList.toggle('is-remote-device',window.PetDevice.isMobileOrTablet());
     document.body.classList.toggle('is-classroom', page === 'classroom');
     document.body.classList.remove('is-remote-home');
     const host = $('#page');
@@ -4147,6 +4149,7 @@
         onClick();
       }
     });
+    return {wasMoved:()=>moved};
   }
 
   function desktopLauncherOptions() {
@@ -4156,7 +4159,7 @@
       documentPipSupported() ? el('button', { class: 'btn btn--ghost', text: '🪟 使用網頁置頂小視窗', onclick: openFloatPip }) : null,
       windows ? el('details', { class: 'desktop-launch-help' }, [
         el('summary', { text: '第一次使用／點了沒有開啟？' }),
-        el('p', { text: '請先開啟「班級加點小工具 1.7.0.exe」一次，再回來按上方按鈕。若瀏覽器詢問，請允許開啟。移動 EXE 後請重新執行一次。桌面工具使用原有班級連線設定。' }),
+        el('p', { text: '請先開啟 1.13.0 以上桌面工具一次，註冊本機啟動器。可到系統設定選擇 EXE 資料夾；浮動星星會開該資料夾的最新版。瀏覽器詢問時允許開啟。' }),
       ]) : el('p', { class: 'muted', text: '桌面小工具適用 Windows；這台裝置可繼續使用網頁加點。' }),
     ]);
   }
@@ -4203,13 +4206,15 @@
     pos.x = Math.max(0, Math.min(pos.x, window.innerWidth - (floatOpen ? Math.min(320, window.innerWidth) : 56)));
     pos.y = Math.max(0, Math.min(pos.y, window.innerHeight - (floatOpen ? Math.min(460, window.innerHeight) : 56)));
     if (!floatOpen) {
-      const fab = el('span', { class: 'float-fab', text: '⭐', role: 'button', tabindex: '0', 'aria-label': '開啟快速加點', onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openQuickPoints(); } }, style: { left: pos.x + 'px', top: pos.y + 'px' } });
-      makeDraggable(fab, fab, saveFloatPos, openQuickPoints);
+      const remote=window.PetDevice.isMobileOrTablet();
+      const fab = el('a', { class: 'float-fab',href:remote?'#quick':'classpet://open',title:remote?'手機／平板遙控器':'開啟最新版桌面小工具', text: '⭐', role: 'button', tabindex: '0', 'aria-label': remote?'開啟手機或平板遙控器':'開啟最新版桌面小工具', onkeydown: (e) => { if(e.key===' '){e.preventDefault();e.currentTarget.click();} }, style: { left: pos.x + 'px', top: pos.y + 'px' } });
+      const drag=makeDraggable(fab,fab,saveFloatPos,null);
+      fab.addEventListener('click',event=>{if(event.detail!==0&&drag.wasMoved()){event.preventDefault();return;}if(window.PetDevice.isMobileOrTablet()){event.preventDefault();floatOpen=false;floatPickerOpen=false;window.PetMobileQuick.open('home');go('quick');}});
       host.appendChild(fab);
       return;
     }
     const panelHead = el('div', { class: 'float-panel__head' }, [
-      el('span', { text: '⭐ 快速加點' }),
+      el('span', { text: '⭐ 網頁快速加點' }),
       el('button', { class: 'float-panel__close', text: '✕', onclick: () => { floatOpen = false; floatPickerOpen=false; renderFloatWidget(); } }),
     ]);
     const panel = el('div', { class: 'float-panel' + (floatDock ? ' is-dock-' + floatDock : ''), style: { left: pos.x + 'px', top: pos.y + 'px' } }, [panelHead, floatPanelBody()]);

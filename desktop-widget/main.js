@@ -16,7 +16,7 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { isDesktopLink, isEbookLink, registerDesktopLink } = require('./desktop-link');
+const { isDesktopLink, isEbookLink, isLauncherLink, registerDesktopLink } = require('./desktop-link');
 const ownsInstance = app.requestSingleInstanceLock();
 if (!ownsInstance) app.quit();
 let ebookPending=process.argv.some(isEbookLink);
@@ -241,6 +241,7 @@ function createTray() {
   tray = new Tray(path.join(__dirname, 'renderer', 'tray-icon.png'));
   tray.setToolTip('班級加點小工具');
   tray.setContextMenu(Menu.buildFromTemplate([
+    {label:'桌面小工具啟動資料夾',click:()=>desktopLauncher.open()},
     {label:'電子書與手機連線',click:()=>ebooks.open()},
     { label: '顯示小工具', click: showWidgetAgain },
     { label: '結束', click: () => app.quit() },
@@ -348,6 +349,7 @@ ipcMain.handle('bubble-done', () => {
   processBubbleQueue();
 });
 
+const desktopLauncher=require('./launcher-settings').install({app,BrowserWindow,ipcMain,dialog,getMainWindow:()=>win,showMainWindow:showWidgetAgain});
 let classroomTools;
 const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:kind=>{if(kind==='points'){showWidgetAgain();return;}return classroomTools.openRemoteTool(kind);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState()});
 
@@ -357,6 +359,8 @@ classroomTools=require('./tools-window')({ app, BrowserWindow, ipcMain,
 });
 
 app.on('second-instance', (event, commandLine) => {
+  if(desktopLauncher.upgrade(commandLine.find(isDesktopLink)||'classpet://open'))return;
+  if(commandLine.some(isLauncherLink)){desktopLauncher.open();return;}
   if(commandLine.some(isEbookLink)){ebooks.open();return;}
   // 重複開啟 EXE 或網頁入口時，喚回同一個工具，避免開出多個視窗。
   desktopOpenPending = true;
@@ -364,10 +368,13 @@ app.on('second-instance', (event, commandLine) => {
 });
 
 app.whenReady().then(() => {
-  if(ebookPending)ebooks.open();
   if (!ownsInstance) return;
+  const entry=process.argv.find(isDesktopLink);
+  if(entry&&desktopLauncher.upgrade(entry))return;
+  if(process.argv.some(isLauncherLink))desktopLauncher.open();
+  if(ebookPending)ebooks.open();
   try {
-    if (app.isPackaged && !registerDesktopLink(app)) console.warn('無法註冊網頁開啟入口，請重新執行桌面工具。');
+    if (app.isPackaged && !(desktopLauncher.register()||registerDesktopLink(app))) console.warn('無法註冊網頁開啟入口，請重新執行桌面工具。');
   } catch (error) { console.warn('網頁開啟入口註冊失敗：', error.message); }
   createWindow();
   createTray();
