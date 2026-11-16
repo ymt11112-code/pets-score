@@ -728,3 +728,12 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .quick-picker-footer { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding-top:6px; border-top:1px solid var(--line); flex:none; }
 .quick-picker-footer button { min-height:42px; border-radius:10px; background:var(--green-soft); font-weight:700; }
 .quick-picker-footer [data-quick-cancel] { background:#f4e9e7; color:#9c4a43; }
+
+.rule-edit-heading { grid-template-columns:64px minmax(95px,.48fr) minmax(0,1fr) minmax(120px,.72fr); gap:10px; }
+.rule-edit-heading .rule-current-icon { width:64px; min-width:64px; height:64px; }
+.rule-icon-fold { border:1px solid var(--line); border-radius:16px; background:var(--bg-soft); }
+.rule-icon-fold>summary { cursor:pointer; padding:13px 16px; font-weight:800; color:var(--brand); }
+.rule-icon-fold .icon-library { margin:0; }
+.rule-score-fields>.field { min-width:0; }
+.rule-management-code { display:block; color:var(--ink-mute); font-size:12px; margin-bottom:3px; }
+@media(max-width:640px) { .rule-edit-heading { grid-template-columns:64px minmax(0,1fr); } .rule-edit-heading>.field:last-child {grid-column:2;} .rule-edit-heading>.field:nth-child(3) {grid-column:2;} .rule-score-fields .input {padding:10px; min-width:0;} }

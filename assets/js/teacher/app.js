@@ -3024,12 +3024,15 @@
       const s2 = S.get();
       const cats = s2.ruleCategories && s2.ruleCategories.length ? s2.ruleCategories : M.DEFAULT_RULE_CATEGORIES;
       const iconInput = el('input', { class: 'rule-icon-input', type: 'hidden', value: r.icon, style: { maxWidth: '76px', textAlign: 'center', fontSize: '30px', flexShrink: '0' } });
-      const nameInput = el('input', { class: 'input grow', value: r.label, placeholder: '規則名稱' });
+      const parts = M.ruleFields(r);
+      const codeInput = el('input', {class:'input',value:parts.code,placeholder:'例如 A01',maxlength:'20','data-rule-code':''});
+      const nameInput = el('input', { class: 'input grow', value: parts.label, placeholder: '規則名稱','data-rule-name':'' });
       const ptsInput = el('input', { class: 'input', type: 'number', value: r.points });
       const xpInput = el('input', { class: 'input', type: 'number', value: r.xp });
       const coinsInput = el('input', { class: 'input', type: 'number', value: r.coins });
       const iconLibrary = iconPicker(iconInput, { nameInput, pointsInput: ptsInput });
-      const iconButton = el('button', { type:'button',class:'rule-current-icon','aria-label':'選擇規則圖示',onclick:()=>{iconLibrary.scrollIntoView({behavior:'smooth',block:'center'});iconLibrary.querySelector('[data-category="clay"]').click();} }, [iconInput]);
+      const iconFold = el('details',{class:'rule-icon-fold'},[el('summary',{text:'圖示選擇 · 點此展開'}),iconLibrary]);
+      const iconButton = el('button', { type:'button',class:'rule-current-icon','aria-label':'選擇規則圖示',onclick:()=>{iconFold.open=true;iconLibrary.scrollIntoView({behavior:'smooth',block:'center'});iconLibrary.querySelector('[data-category="clay"]').click();} }, [iconInput]);
       function paintRuleIcon() { const field=iconButton.querySelector('.rule-current-icon__image'); if(field) U.setIconText(field,iconInput.value); }
       iconButton.appendChild(el('span',{class:'rule-current-icon__image',text:iconInput.value}));
       iconInput.addEventListener('input',paintRuleIcon);
@@ -3044,7 +3047,7 @@
             const nm = nameInput.value.trim();
             if (!nm) { U.toast('請輸入規則名稱', 'warn'); return true; }
             const patch = {
-              icon: iconInput.value.trim() || '⭐', label: nm,
+              icon: iconInput.value.trim() || '⭐', code:codeInput.value.trim(), label: nm,
               points: Number(ptsInput.value) || 0, xp: Number(xpInput.value) || 0, coins: Number(coinsInput.value) || 0,
               category: catSelect.value,
             };
@@ -3076,9 +3079,9 @@
       U.modal({
         title: isNew ? '新增規則' : '編輯規則',
         body: el('div', { class: 'stack' }, [
-          el('div', { class: 'rule-edit-heading' }, [iconButton, field('名稱', nameInput), field('分類', catSelect)]),
-          iconLibrary,
-          el('div', { class: 'row', style: { gap: '10px' } }, [field('課堂點數', ptsInput), field('寵物 XP', xpInput), field('金幣', coinsInput)]),
+          el('div', { class: 'rule-edit-heading' }, [iconButton, field('編號（管理用）',codeInput), field('名稱', nameInput), field('分類', catSelect)]),
+          el('div', { class: 'row rule-score-fields', style: { gap: '10px' } }, [field('課堂點數', ptsInput), field('寵物 XP', xpInput), field('金幣', coinsInput)]),
+          iconFold,
         ]),
         actions,
       });
@@ -3144,6 +3147,7 @@
       ), [
         el('div', { class: 'rule-btn__emoji', text: r.icon }),
         el('div', { class: 'rule-btn__pts' + (r.points < 0 ? ' is-minus' : ''), text: (r.points > 0 ? '+' : '') + r.points }),
+        r.code ? el('small',{class:'rule-management-code',text:r.code}) : null,
         el('div', { class: 'rule-btn__label', text: r.label }),
         (r.xp || r.coins) ? el('div', {
           class: 'rule-btn__sub',
@@ -3159,7 +3163,7 @@
       ]);
 
       return el('div', {}, [
-        el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' } }, [catChips, posNegTabs]),
+        el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' } }, [catChips,el('button',{class:'btn btn--ghost btn--sm',text:'依編號排序',onclick:()=>{S.commit(d=>d.rules.sort(M.compareRuleCodes));U.toast('已依編號排序；未編號項目放最後');}}), posNegTabs]),
         el('div', { class: 'rule-grid rule-grid--cols5' }, cards),
       ]);
     }

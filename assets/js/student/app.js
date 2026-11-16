@@ -1200,7 +1200,7 @@
     host.appendChild((VIEWS[view] || viewMap)());
     renderWho();
     renderMsgBadge();
-    $$('#nav .nav__item').forEach((b) => b.classList.toggle('is-active', b.dataset.view === view));
+    $$('#nav [data-view]').forEach((b) => b.classList.toggle('is-active', b.dataset.view === view));
     try { maybeShowFirstPetDraw(); } catch (e) { /* 同上 */ }
     try { maybeCelebrateStoryline(); } catch (e) { /* 動畫失敗不該擋住正常畫面 */ }
     try { maybeShowPathChoice(); } catch (e) { /* 同上 */ }
@@ -1235,7 +1235,7 @@
 
     const hash = location.hash.slice(1);
     if (VIEWS[hash]) view = hash;
-    $$('#nav .nav__item').forEach((b) => b.addEventListener('click', () => goTo(b.dataset.view)));
+    $$('#nav [data-view]').forEach((b) => b.addEventListener('click', () => goTo(b.dataset.view)));
     window.addEventListener('hashchange', () => {
       const h = location.hash.slice(1);
       if (VIEWS[h] && h !== view) { view = h; render(); }

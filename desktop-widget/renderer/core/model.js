@@ -758,7 +758,18 @@
     };
   }
 
-  global.PetModel = {
+  /* 管理編號獨立存放；只拆解舊存檔常見的 A01／01 前綴。 */
+  function ruleFields(rule) {
+    if (typeof rule.code === 'string') return { code: rule.code.trim(), label: String(rule.label || '').trim() };
+    const label=String(rule.label || '').trim();
+    const match=label.match(/^([A-Za-z]{1,4}\d{1,4}|\d{1,4})[\s:：._-]*(?=[\u3400-\u9fff])(.+)$/u);
+    return match ? {code:match[1],label:match[2].trim()} : {code:'',label};
+  }
+  function compareRuleCodes(a,b) {
+    const x=ruleFields(a).code,y=ruleFields(b).code;
+    return x&&y ? x.localeCompare(y,'en',{numeric:true,sensitivity:'base'}) : x?-1:y?1:0;
+  }
+  global.PetModel = { ruleFields, compareRuleCodes,
     PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_STAGES_BY_RARITY, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_PATH_COUNT_BY_RARITY,

@@ -296,6 +296,7 @@
     const defaultCategoryById = {};
     (base.rules || []).forEach((r) => { defaultCategoryById[r.id] = r.category; });
     out.rules.forEach((r) => { if (!r.category) r.category = defaultCategoryById[r.id] || 'class'; });
+    out.rules.forEach(r => Object.assign(r, M.ruleFields(r)));
     if (!out.classMission) out.classMission = base.classMission;
     if (!out.attendance || typeof out.attendance !== 'object') out.attendance = {};
     if (!out.pathCapacity || typeof out.pathCapacity !== 'object') out.pathCapacity = {};
@@ -741,6 +742,7 @@
   function commit(mutator, opts) {
     const o = opts || {};
     mutator(state);
+    state.rules.forEach(r => Object.assign(r, M.ruleFields(r)));
     if (state.storyline) checkStorylineProgress(state);
     state.updatedAt = Date.now();
     persistLocal();
