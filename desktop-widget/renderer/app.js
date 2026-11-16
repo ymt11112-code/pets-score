@@ -211,10 +211,14 @@
         /* 這裡是本機自己按的，馬上就看得到下面這行 toast 了，不用再跳一次右下角泡泡
            （泡泡是留給「人不在這台電腦前面」的情境，例如手機加點）。 */
         suppressNextDiff = true;
+        const count = selected.size;
         const ups = S.award(Array.from(selected), r, '', s.classInfo.teacher);
+        selected.clear();
+        window.desktopWidget.clearSelection();
+        paint();
         suppressNextDiff = false;
         const sign = r.points >= 0 ? '+' : '';
-        U.toast(selected.size + ' 位 ' + r.label + ' ' + sign + r.points);
+        U.toast(count + ' 位 ' + r.label + ' ' + sign + r.points);
         if (ups.length) U.toast('🎉 ' + ups.map((u) => u.name + ' Lv.' + u.level).join('、') + ' 升級了！');
       },
     }, [

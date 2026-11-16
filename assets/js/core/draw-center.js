@@ -76,8 +76,8 @@
           el('div',{class:'dc-palette-preview','aria-label':'目前轉盤配色'},(PALETTES[cfg.wheelPalette]||PALETTES.forest).map(color=>el('span',{style:{background:color}})))
         ]),
         el('div',{class:'dc-settings-row'},[
-          optionControl('soundTrack','抽籤音效',[['drums','加速戰鼓'],['heartbeat','緊張心跳'],['arcade','電玩衝刺'],['suspense','懸疑倒數'],['bells','輕快鈴聲'],['none','靜音']]),
-          optionControl('revealSound','揭曉音效',[['fanfare','勝利號角'],['applause','熱烈掌聲'],['fireworks','慶祝煙火'],['chime','清脆提示'],['none','靜音']]),
+          optionControl('soundTrack','抽籤音效',[['drums','加速戰鼓'],['heartbeat','緊張心跳'],['arcade','電玩衝刺'],['suspense','懸疑倒數'],['bells','輕快鈴聲'],['marimba','木琴跳跳'],['piano','柔和鋼琴'],['ukulele','烏克麗麗'],['cosmic','星際漫遊'],['orchestra','冒險弦樂'],['carnival','歡樂嘉年華'],['mystery','神祕森林'],['none','靜音']]),
+          optionControl('revealSound','揭曉音效',[['fanfare','勝利號角'],['applause','熱烈掌聲'],['fireworks','慶祝煙火'],['chime','清脆提示'],['harp','豎琴流星'],['jazz','爵士慶祝'],['retro_win','復古過關'],['soft','溫柔和弦'],['magic','魔法閃光'],['drum_finish','戰鼓終章'],['none','靜音']]),
           optionControl('soundIntensity','緊張程度',[[1,'穩定'],[2,'刺激'],[3,'極限加速']]),
           btn('▶ 試聽音效',()=>{if(!data.config.sound)return setNotice('請先勾選音效。');audio.preview(data.config);},'',{'data-lock':'','data-preview-sound':''})
         ]),

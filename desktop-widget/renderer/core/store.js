@@ -1603,8 +1603,9 @@
       : null;
     commit((s) => {
       const fresh = M.seedState();
+      const settings = keepRoster ? JSON.parse(JSON.stringify(s)) : null;
       Object.keys(s).forEach((k) => delete s[k]);
-      Object.assign(s, fresh);
+      Object.assign(s, fresh, settings || {});
       if (roster) {
         s.students = roster.map((r, i) =>
           Object.assign(fresh.students[i] || {}, r, {
@@ -1613,6 +1614,7 @@
           })
         );
         s.ledger = [];
+        s.storyline = fresh.storyline;
         s.classInfo.classStars = 0;
         s.classInfo.classStreak = 0;
         s.classMission.progress = 0;

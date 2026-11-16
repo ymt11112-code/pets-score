@@ -717,3 +717,14 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .quick-picker button:disabled { opacity:.35; }
 .pip-horizontal .quick-categories { flex-direction:row; flex-wrap:wrap; max-height:100px; }
 .pip-horizontal .quick-category { width:auto; flex:1 1 auto; font-size:13px; }
+
+.mobile-quick-award { max-width:560px; margin:auto; }
+.mobile-quick-award h1 { font-size:24px; margin:12px 0 6px; }
+.mobile-quick-award .quick-points-body { padding:12px 0; overflow:visible; }
+.mobile-quick-award .quick-categories { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); max-height:none; }
+.mobile-quick-award .quick-rule-list .float-rulebtn { min-height:56px; font-size:17px; }
+.quick-selection-row { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+.quick-cancel-selection { padding:6px 10px; border-radius:10px; background:#f4e9e7; color:#9c4a43; font-size:13px; }
+.quick-picker-footer { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding-top:6px; border-top:1px solid var(--line); flex:none; }
+.quick-picker-footer button { min-height:42px; border-radius:10px; background:var(--green-soft); font-weight:700; }
+.quick-picker-footer [data-quick-cancel] { background:#f4e9e7; color:#9c4a43; }

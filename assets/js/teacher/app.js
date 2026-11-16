@@ -7,7 +7,7 @@
   const S = window.PetStore;
   const { $, $$, el } = U;
 
-  let page = 'overview';
+  let page = window.matchMedia('(max-width: 860px)').matches?'quick':'overview';
   let drawController=null;
   let selected = new Set();
   let filterGroup = '';
@@ -3372,6 +3372,7 @@
         ])),
       el('div', { class: 'stack', style: { gap: '18px' } }, [
         sectionCard('rules', '加扣分規則庫（所有裝置共用）', '統一新增、編輯與刪除規則，設定點數、XP、金幣和分類。網頁、手機與桌面工具共用；新增後可在下方選擇是否加入網頁快捷列。', [
+          el('button',{class:'btn btn--ghost',text:'📷 從截圖還原規則',onclick:()=>window.PetRecoverRules.open()}),
           ruleCardGrid(),
         ]),
         sectionCard('categories', '共用規則分類', '分類用於網頁規則篩選與桌面工具分頁；點卡片可改名、刪除，拖曳可排序。', [
@@ -3570,7 +3571,7 @@
           const storyWarn = S.get().storyline && S.get().storyline.active
             ? '「星野主線」的啟用狀態與五關進度也會一起被清空，之後要重新啟用才能繼續累積篇章星光。'
             : '';
-          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單與分組保留。' + storyWarn, '清空').then((ok) => {
+          U.confirmDialog('清空點數', '所有點數、金幣、經驗與紀錄都會歸零，學生名單、分組、共用規則、分類及其他設定保留。' + storyWarn, '清空').then((ok) => {
             if (!ok) return;
             S.resetAll(true); U.toast('已重設', 'warn'); render();
           });
@@ -3999,7 +4000,7 @@
     const host = $('#batchbar');
     host.innerHTML = '';
     const showSetting = S.get().settings ? S.get().settings.showBatchBar !== false : true;
-    if (!selected.size || page === 'batch' || page === 'classroom' || !showSetting) {
+    if (!selected.size || page === 'batch' || page === 'quick' || !showSetting) {
       host.classList.remove('is-in');
       return;
     }
@@ -4016,7 +4017,10 @@
   }
 
   /* ---------- 路由 ---------- */
+  function openQuickPoints(){floatPickerOpen=false;if(window.matchMedia('(max-width:860px)').matches){floatOpen=false;window.PetMobileQuick.open();go('quick');}else{if(page==='quick')go('overview');floatOpen=true;renderFloatWidget();}}
+  function pageMobileQuick(){return window.PetMobileQuick.render({go,refresh:render,closePicker:()=>{floatPickerOpen=false;},selectionCount:()=>floatSelected.size,awardPanel:floatPanelBody,timer:openTimerModal,pick:openRandomDraw,attendance:openAttendance,tasks:openDailyTasksQuick});}
   const PAGES = {
+    quick:pageMobileQuick,
     draw: pageTools, guide: pageGuide, overview: pageOverview, batch: pageBatch, roster: pageRoster, tools: pageTools,
     pets: pagePets, 'pet-settings': pagePetSettings, badges: pageBadges, messages: pageMessages, ledger: pageLedger, redeem: pageRedeem, board: pageBoard,
     rules: pageRules, settings: pageSettings, system: pageSystemSettings, sync: pageSync,
@@ -4048,6 +4052,7 @@
     document.body.classList.toggle('no-avatar-frame', st.avatarFrame === false);
     renderTopbar();
     renderBatchBar();
+    renderFloatWidget();
   }
 
   function bindSync() {
@@ -4155,13 +4160,13 @@
       el('button',{class:'btn btn--ghost',text:'↕ 直排',onclick:()=>{floatPipWin.document.body.classList.remove('pip-horizontal');floatPipWin.resizeTo(320,560);}}),
       el('button',{class:'btn btn--ghost',text:'↔ 橫排',onclick:()=>{floatPipWin.document.body.classList.add('pip-horizontal');floatPipWin.resizeTo(900,320);}})
     ]):desktopLauncherOptions();
-    return window.PetQuickPoints.panel({selected:floatSelected,launcher:pipRow,pickerOpen:floatPickerOpen,togglePicker:()=>{floatPickerOpen=!floatPickerOpen;renderFloatWidget();},applyRule,
+    return window.PetQuickPoints.panel({selected:floatSelected,launcher:pipRow,pickerOpen:floatPickerOpen,mobile:page==='quick',togglePicker:()=>{floatPickerOpen=!floatPickerOpen;if(page==='quick')render();else renderFloatWidget();},applyRule,
       tools:[['⏱️','計時器',openTimerModal],['🎲','抽籤',openRandomDraw],['📋','出席',openAttendance],['✅','今日任務',openDailyTasksQuick]]
     });
   }
   function appendFloatPicker(host,panel,view) {
     if(!floatPickerOpen)return;
-    const picker=window.PetQuickPoints.picker({selected:floatSelected,close:()=>{floatPickerOpen=false;renderFloatWidget();}});host.appendChild(picker);
+    const picker=window.PetQuickPoints.picker({selected:floatSelected,close:()=>{floatPickerOpen=false;if(page==='quick')render();else renderFloatWidget();}});host.appendChild(picker);
     const rect=panel.getBoundingClientRect(),width=Math.min(210,view.innerWidth-16),height=Math.min(620,view.innerHeight-16);picker.style.width=width+'px';picker.style.maxHeight=height+'px';const actualHeight=picker.getBoundingClientRect().height;
     if(rect.left>=width+16){picker.style.left=(rect.left-width-8)+'px';picker.style.top=Math.max(8,Math.min(rect.top,view.innerHeight-actualHeight-8))+'px';}
     else if(view.innerWidth-rect.right>=width+16){picker.style.left=(rect.right+8)+'px';picker.style.top=Math.max(8,Math.min(rect.top,view.innerHeight-actualHeight-8))+'px';}
@@ -4169,6 +4174,7 @@
   }
 
   function renderFloatWidget() {
+    if(page==='quick'&&!floatPipWin){const host=$('#floatWidget');host.innerHTML='';const panel=$('#page .quick-points-body');if(panel)appendFloatPicker(host,panel,window);return;}
     if (floatPipWin) {
       // 彈出視窗那邊也要能即時反映規則、名單異動，所以每次資料變動都重畫一次內容
       floatPipWin.document.body.innerHTML = '';
@@ -4187,8 +4193,8 @@
     pos.x = Math.max(0, Math.min(pos.x, window.innerWidth - (floatOpen ? Math.min(320, window.innerWidth) : 56)));
     pos.y = Math.max(0, Math.min(pos.y, window.innerHeight - (floatOpen ? Math.min(460, window.innerHeight) : 56)));
     if (!floatOpen) {
-      const fab = el('span', { class: 'float-fab', text: '⭐', role: 'button', tabindex: '0', 'aria-label': '開啟快速加點', onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); floatOpen = true; renderFloatWidget(); } }, style: { left: pos.x + 'px', top: pos.y + 'px' } });
-      makeDraggable(fab, fab, saveFloatPos, () => { floatOpen = true; renderFloatWidget(); });
+      const fab = el('span', { class: 'float-fab', text: '⭐', role: 'button', tabindex: '0', 'aria-label': '開啟快速加點', onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openQuickPoints(); } }, style: { left: pos.x + 'px', top: pos.y + 'px' } });
+      makeDraggable(fab, fab, saveFloatPos, openQuickPoints);
       host.appendChild(fab);
       return;
     }
@@ -4262,13 +4268,13 @@
   S.init().then(() => {
     const hash = location.hash.slice(1);
     if (PAGES[hash]) page = hash;
-    if(hash==='classroom')floatOpen=true;
-    $('#quickAdd').addEventListener('click',()=>{floatOpen=true;renderFloatWidget();});
+    if(hash==='classroom')page='quick';
+    $('#quickAdd').addEventListener('click',openQuickPoints);
     $$('.side__item').forEach((b) => b.addEventListener('click', () => go(b.dataset.page)));
     bindSideToggle();
     window.addEventListener('hashchange', () => {
       const h = location.hash.slice(1);
-      if(h==='classroom'){floatOpen=true;renderFloatWidget();return;}
+      if(h==='classroom'){go('quick');return;}
       if (PAGES[h] && h !== page) { page = h; render(); }
     });
     S.subscribe(render);

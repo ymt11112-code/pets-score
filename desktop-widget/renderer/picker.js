@@ -81,6 +81,10 @@
     ]);
 
     [head, tabs].concat(tab === 'groups' ? groupsTab(s) : studentsTab(s)).forEach((n) => n && wrap.appendChild(n));
+    wrap.appendChild(el('div', { class: 'dw-seg' }, [
+      el('button', { class: 'dw-btn', text: '取消選取', onclick: () => window.desktopWidget.clearSelection() }),
+      el('button', { class: 'dw-btn', text: '完成', onclick: () => window.desktopWidget.closePicker() })
+    ]));
     root.appendChild(wrap);
     reportSize(wrap);
   }

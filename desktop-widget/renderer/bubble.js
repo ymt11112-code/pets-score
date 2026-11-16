@@ -24,7 +24,7 @@
     clearTimeout(hideTimer);
     root.innerHTML = '';
     const minus = (payload.points || 0) < 0 || (payload.coins || 0) < 0;
-    const names = (payload.names && payload.names.length) ? payload.names.join('、') : '？';
+    const names = (payload.names && payload.names.length) ? (payload.names.length > 3 ? payload.names.slice(0, 2).join('、') + ' 等 ' + payload.names.length + ' 位' : payload.names.join('、')) : '？';
     const card = el('div', { class: 'aw-bubble' + (minus ? ' is-minus' : '') }, [
       el('span', { class: 'aw-bubble__icon', text: payload.icon || '⭐' }),
       el('div', { class: 'grow' }, [

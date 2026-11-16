@@ -8,8 +8,8 @@
   function normalize(raw){
     const source=raw&&typeof raw==='object'?raw:{};const cfg=Object.assign({},DEFAULTS,source.config||{});
     cfg.style=STYLES.includes(cfg.style)?cfg.style:'wheel';cfg.count=integer(cfg.count,1,5,1);cfg.duration=integer(cfg.duration,1,8,4);cfg.volume=integer(cfg.volume,0,100,45);cfg.groupCount=integer(cfg.groupCount,0,10,0);
-    cfg.soundTrack=['drums','heartbeat','arcade','suspense','bells','none'].includes(cfg.soundTrack)?cfg.soundTrack:'drums';
-    cfg.revealSound=['fanfare','applause','fireworks','chime','none'].includes(cfg.revealSound)?cfg.revealSound:'fanfare';
+    cfg.soundTrack=['drums','heartbeat','arcade','suspense','bells','marimba','piano','ukulele','cosmic','orchestra','carnival','mystery','none'].includes(cfg.soundTrack)?cfg.soundTrack:'drums';
+    cfg.revealSound=['fanfare','applause','fireworks','chime','harp','jazz','retro_win','soft','magic','drum_finish','none'].includes(cfg.revealSound)?cfg.revealSound:'fanfare';
     cfg.soundIntensity=integer(cfg.soundIntensity,1,3,2);
     cfg.wheelPalette=['forest','ocean','sunset','candy','neon','mono'].includes(cfg.wheelPalette)?cfg.wheelPalette:'forest';
     cfg.autoTimer=cfg.autoTimer===true;cfg.timerMode=cfg.timerMode==='up'?'up':'down';cfg.timerSeconds=integer(cfg.timerSeconds,1,10800,60);

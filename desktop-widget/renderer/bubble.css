@@ -15,3 +15,9 @@ html, body { background: transparent; width: 100%; height: 100%; margin: 0; over
 .aw-bubble__meta { font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; }
 .aw-bubble__amount { font-weight: 900; font-size: 15px; color: var(--green); flex-shrink: 0; white-space: nowrap; }
 .aw-bubble__amount.is-minus { color: var(--red); }
+
+* { box-sizing:border-box; }
+.aw-bubble { min-height:100px; max-height:168px; overflow:auto; align-items:flex-start; }
+.aw-bubble .grow { flex:1; min-width:0; overflow-wrap:anywhere; }
+.aw-bubble__amount { max-width:125px; white-space:normal; overflow-wrap:anywhere; }
+.aw-bubble__meta { font-size:14px; }

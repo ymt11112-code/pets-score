@@ -259,3 +259,7 @@ img { max-width: 100%; display: block; }
 .clay-icon { display:inline-block; width:1.5em; height:1.5em; flex-shrink:0; background-image:url('../img/rule-icons/clay-classroom-v1.png'); background-size:400% 300%; background-repeat:no-repeat; vertical-align:-.3em; }
 
 .clay-icon[data-sheet="v2"] { background-image:url('../img/rule-icons/clay-classroom-v2.png'); background-size:800% 600%; }
+
+.award-notice { display:grid; grid-template-columns:32px minmax(0,1fr) 44px; max-height:calc(100dvh - 48px); overflow:auto; box-sizing:border-box; }
+.award-notice strong { min-width:0; overflow-wrap:anywhere; }
+@media(max-width:640px) { .award-notices { top:auto; bottom:calc(88px + env(safe-area-inset-bottom,0px)); } }

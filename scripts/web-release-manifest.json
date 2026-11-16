@@ -1,5 +1,5 @@
 {
-  "version": "20261116-6",
+  "version": "20261116-7",
   "files": [
     "README.md",
     "teacher.html",
@@ -21,7 +21,9 @@
     "assets/img/rule-icons/CLAY_V2.md",
     "assets/js/core/draw-sounds.js",
     "assets/js/core/lesson-timer.js",
-    "assets/js/teacher/quick-points.js"
+    "assets/js/teacher/quick-points.js",
+    "assets/js/teacher/mobile-quick.js",
+    "assets/js/teacher/recover-rules.js"
   ],
   "image": "assets/img/rule-icons/clay-classroom-v1.png",
   "images": [
