@@ -143,6 +143,7 @@ function positionBubbleWindow() {
 /* 一次只播一則：播完（bubble.js 淡出動畫結束後呼叫 bubble-done）才接著播下一則，
    避免同時跳出好幾個泡泡疊在一起看不清楚。showInactive 絕對不會把焦點從 PowerPoint 搶走。 */
 function processBubbleQueue() {
+  bubbleQueue=bubbleQueue.filter(item=>!Number.isFinite(item.at)||item.at>=Date.now()-120000);
   if (bubbleBusy || !bubbleQueue.length || !bubbleWin) return;
   bubbleBusy = true;
   const payload = bubbleQueue.shift();
@@ -335,6 +336,7 @@ ipcMain.handle('quit-app', () => app.quit());
 /* renderer（app.js）偵測到新的加點紀錄（通常是手機或其他裝置透過雲端同步加進來的）
    就會呼叫這個，把內容排進佇列；bubble.js 淡出動畫結束後呼叫 bubble-done 才會接著播下一則。 */
 ipcMain.handle('notify-award', (evt, payload) => {
+  if(evt.sender!==win?.webContents||!payload||!Number.isFinite(payload.at)||payload.at<Date.now()-120000)return;
   bubbleQueue.push(payload);
   processBubbleQueue();
 });

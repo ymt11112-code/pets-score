@@ -391,3 +391,17 @@
 .is-projecting .dc-timer-strip { background:#174b50; color:#fff; }
 .is-projecting .dc-timer-strip.is-finished { background:#ffdfa0; color:#633d0d; }
 @container(max-width:560px){ .dc-scratch-intro { padding:8px; } .dc-scratch-intro strong { font-size:16px; } .dc-scratch-intro small { font-size:12px; } }
+
+.dc-style-list { grid-template-columns:repeat(8,minmax(0,1fr)); }
+.dc-scene--devil { background:radial-gradient(ellipse at center,#642e75,#211d36); border-radius:14px; padding:15px; color:#fff4df; }
+.dc-devil-tube { position:relative; width:150px; height:190px; margin-top:70px; border:5px solid #bb8b53; border-radius:14px 14px 40px 40px; background:linear-gradient(100deg,#72283e,#3f1d32,#842c48); box-shadow:inset 8px 0 12px #ffffff19,0 8px 0 #160d24; color:#fff1b4; z-index:1; }
+.dc-devil-sticks { position:absolute; width:100%; height:110px; bottom:83%; left:0; z-index:-1; }
+.dc-devil-sticks i { position:absolute; width:15px; height:135px; left:calc(44% + (var(--stick-order) - 4)*8px); bottom:0; border-radius:4px 4px 0 0; background:linear-gradient(90deg,#bc864f,#ffe1a4,#ca9557); border-top:22px solid #9c294d; transform:rotate(var(--stick-angle)); transform-origin:bottom; }
+.dc-devil-face { display:block; font-size:58px; margin-bottom:8px; }
+.dc-devil-tube strong { font-size:23px; letter-spacing:.1em; }
+.dc-devil-ticket { display:flex; flex-direction:column; align-items:center; gap:8px; max-width:95%; padding:14px 20px; border:3px solid #d4a35d; border-radius:12px; background:#fff0cb; color:#52283f; opacity:var(--reveal,0); transform:translateY(calc((1 - var(--reveal,0))*30px)); }
+.dc-devil-who { font-size:clamp(22px,3vw,42px); }
+.dc-devil-task { font-size:clamp(20px,2.5vw,34px); font-weight:800; text-align:center; }
+.dc-devil-hint { font-size:13px; color:#f0d7b9; margin:0; text-align:center; }
+.dc-workspace .dc-scene--devil { overflow:auto; justify-content:flex-start; }
+@container(max-width:560px){.dc-devil-tube { width:90px; height:120px; margin-top:50px; }.dc-devil-face { font-size:32px; }.dc-devil-tube strong { font-size:15px; }.dc-devil-sticks i { height:90px; width:9px; left:calc(44% + (var(--stick-order) - 4)*5px); border-top-width:15px; }.dc-devil-ticket { padding:7px; }.dc-devil-task { font-size:17px; }}

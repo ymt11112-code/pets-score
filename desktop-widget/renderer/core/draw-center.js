@@ -2,7 +2,7 @@
 (function(root){
   'use strict';
   const E=root.PetDrawEngine,U=root.PetUtil,el=U.el;
-  const THEMES=[['wheel','🎡','幸運轉盤'],['race','🏁','賽跑大賽'],['bomb','💣','炸彈傳遞'],['slot','🎰','拉霸機'],['gacha','🟣','盲盒扭蛋'],['cards','🃏','塔羅翻牌'],['scratch','🎟️','刮刮樂']];
+  const THEMES=[['wheel','🎡','幸運轉盤'],['race','🏁','賽跑大賽'],['bomb','💣','炸彈傳遞'],['slot','🎰','拉霸機'],['gacha','🟣','盲盒扭蛋'],['cards','🃏','塔羅翻牌'],['scratch','🎟️','刮刮樂'],['devil','👹','魔鬼籤']];
   const svg=(tag,attrs,text)=>{const node=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs||{}).forEach(([key,value])=>node.setAttribute(key,value));if(text!=null)node.textContent=text;return node;};
   const PALETTES={forest:['#15584c','#e8bb4d','#cde8db','#507d8a','#f4dca0','#8f73b3'],ocean:['#084c61','#177eaa','#4cc9d9','#b7e8f0','#6b7fd7','#d7f4ff'],sunset:['#8f2d56','#d94c56','#f48c48','#ffcb69','#f7e5b7','#b75d69'],candy:['#e498bc','#a995d0','#8cd4cf','#fae29b','#f9b4a2','#9fc6eb'],neon:['#5224a0','#db237b','#00a89b','#ffce32','#1961d3','#91d435'],mono:['#173b42','#45666b','#729096','#9fb4b6','#cedcde','#f0f6f6']};
   function makeWheel(entries,weights,label,palette,onSpin){
@@ -40,6 +40,7 @@
       rootEl.querySelectorAll('[data-weight-id]').forEach(row=>{const id=row.dataset.weightId,input=row.querySelector('input'),prob=row.querySelector('small');if(document.activeElement!==input)input.value=data.weights[id]||1;const eligible=pool.some(st=>st.id===id);prob.textContent=eligible&&total?'首抽 '+((data.weights[id]||1)/total*100).toFixed(1)+'%':(snapshot.absentIds||[]).includes(id)?'今日不參加':'本輪已抽';row.classList.toggle('is-excluded',!eligible);});
       rootEl.querySelectorAll('[data-config]').forEach(node=>{if(node===document.activeElement)return;const value=data.config[node.dataset.config];if(node.type==='checkbox')node.checked=!!value;else node.value=value;});
       if(refs.reveal)refs.reveal.hidden=!revealNow;
+      const mode=rootEl.querySelector('[data-config=taskMode]');if(mode)mode.disabled=running||data.config.style==='devil';
       if(refs.notice)refs.notice.textContent=notice;
       rootEl.querySelectorAll('[data-draw-trigger]').forEach(node=>node.disabled=running||!pool.length);
     }
@@ -56,12 +57,12 @@
     function settings(){
       const cfg=data.config;
       const count=el('select',{'aria-label':'一次抽幾位','data-lock':'','data-config':'count',onchange:e=>configure({config:{count:Number(e.target.value)}})},[1,2,3,4,5].map(n=>el('option',{value:n,text:n+' 位',selected:cfg.count===n?'selected':null})));
-      const mode=el('select',{'aria-label':'綁定抽籤任務','data-lock':'','data-config':'taskMode',onchange:e=>{configure({config:{taskMode:e.target.value}});render();}},[['none','只抽學生'],['questions','學生＋題號'],['reward','學生＋獎勵／懲罰'],['chores','學生＋掃除工作'],['custom','學生＋自訂任務']].map(([value,text])=>el('option',{value,text,selected:cfg.taskMode===value?'selected':null})));
+      const mode=el('select',{'aria-label':'綁定抽籤任務','data-lock':'','data-config':'taskMode',onchange:e=>{configure({config:{taskMode:e.target.value}});render();}},[['none','只抽學生'],['questions','學生＋題號'],['reward','學生＋獎勵／懲罰'],['chores','學生＋掃除工作'],['custom','學生＋自訂任務'],['punishment','學生＋處罰項目']].map(([value,text])=>el('option',{value,text,selected:cfg.taskMode===value?'selected':null})));
       const duration=el('select',{'aria-label':'動畫長度','data-lock':'','data-config':'duration',onchange:e=>configure({config:{duration:Number(e.target.value)}})},[2,4,6,8].map(n=>el('option',{value:n,text:n+' 秒',selected:cfg.duration===n?'selected':null})));
       const group=el('select',{'aria-label':'排序分組數','data-lock':'','data-config':'groupCount',onchange:e=>configure({config:{groupCount:Number(e.target.value)}})},[0,2,3,4,5,6,8,10].map(n=>el('option',{value:n,text:n?n+' 組，依序輪流分組':'只排名，不分組',selected:cfg.groupCount===n?'selected':null})));
       const extras=[];
       if(cfg.taskMode==='questions')extras.push(el('div',{class:'dc-settings-row'},[field('題號從',control(cfg,'questionFrom','number',{min:1,max:999})),field('到',control(cfg,'questionTo','number',{min:1,max:999}))]));
-      if(['reward','chores','custom'].includes(cfg.taskMode)){const key=cfg.taskMode==='reward'?'taskText':cfg.taskMode==='chores'?'choreText':'customText';extras.push(field('每行一項，抽出後與學生配對',el('textarea',{'data-lock':'','data-config':key,rows:4,text:cfg[key],onchange:e=>configure({config:{[key]:e.target.value}})})));}
+      if(['reward','chores','custom','punishment'].includes(cfg.taskMode)){const key=cfg.taskMode==='reward'?'taskText':cfg.taskMode==='chores'?'choreText':cfg.taskMode==='punishment'?'punishmentText':'customText';extras.push(field(cfg.taskMode==='punishment'?'處罰項目（每行一項）':'每行一項，抽出後與學生配對',el('textarea',{'data-lock':'','data-config':key,rows:4,text:cfg[key],onchange:e=>configure({config:{[key]:e.target.value}})})));}
       if(cfg.taskMode!=='none')extras.push(el('p',{class:'dc-note',text:'任務以文字顯示，這次連抽盡量不重複任務；加扣分請在結果出來後確認。'}));
       return el('div',{class:'dc-settings'},[
         el('div',{class:'dc-settings-row'},[field('一次抽取',count),field('任務綁定',mode),field('動畫長度',duration)]),
@@ -112,7 +113,7 @@
       const header=el('header',{class:'dc-header'},[el('div',{},[el('p',{class:'dc-eyebrow',text:snapshot.className||'CLASSROOM DRAW'}),el('h1',{text:'課堂抽籤中心'}),refs.stats]),el('div',{class:'dc-header-actions'},[
         btn(projected?'結束投影':'⛶ 大字投影',()=>toggleProject()),adapter.back?btn('返回',()=>{cancelPresentation();if(projected)toggleProject(false);adapter.back();}):null,clockStrip()
       ])]);rootEl.append(header);
-      rootEl.append(el('div',{class:'dc-style-list','aria-label':'抽籤樣式'},THEMES.map(([id,image,label])=>btn(image+' '+label,()=>{if(running)return;configure({config:{style:id}});render();},'',{'data-style':id,'data-lock':'','aria-pressed':String(data.config.style===id)}))));
+      rootEl.append(el('div',{class:'dc-style-list','aria-label':'抽籤樣式'},THEMES.map(([id,image,label])=>btn(image+' '+label,()=>{if(running)return;configure({config:id==='devil'?{style:id,taskMode:'punishment'}:{style:id,taskMode:data.config.style==='devil'?'none':data.config.taskMode}});render();},'',{'data-style':id,'data-lock':'','aria-pressed':String(data.config.style===id)}))));
       const workspace=el('div',{class:'dc-workspace'}),drawPane=el('div',{class:'dc-draw-pane'});rootEl.append(workspace);workspace.append(drawPane);
       refs.stage=el('div',{class:'dc-stage','aria-label':'抽籤動畫區'});drawPane.append(refs.stage);
       buildScene(null,currentPool(),false);
@@ -148,6 +149,8 @@
       } else if(mode==='cards'){
         const chosen=[];if(result){const indices=pool.map((_,i)=>i);const click=Number.isInteger(contextCardIndex)?contextCardIndex%Math.max(1,pool.length):Math.floor(Math.random()*Math.max(1,pool.length));chosen.push(click);indices.splice(indices.indexOf(click),1);while(chosen.length<result.results.length&&indices.length)chosen.push(indices.splice(Math.floor(Math.random()*indices.length),1)[0]);}
         const cards=pool.map((st,index)=>{const position=chosen.indexOf(index),item=result&&position>=0?result.results[position]:null;return btn('',()=>{if(!running){contextCardIndex=index;start(false);}},'dc-flip-card',{'aria-label':'翻開第 '+(index+1)+' 張牌'});});cards.forEach((card,index)=>{const item=result&&chosen.includes(index)?result.results[chosen.indexOf(index)]:null;card.append(el('span',{class:'dc-card-back',text:'🐾'}),el('span',{class:'dc-card-front'},item?[avatar(item),el('span',{text:U.pad2(item.no)+' '+item.name})]:[el('span',{text:'?'})]));});scene.append(el('p',{class:'dc-note',text:animate?'翻開幸運卡牌…':'點一張牌，或按「隨機翻牌」；連抽會一起翻開多張。'}),el('div',{class:'dc-card-deck'},cards));context.tick=p=>cards.forEach((card,index)=>{if(chosen.includes(index))card.classList.toggle('is-flipped',p>(chosen.indexOf(index)+1)/(chosen.length+1)*.8);});
+      } else if(mode==='devil'){
+        const sticks=el('div',{class:'dc-devil-sticks'},Array.from({length:9},(_,i)=>el('i',{style:{'--stick-angle':(i-4)*8+'deg','--stick-order':i}}))),tube=el('button',{class:'dc-devil-tube dc-scene-trigger',type:'button','data-draw-trigger':'','aria-label':'抽魔鬼籤',onclick:()=>start(false)},[sticks,el('span',{class:'dc-devil-face',text:'👹'}),el('strong',{text:'魔鬼籤'})]),ticket=el('div',{class:'dc-devil-ticket'},[el('small',{text:'魔鬼籤揭曉'}),el('strong',{class:'dc-devil-who',text:first?U.pad2(first.no)+' 號 '+first.name:'?'}),el('span',{class:'dc-devil-task',text:first?first.task:'搖一搖，抽出處罰項目'})]);scene.append(tube,ticket,el('p',{class:'dc-devil-hint',text:'抽中同學，同時配對一項處罰'}));scene.dataset.phase='ready';context.tick=p=>{tube.style.transform=p<.6?'rotate('+Math.sin(p*85)*6+'deg)':'none';ticket.style.setProperty('--reveal',String(Math.max(0,(p-.6)/.4)));scene.dataset.phase=p<.6?'shaking':'drawing';};context.finish=()=>{ticket.style.setProperty('--reveal','1');scene.classList.add('is-revealed');scene.dataset.phase='revealed';};
       } else if(mode==='scratch'){
         if(!result){scene.append(el('button',{class:'dc-scratch-placeholder dc-scene-trigger',type:'button','data-draw-trigger':'','aria-label':'抽出刮刮卡',onclick:()=>start(false)},[scratchWatermarks(0),el('div',{class:'dc-scratch-intro'},[el('strong',{text:'寵物幸運刮刮卡'}),el('small',{text:'點一下抽卡，再刮開揭曉'})])]));}
         else setupScratch(scene,result);

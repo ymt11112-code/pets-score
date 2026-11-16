@@ -71,36 +71,14 @@
     return grip;
   }
 
-  /* 加點通知泡泡：每次 paint（= 每次資料有變動，包含雲端同步拉回來的）都比對一次目前的
-     點數紀錄，找出「上次沒看過」的紀錄，送去 main process 跳泡泡。seenLedgerIds 開機時
-     先用「當下已經有的紀錄」整批塞滿，這樣一開機不會把過去幾百筆舊紀錄全部跳出來；
-     suppressNextDiff 是在「這個視窗自己剛點規則加點」的當下設成 true，讓這次新增的那筆
-     紀錄被直接標記成「看過了」、不用再跳一次泡泡（toast 已經在同一個視窗裡看得到了）。 */
-  let seenLedgerIds = null;
-  let suppressNextDiff = false;
-
+  /* 首次同步、換班與重開均建立基準；只有之後的新事件可排通知。 */
+  const ledgerAlerts=window.PetLedgerAlerts.create();
+  let suppressNextDiff=false;
   function checkForNewLedgerEntries(s) {
-    if (!seenLedgerIds) return;
-    const ledger = s.ledger || [];
-    const unseen = ledger.filter((e) => !seenLedgerIds.has(e.id));
-    if (!unseen.length) return;
-    unseen.forEach((e) => seenLedgerIds.add(e.id));
-    if (suppressNextDiff) return;
-    if (!window.desktopWidget) return;
-    const nameOf = (id) => { const st = s.students.find((x) => x.id === id); return st ? st.name : '？'; };
-    unseen
-      .filter((e) => !e.undone)
-      .forEach((e) => {
-        const rule = s.rules.find((r) => r.id === e.ruleId);
-        window.desktopWidget.notifyAward({
-          names: (e.studentIds || []).map(nameOf),
-          label: e.label || '',
-          points: e.points || 0,
-          xp: e.xp || 0,
-          coins: e.coins || 0,
-          icon: rule ? rule.icon : '⭐',
-        });
-      });
+    const unseen=ledgerAlerts.observe(s,S.getConfig(),S.getSync(),suppressNextDiff);
+    if(!window.desktopWidget)return;
+    const nameOf=id=>{const st=s.students.find(x=>x.id===id);return st?st.name:'？';};
+    unseen.forEach(e=>{const rule=s.rules.find(r=>r.id===e.ruleId);window.desktopWidget.notifyAward({names:e.studentIds.map(nameOf),label:e.label||'',points:e.points||0,xp:e.xp||0,coins:e.coins||0,icon:rule?rule.icon:'⭐',at:e.ts});});
   }
 
   function isVertical() { return dockSide === 'left' || dockSide === 'right'; }
@@ -304,7 +282,7 @@
 
   function paint() {
     if (pawGesture) return;
-    if (S.getConfig().mode === 'sheet') checkForNewLedgerEntries(S.get());
+    checkForNewLedgerEntries(S.get());
     // 同步與貼邊事件不重建腳掌，避免中斷焦點或連續操作。
     if (collapsed && root.querySelector('.dw-collapsed')) return;
     root.innerHTML = '';
@@ -393,8 +371,8 @@
   });
 
   S.init().then(() => {
-    // 開機當下已經存在的紀錄全部當作「看過了」，不然一開機就會把過去累積的紀錄全部跳出來
-    seenLedgerIds = new Set((S.get().ledger || []).map((e) => e.id));
+    checkForNewLedgerEntries(S.get());
+    document.addEventListener('petsync',()=>{if(S.get())paint();});
     S.subscribe(paint);
     S.subscribe(() => window.desktopWidget && window.desktopWidget.publishToolState(toolSnapshot()));
     Promise.all([initDock(), initSelection()]).then(paint);

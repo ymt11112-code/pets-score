@@ -1,8 +1,8 @@
 ﻿/* 共用抽籤引擎：以最新名單抽取，權重抽樣不放回，與動畫分離。 */
 (function(root){
   'use strict';
-  const STYLES=['wheel','race','bomb','slot','gacha','cards','scratch'];
-  const DEFAULTS={style:'wheel',count:1,excludeDrawn:true,sound:true,volume:70,soundTrack:'drums',revealSound:'fanfare',soundIntensity:2,wheelPalette:'forest',duration:4,taskMode:'none',questionFrom:1,questionTo:20,taskText:'獲得掌聲\n分享解題方法\n帶領大家伸展',choreText:'擦黑板\n掃地\n拖地\n整理書櫃\n倒回收\n擦窗臺',customText:'第一個任務\n第二個任務',groupCount:0,autoTimer:false,timerMode:'down',timerSeconds:60};
+  const STYLES=['wheel','race','bomb','slot','gacha','cards','scratch','devil'];
+  const DEFAULTS={style:'wheel',count:1,excludeDrawn:true,sound:true,volume:70,soundTrack:'drums',revealSound:'fanfare',soundIntensity:2,wheelPalette:'forest',duration:4,taskMode:'none',questionFrom:1,questionTo:20,taskText:'獲得掌聲\n分享解題方法\n帶領大家伸展',choreText:'擦黑板\n掃地\n拖地\n整理書櫃\n倒回收\n擦窗臺',customText:'第一個任務\n第二個任務',punishmentText:'重新說明答案一次\n整理自己的桌面\n補完成一題訂正',groupCount:0,autoTimer:false,timerMode:'down',timerSeconds:60};
   const integer=(value,min,max,fallback)=>Number.isFinite(Number(value))?Math.max(min,Math.min(max,Math.round(Number(value)))):fallback;
   const random=()=>{if(root.crypto&&root.crypto.getRandomValues){const n=new Uint32Array(1);root.crypto.getRandomValues(n);return n[0]/4294967296;}return Math.random();};
   function normalize(raw){
@@ -13,9 +13,10 @@
     cfg.soundIntensity=integer(cfg.soundIntensity,1,3,2);
     cfg.wheelPalette=['forest','ocean','sunset','candy','neon','mono'].includes(cfg.wheelPalette)?cfg.wheelPalette:'forest';
     cfg.autoTimer=cfg.autoTimer===true;cfg.timerMode=cfg.timerMode==='up'?'up':'down';cfg.timerSeconds=integer(cfg.timerSeconds,1,10800,60);
-    cfg.excludeDrawn=cfg.excludeDrawn!==false;cfg.sound=cfg.sound!==false;cfg.taskMode=['none','questions','reward','chores','custom'].includes(cfg.taskMode)?cfg.taskMode:'none';
+    cfg.excludeDrawn=cfg.excludeDrawn!==false;cfg.sound=cfg.sound!==false;cfg.taskMode=['none','questions','reward','chores','custom','punishment'].includes(cfg.taskMode)?cfg.taskMode:'none';
+    if(cfg.style==='devil')cfg.taskMode='punishment';
     cfg.questionFrom=integer(cfg.questionFrom,1,999,1);cfg.questionTo=integer(cfg.questionTo,cfg.questionFrom,Math.min(999,cfg.questionFrom+499),Math.max(cfg.questionFrom,20));
-    ['taskText','choreText','customText'].forEach(key=>cfg[key]=String(cfg[key]||'').slice(0,6000));
+    ['taskText','choreText','customText','punishmentText'].forEach(key=>cfg[key]=String(cfg[key]||'').slice(0,6000));
     const weights={};Object.entries(source.weights||{}).forEach(([id,value])=>{if(typeof id==='string')weights[id]=integer(value,1,10,1);});
     return {version:1,round:integer(source.round,1,1000000,1),drawnIds:Array.from(new Set(Array.isArray(source.drawnIds)?source.drawnIds.filter(x=>typeof x==='string'):[])),weights,config:cfg,history:Array.isArray(source.history)?source.history.slice(0,60):[],last:source.last&&Array.isArray(source.last.results)?source.last:null};
   }
@@ -35,7 +36,7 @@
   function tasks(config){
     if(config.taskMode==='none')return[];
     if(config.taskMode==='questions')return Array.from({length:config.questionTo-config.questionFrom+1},(_,i)=>'第 '+(config.questionFrom+i)+' 題');
-    const key=config.taskMode==='reward'?'taskText':config.taskMode==='chores'?'choreText':'customText';
+    const key=config.taskMode==='reward'?'taskText':config.taskMode==='chores'?'choreText':config.taskMode==='punishment'?'punishmentText':'customText';
     return Array.from(new Set(String(config[key]||'').split(/\r?\n/).map(x=>x.trim().slice(0,80)).filter(Boolean))).slice(0,100);
   }
   function snapshot(state,absentIds){return{students:state.students||[],absentIds:absentIds||[],draw:normalize(state.drawCenter)};}
