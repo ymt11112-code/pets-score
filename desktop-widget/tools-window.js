@@ -2,7 +2,8 @@
 const path = require('path');
 module.exports = function installTools({ app, BrowserWindow, ipcMain, getMainWindow, getPickerWindow, selectForAward }) {
   let tools = null, quitting = false, sequence = 0;
-  const pending = new Map();
+  const pending = new Map(), timerPending=new Map();
+  let timerState={mode:"down",total:300,seconds:300,running:false,done:false};
   const A = require('./renderer/core/attendance');
   const kinds = ['attendance', 'draw', 'timer', 'tasks'];
   app.on('before-quit', () => { quitting = true; });
@@ -17,22 +18,23 @@ module.exports = function installTools({ app, BrowserWindow, ipcMain, getMainWin
     });
   }
   function allowed(event) { return tools && !tools.isDestroyed() && event.sender === tools.webContents; }
-  function open(kind) {
+  function open(kind, background=false) {
     if (!kinds.includes(kind)) return;
     if (tools && !tools.isDestroyed()) {
       tools.webContents.send('open-tool', kind);
       if(kind==='draw')tools.setSize(1000,760);
-      tools.show(); tools.focus(); return;
+      if(background)tools.showInactive();else{tools.show();tools.focus();}return;
     }
     tools = new BrowserWindow({
       width: kind==='draw'?1000:420, height: kind==='draw'?760:610, minWidth: 320, minHeight: 380,
-      title: '課堂小工具', autoHideMenuBar: true, resizable: true,
+      show:!background,title: '課堂小工具', autoHideMenuBar: true, resizable: true,
       alwaysOnTop: true, skipTaskbar: true, backgroundColor: '#eaf6ee',
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, backgroundThrottling: false },
     });
     tools.setAlwaysOnTop(true, 'screen-saver');
     tools.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     tools.loadFile(path.join(__dirname, 'renderer', 'tools.html'), { query: { tool: kind } });
+    if(background)tools.once('ready-to-show',()=>{if(tools&&!tools.isDestroyed())tools.showInactive();});
     // 關閉只隱藏，倒數仍繼續；結束整個程式時才銷毀。
     tools.on('close', event => { if (!quitting) { event.preventDefault(); tools.hide(); } });
     tools.on('closed', () => { tools = null; });
@@ -83,5 +85,13 @@ module.exports = function installTools({ app, BrowserWindow, ipcMain, getMainWin
     if (!allowed(event)) return;
     if (!tools.isVisible()) { tools.webContents.send('open-tool', 'timer'); tools.showInactive(); }
   });
-  return { open };
+  ipcMain.on('desktop-timer-state',(event,state)=>{if(allowed(event)&&state)timerState=state;});
+  ipcMain.on('desktop-timer-result',(event,result)=>{if(!allowed(event))return;const p=timerPending.get(result.id);if(!p)return;clearTimeout(p.timeout);timerPending.delete(result.id);if(result.error)p.reject(Error(result.error));else{timerState=result.state;p.resolve(timerState);}});
+  async function controlTimer(command){
+    if(!['open','start','pause','resume','reset'].includes(command.kind))throw Error('不支援的桌面計時指令');
+    open('timer',true);
+    if(tools.webContents.isLoadingMainFrame())await new Promise(resolve=>tools.webContents.once('did-finish-load',resolve));
+    return new Promise((resolve,reject)=>{const id=++sequence,timeout=setTimeout(()=>{timerPending.delete(id);reject(Error('桌面計時器未回應，請重試'));},8000);timerPending.set(id,{resolve,reject,timeout});tools.webContents.send('desktop-timer-command',{id,kind:command.kind,mode:command.mode,seconds:command.seconds});});
+  }
+  return { open, openRemoteTool:kind=>{if(!kinds.includes(kind))throw Error('不支援的桌面工具');open(kind,true);}, controlTimer, getTimerState:()=>timerState };
 };

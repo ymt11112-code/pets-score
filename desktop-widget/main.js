@@ -348,9 +348,10 @@ ipcMain.handle('bubble-done', () => {
   processBubbleQueue();
 });
 
-const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win});
+let classroomTools;
+const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:kind=>{if(kind==='points'){showWidgetAgain();return;}return classroomTools.openRemoteTool(kind);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState()});
 
-require('./tools-window')({ app, BrowserWindow, ipcMain,
+classroomTools=require('./tools-window')({ app, BrowserWindow, ipcMain,
   getMainWindow: () => win, getPickerWindow: () => pickerWin,
   selectForAward: (id) => { selectedIds = Array.isArray(id)?id:[id]; broadcastSelection(); showWidgetAgain(); },
 });

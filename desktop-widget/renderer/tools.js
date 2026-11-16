@@ -119,6 +119,9 @@
   async function load(){try{state=await bridge.getToolState();render();}catch(error){content.replaceChildren(note(error.message),button('重新讀取',load));}}
   bridge.onOpenTool(kind=>{if(kinds.some(x=>x[0]===kind)){active=kind;render();load();}});
   bridge.onToolState(next=>{state=next;if(active==='timer')return;render();});
+  let lastTimerPublish=0;
+  lessonClock.subscribe((state,event)=>{if(event!=='tick'||Date.now()-lastTimerPublish>=800){lastTimerPublish=Date.now();bridge.publishDesktopTimer(state);}});
+  bridge.onDesktopTimerCommand(command=>{try{active='timer';if(command.kind==='start'){lessonClock.configure({mode:command.mode,seconds:command.seconds});lessonClock.start();}else if(command.kind==='pause')lessonClock.pause();else if(command.kind==='resume')lessonClock.start();else if(command.kind==='reset')lessonClock.reset();else if(command.kind!=='open')throw Error('不支援的桌面計時指令');render();bridge.desktopTimerResult({id:command.id,state:lessonClock.get()});}catch(error){bridge.desktopTimerResult({id:command.id,error:error.message});}});
   render();load();
 })();
 

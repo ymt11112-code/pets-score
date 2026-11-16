@@ -3,6 +3,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWidget', {
+  onDesktopTimerCommand:cb=>ipcRenderer.on('desktop-timer-command',(event,command)=>cb(command)),
+  desktopTimerResult:result=>ipcRenderer.send('desktop-timer-result',result),
+  publishDesktopTimer:state=>ipcRenderer.send('desktop-timer-state',state),
   openEbooks:()=>ipcRenderer.invoke('open-ebooks'),
   configureEbookCloud:cfg=>ipcRenderer.invoke('configure-ebook-cloud',cfg),
   getEbooks:()=>ipcRenderer.invoke('get-ebooks'),
