@@ -405,3 +405,9 @@
 .dc-devil-hint { font-size:13px; color:#f0d7b9; margin:0; text-align:center; }
 .dc-workspace .dc-scene--devil { overflow:auto; justify-content:flex-start; }
 @container(max-width:560px){.dc-devil-tube { width:90px; height:120px; margin-top:50px; }.dc-devil-face { font-size:32px; }.dc-devil-tube strong { font-size:15px; }.dc-devil-sticks i { height:90px; width:9px; left:calc(44% + (var(--stick-order) - 4)*5px); border-top-width:15px; }.dc-devil-ticket { padding:7px; }.dc-devil-task { font-size:17px; }}
+
+.dc-workspace .dc-scene--devil { justify-content:center; overflow:hidden; }
+.dc-devil-tube { margin-top:0; flex:none; }
+.dc-devil-ticket { position:absolute; left:50%; bottom:16px; width:min(92%,520px); max-height:46%; overflow:auto; z-index:2; transform:translate(-50%,calc((1 - var(--reveal,0))*30px)); }
+.dc-devil-hint { position:absolute; top:8px; left:8px; right:8px; }
+@container(max-width:560px){.dc-devil-tube { margin-top:0; }.dc-devil-who { font-size:18px; }}

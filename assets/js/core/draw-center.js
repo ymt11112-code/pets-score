@@ -156,7 +156,7 @@
         else setupScratch(scene,result);
       }
       const taskEntries=E.tasks(data.config);
-      if(taskEntries.length){const taskWheel=makeWheel(taskEntries.map((label,index)=>({id:String(index),label})),null,'任務輪',data.config.wheelPalette);refs.stage.classList.add('has-task-wheel');refs.stage.append(taskWheel.node);context.taskWheel=taskWheel;}else refs.stage.classList.remove('has-task-wheel');
+      if(taskEntries.length&&mode!=='devil'){const taskWheel=makeWheel(taskEntries.map((label,index)=>({id:String(index),label})),null,'任務輪',data.config.wheelPalette);refs.stage.classList.add('has-task-wheel');refs.stage.append(taskWheel.node);context.taskWheel=taskWheel;}else refs.stage.classList.remove('has-task-wheel');
       return context;
     }
     let contextCardIndex=null;
