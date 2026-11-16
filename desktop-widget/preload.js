@@ -3,6 +3,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWidget', {
+  openEbooks:()=>ipcRenderer.invoke('open-ebooks'),
+  configureEbookCloud:cfg=>ipcRenderer.invoke('configure-ebook-cloud',cfg),
+  getEbooks:()=>ipcRenderer.invoke('get-ebooks'),
+  setEbooks:patch=>ipcRenderer.invoke('set-ebooks',patch),
+  chooseEbook:id=>ipcRenderer.invoke('choose-ebook',id),
+  testEbook:id=>ipcRenderer.invoke('test-ebook',id),
+  onEbooksState:cb=>ipcRenderer.on('ebooks-state',(event,state)=>cb(state)),
   getDockSide: () => ipcRenderer.invoke('get-dock-side'),
   getWindowBounds: () => ipcRenderer.invoke('get-window-bounds'),
   moveWindow: (x, y) => ipcRenderer.invoke('move-window', x, y),

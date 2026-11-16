@@ -1,6 +1,6 @@
 {
   "name": "classpet-float-widget",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "班級寵物加分系統 - 桌面漂浮加點小工具（跟網頁版共用同一份 Google Sheets 資料）",
   "main": "main.js",
   "private": true,
@@ -21,7 +21,8 @@
       "preload.js",
       "renderer/**/*",
       "desktop-link.js",
-      "tools-window.js"
+      "tools-window.js",
+      "ebooks.js"
     ],
     "win": {
       "target": "portable"

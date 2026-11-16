@@ -1,11 +1,11 @@
-﻿/* Windows 網頁入口只負責喚醒工具，不接受網址傳入的班級設定或指令。 */
+﻿/* Windows 網頁入口只喚醒工具或開啟本機電子書設定，不接受網址傳入的班級、檔案路徑或啟動參數。 */
 const fs = require('fs');
 const path = require('path');
 const SCHEME = 'classpet';
 function isDesktopLink(value) {
   try {
     const url = new URL(value);
-    return url.protocol === SCHEME + ':' && url.hostname === 'open' &&
+    return url.protocol === SCHEME + ':' && ['open','ebooks'].includes(url.hostname) &&
       (url.pathname === '' || url.pathname === '/') && !url.username && !url.password && !url.port && !url.search && !url.hash;
   } catch (e) { return false; }
 }
@@ -16,4 +16,5 @@ function registerDesktopLink(app) {
   if (!path.isAbsolute(executable) || !fs.existsSync(executable)) return false;
   return app.setAsDefaultProtocolClient(SCHEME, executable);
 }
-module.exports = { SCHEME, isDesktopLink, registerDesktopLink };
+function isEbookLink(value){try{return isDesktopLink(value)&&new URL(value).hostname==='ebooks';}catch{return false;}}
+module.exports = { isEbookLink, SCHEME, isDesktopLink, registerDesktopLink };

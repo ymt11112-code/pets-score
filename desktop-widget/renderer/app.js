@@ -376,6 +376,8 @@
 
   S.init().then(() => {
     checkForNewLedgerEntries(S.get());
+    const syncEbookCloud=()=>window.desktopWidget.configureEbookCloud(S.getConfig()).catch(()=>{});
+    syncEbookCloud();document.addEventListener('petsync',syncEbookCloud);
     document.addEventListener('petsync',()=>{if(S.get())paint();});
     S.subscribe(paint);
     S.subscribe(() => window.desktopWidget && window.desktopWidget.publishToolState(toolSnapshot()));

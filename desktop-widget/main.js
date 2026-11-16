@@ -13,12 +13,13 @@
    點不到；獨立成一個視窗就不受主視窗大小限制，且主視窗完全不用跟著變形。
    兩個視窗是各自獨立的 renderer process，選取狀態（哪些學生被選起來了）在這裡
    （main process）統一保管，兩邊各自的畫面只是訂閱這份狀態、不會各自為政。 */
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { isDesktopLink, registerDesktopLink } = require('./desktop-link');
+const { isDesktopLink, isEbookLink, registerDesktopLink } = require('./desktop-link');
 const ownsInstance = app.requestSingleInstanceLock();
 if (!ownsInstance) app.quit();
+let ebookPending=process.argv.some(isEbookLink);
 let desktopOpenPending = process.argv.some(isDesktopLink);
 
 const POS_FILE = path.join(app.getPath('userData'), 'window-pos.json');
@@ -240,6 +241,7 @@ function createTray() {
   tray = new Tray(path.join(__dirname, 'renderer', 'tray-icon.png'));
   tray.setToolTip('班級加點小工具');
   tray.setContextMenu(Menu.buildFromTemplate([
+    {label:'電子書與手機連線',click:()=>ebooks.open()},
     { label: '顯示小工具', click: showWidgetAgain },
     { label: '結束', click: () => app.quit() },
   ]));
@@ -346,18 +348,22 @@ ipcMain.handle('bubble-done', () => {
   processBubbleQueue();
 });
 
+const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win});
+
 require('./tools-window')({ app, BrowserWindow, ipcMain,
   getMainWindow: () => win, getPickerWindow: () => pickerWin,
   selectForAward: (id) => { selectedIds = Array.isArray(id)?id:[id]; broadcastSelection(); showWidgetAgain(); },
 });
 
 app.on('second-instance', (event, commandLine) => {
+  if(commandLine.some(isEbookLink)){ebooks.open();return;}
   // 重複開啟 EXE 或網頁入口時，喚回同一個工具，避免開出多個視窗。
   desktopOpenPending = true;
   if (win) showWidgetAgain();
 });
 
 app.whenReady().then(() => {
+  if(ebookPending)ebooks.open();
   if (!ownsInstance) return;
   try {
     if (app.isPackaged && !registerDesktopLink(app)) console.warn('無法註冊網頁開啟入口，請重新執行桌面工具。');
