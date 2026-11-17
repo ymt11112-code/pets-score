@@ -5,7 +5,7 @@ const SCHEME = 'classpet';
 function isDesktopLink(value) {
   try {
     const url = new URL(value);
-    return url.protocol === SCHEME + ':' && ['open','ebooks','launcher'].includes(url.hostname) &&
+    return url.protocol === SCHEME + ':' && ['open','ebooks','launcher','standby'].includes(url.hostname) &&
       (url.pathname === '' || url.pathname === '/') && !url.username && !url.password && !url.port && !url.search && !url.hash;
   } catch (e) { return false; }
 }
@@ -18,4 +18,5 @@ function registerDesktopLink(app) {
 }
 function isEbookLink(value){try{return isDesktopLink(value)&&new URL(value).hostname==='ebooks';}catch{return false;}}
 function isLauncherLink(value){try{return isDesktopLink(value)&&new URL(value).hostname==='launcher';}catch{return false;}}
-module.exports = { isLauncherLink, isEbookLink, SCHEME, isDesktopLink, registerDesktopLink };
+function isStandbyLink(value){try{return isDesktopLink(value)&&new URL(value).hostname==='standby';}catch{return false;}}
+module.exports = { isStandbyLink, isLauncherLink, isEbookLink, SCHEME, isDesktopLink, registerDesktopLink };

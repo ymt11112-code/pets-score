@@ -21,7 +21,7 @@ public static class ClassPetLauncher {
     bool probe=args.Length==2&&args[0]=="--probe";
     try {
       if(probe){string found=Latest(args[1]);if(found==null)return 2;byte[] bytes=new UTF8Encoding(false).GetBytes(found+"\n");using(var output=Console.OpenStandardOutput()){output.Write(bytes,0,bytes.Length);}return 0;}
-      Uri uri;if(args.Length!=1||!Uri.TryCreate(args[0],UriKind.Absolute,out uri)||uri.Scheme!="classpet"||(uri.Host!="open"&&uri.Host!="ebooks"&&uri.Host!="launcher")||(uri.AbsolutePath!=""&&uri.AbsolutePath!="/")||uri.Query!=""||uri.Fragment!=""||uri.UserInfo!=""||!uri.IsDefaultPort)return 64;
+      Uri uri;if(args.Length!=1||!Uri.TryCreate(args[0],UriKind.Absolute,out uri)||uri.Scheme!="classpet"||(uri.Host!="open"&&uri.Host!="ebooks"&&uri.Host!="launcher"&&uri.Host!="standby")||(uri.AbsolutePath!=""&&uri.AbsolutePath!="/")||uri.Query!=""||uri.Fragment!=""||uri.UserInfo!=""||!uri.IsDefaultPort)return 64;
       string config=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"folder.txt");
       string folder=File.Exists(config)?File.ReadAllText(config,Encoding.UTF8).Trim():null;
       string executable=Latest(folder);if(executable==null){string fallback=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"fallback.txt");if(File.Exists(fallback)){string candidate=File.ReadAllText(fallback,Encoding.UTF8).Trim();if(File.Exists(candidate)){executable=candidate;uri=new Uri("classpet://launcher");}}}if(executable==null)throw new Exception("找不到桌面小工具。請先執行新版桌面工具，並重新設定 EXE 所在資料夾。");

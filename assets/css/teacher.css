@@ -802,3 +802,9 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .modal.phone-timer-expanded { position:fixed; inset:8px; width:auto; max-width:none; height:calc(100dvh - 16px); max-height:none; }
 .phone-timer-expanded .modal__body { flex:1; overflow:auto; }
 .phone-timer-expanded .phone-timer-time { font-size:clamp(72px,22vw,220px); }
+.phone-desktop-launcher { margin:14px 0; padding:14px; border:1px solid #c4dfd0; border-radius:18px; background:#fff; }
+.phone-desktop-launcher>.btn { width:100%; min-height:54px; font-size:17px; }
+.phone-desktop-launcher>p { margin:8px 0 0; font-size:12px; line-height:1.6; }
+.phone-desktop-launcher { padding:12px; margin:12px 0; border:1px solid var(--line); border-radius:18px; background:#fff; }
+.phone-desktop-launcher>.btn { width:100%; min-height:52px; font-size:16px; }
+.phone-desktop-launcher p { margin:8px 0 0; font-size:12px; line-height:1.6; }

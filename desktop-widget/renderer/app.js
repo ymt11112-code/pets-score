@@ -103,7 +103,7 @@
         connected ? el('button', { class: 'dw-window-btn' + (ledgerOpen ? ' is-active' : ''), title: '近 50 筆點數紀錄', 'aria-label': '點數紀錄', onclick: () => { ledgerOpen = !ledgerOpen; paint(); } }, ['📜']) : null,
         el('button', { class: 'dw-window-btn', title: '隱藏到系統匣', 'aria-label': '隱藏到系統匣', onclick: () => window.desktopWidget && window.desktopWidget.hideWindow() }, ['－']),
         el('button', { class: 'dw-window-btn', title: '收合成小腳掌', 'aria-label': '收合成小腳掌', 'aria-expanded': 'true', onclick: collapseWidget }, ['▴']),
-        el('button', { class: 'dw-window-btn dw-window-btn--close', title: '結束程式', 'aria-label': '結束程式', onclick: () => window.desktopWidget && window.desktopWidget.quitApp() }, ['✕']),
+        el('button', { class: 'dw-window-btn dw-window-btn--close', title: '關閉小工具；啟用手機控制時保留背景接收', 'aria-label': '關閉小工具', onclick: () => window.desktopWidget && window.desktopWidget.quitApp() }, ['✕']),
       ]),
       el('div', { class: 'dw-titlebar__drag', title: '按住這一整條即可拖曳移動' }, ['🐾 班級加點 · 拖曳移動']),
     ]);

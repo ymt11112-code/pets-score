@@ -16,11 +16,12 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { isDesktopLink, isEbookLink, isLauncherLink, registerDesktopLink } = require('./desktop-link');
+const { isDesktopLink, isEbookLink, isLauncherLink, isStandbyLink, registerDesktopLink } = require('./desktop-link');
 const ownsInstance = app.requestSingleInstanceLock();
 if (!ownsInstance) app.quit();
 let ebookPending=process.argv.some(isEbookLink);
-let desktopOpenPending = process.argv.some(isDesktopLink);
+let backgroundPending=process.argv.some(isStandbyLink);
+let desktopOpenPending = process.argv.some(value=>isDesktopLink(value)&&!isStandbyLink(value));
 
 const POS_FILE = path.join(app.getPath('userData'), 'window-pos.json');
 const DEFAULT_SIZE = { width: 180, height: 30 };
@@ -163,6 +164,7 @@ function createWindow() {
   win = new BrowserWindow({
     x: pos.x, y: pos.y,
     width: DEFAULT_SIZE.width, height: DEFAULT_SIZE.height,
+    show:!backgroundPending,
     frame: false,
     transparent: true,
     resizable: false,
@@ -180,7 +182,7 @@ function createWindow() {
   // 'screen-saver' 是 Windows 上少數能蓋過「全螢幕簡報模式」的層級，一般 App 疊不過去
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  win.webContents.on('did-finish-load', () => { if (desktopOpenPending) showWidgetAgain(); });
+  win.webContents.on('did-finish-load', () => { if (desktopOpenPending) showWidgetAgain();else if(backgroundPending)hideWidgetSoftly(); });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
   dockSide = computeDockSide(win.getBounds());
@@ -227,6 +229,7 @@ function hideWidgetSoftly() {
   if (pickerWin) pickerWin.hide(); // 選人視窗沒有自己要持續同步的理由，直接真的隱藏就好
 }
 function showWidgetAgain() {
+  backgroundPending=false;
   if (!win) return;
   win.setIgnoreMouseEvents(false);
   win.setOpacity(1);
@@ -244,7 +247,7 @@ function createTray() {
     {label:'桌面小工具啟動資料夾',click:()=>desktopLauncher.open()},
     {label:'電子書與手機連線',click:()=>ebooks.open()},
     { label: '顯示小工具', click: showWidgetAgain },
-    { label: '結束', click: () => app.quit() },
+    { label: '結束（停止手機接收）', click: () => app.quit() },
   ]));
   tray.on('click', showWidgetAgain);
 }
@@ -334,7 +337,7 @@ ipcMain.handle('invert-selection', (evt, ids) => {
 });
 
 ipcMain.handle('hide-window', () => hideWidgetSoftly());
-ipcMain.handle('quit-app', () => app.quit());
+ipcMain.handle('quit-app', () => {if(ebooks.isEnabled())hideWidgetSoftly();else app.quit();});
 
 /* renderer（app.js）偵測到新的加點紀錄（通常是手機或其他裝置透過雲端同步加進來的）
    就會呼叫這個，把內容排進佇列；bubble.js 淡出動畫結束後呼叫 bubble-done 才會接著播下一則。 */
@@ -351,7 +354,7 @@ ipcMain.handle('bubble-done', () => {
 
 const desktopLauncher=require('./launcher-settings').install({app,BrowserWindow,ipcMain,dialog,getMainWindow:()=>win,showMainWindow:showWidgetAgain});
 let classroomTools;
-const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:(kind,action)=>{if(kind==='points'){showWidgetAgain();return;}return classroomTools.openRemoteTool(kind,action);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState()});
+const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:(kind,action)=>{if(kind==='points'){if(desktopLauncher.upgrade('classpet://open',500))return;showWidgetAgain();return;}return classroomTools.openRemoteTool(kind,action);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState(),getBackgroundStartup:()=>desktopLauncher.backgroundStartup(),setBackgroundStartup:enabled=>desktopLauncher.setBackgroundStartup(enabled)});
 
 classroomTools=require('./tools-window')({ app, BrowserWindow, ipcMain,
   getMainWindow: () => win, getPickerWindow: () => pickerWin,
@@ -360,6 +363,8 @@ classroomTools=require('./tools-window')({ app, BrowserWindow, ipcMain,
 
 app.on('second-instance', (event, commandLine) => {
   if(desktopLauncher.upgrade(commandLine.find(isDesktopLink)||'classpet://open'))return;
+  if(commandLine.some(isStandbyLink))return;
+  if(commandLine.some(isStandbyLink))return;
   if(commandLine.some(isLauncherLink)){desktopLauncher.open();return;}
   if(commandLine.some(isEbookLink)){ebooks.open();return;}
   // 重複開啟 EXE 或網頁入口時，喚回同一個工具，避免開出多個視窗。
