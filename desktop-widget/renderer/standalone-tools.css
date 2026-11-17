@@ -39,3 +39,12 @@ body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result
 body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-seat { font-size:clamp(22px,3vh,40px); }
 body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-card { gap:16px; }
 body.is-tool-fullscreen[data-window=draw] .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-name { font-size:clamp(22px,3vh,40px); }
+/* 常用時間放在計時數字上方，窄視窗自動分兩列。 */
+.dt-preset-section { display:flex; flex-direction:column; gap:8px; }
+.dt-preset-label { margin:0; font-size:13px; font-weight:700; color:#567a6c; }
+body[data-window=timer] .dt-presets { grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+body[data-window=timer] .dt-presets .dt-preset { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:65px; padding:10px 6px; border:2px solid #cce1d5; background:#f2f9f4; color:#185547; border-radius:14px; }
+.dt-preset strong { font-size:20px; line-height:1.25; }
+.dt-preset small { font-size:12px; font-variant-numeric:tabular-nums; }
+body[data-window=timer] .dt-presets .dt-preset.is-selected { background:#d6f1e2; border-color:#17966f; box-shadow:0 0 0 1px #17966f; }
+@media(max-width:560px){body[data-window=timer] .dt-presets {grid-template-columns:repeat(2,minmax(0,1fr));}.dt-preset strong {font-size:18px;}}

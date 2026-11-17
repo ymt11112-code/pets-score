@@ -4,6 +4,7 @@ async function command(c){fs.writeFileSync(request,JSON.stringify(c));return roo
 const background=await command({kind:'rootState'});assert(!background.visible,'Standby must not show main widget');
 let r=await command({kind:'start',mode:'down',seconds:90,show:false});assert(r.running&&r.total===90);
 const timer=await connect('tool=timer');assert(!(await command({kind:'windows'})).find(w=>w.url.includes('tool=timer')).visible);await command({kind:'window',tool:'timer',windowAction:'show'});r=await command({kind:'pause'});assert(!r.running);r=await command({kind:'resume'});assert(r.running);r=await command({kind:'reset'});assert(!r.running&&r.seconds===90);
+for(const seconds of [60,180,300,900]){await timer("document.querySelector('[data-preset-seconds=\""+seconds+"\"]').click()");const t=await timer('PetLessonTimer.clock.get()');assert.equal(t.total,seconds);assert.equal(t.seconds,seconds);assert(!t.running);assert.equal(await timer("document.querySelector('[data-preset-seconds=\""+seconds+"\"]').getAttribute('aria-pressed')"),'true');}console.log('PASS visible 1/3/5/15-minute presets configure a paused countdown');
 await command({kind:'tool',tool:'draw'});const draw=await connect('tool=draw');await wait(300);
 assert(await timer("document.querySelector('[data-tool=timer]').classList.contains('is-active')"));assert(await draw("document.querySelector('[data-tool=draw]').classList.contains('is-active')"));
 let wins=await command({kind:'windows'});assert(wins.length===2);const timerBounds=wins.find(w=>w.url.includes('tool=timer')).bounds;

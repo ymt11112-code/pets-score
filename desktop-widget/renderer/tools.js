@@ -90,6 +90,10 @@
     const custom=el('input',{class:'input',type:'number',min:'0.0167',max:'180',step:'any',value:timer.total/60,'aria-label':'自訂分鐘'});
     return el('section',{class:'dt-panel'},[
       el('h2',{text:timer.mode==='up'?'正向計時器':'課堂計時器'}),note('關閉此工具視窗後仍會繼續倒數，時間到會顯示提醒。'),
+      el('div',{class:'dt-preset-section'},[
+        el('p',{class:'dt-preset-label',text:'常用時間 · 選好後按開始'}),
+        el('div',{class:'dt-presets','aria-label':'常用倒數時間'},[60,180,300,900].map(sec=>el('button',{class:'btn dt-preset'+(timer.mode==='down'&&timer.total===sec?' is-selected':''),type:'button','data-preset-seconds':sec,'aria-pressed':String(timer.mode==='down'&&timer.total===sec),onclick:()=>setClock(sec)},[el('strong',{text:sec/60+' 分鐘'}),el('small',{text:format(sec)})])))
+      ]),
       el('div',{class:'dt-timer-stage'+(timer.done?' is-finished':'')},[
         el('div',{class:'dt-timer-time',role:'timer',text:format(timer.left)}),
         el('div',{class:'dt-timer-bar'},[el('div',{class:'dt-timer-progress',style:{width:timer.left/timer.total*100+'%'}})])
@@ -97,7 +101,6 @@
       el('div',{class:'dt-actions'},[
         button(timer.running?'倒數中':'▶ 開始',startClock,true),button('⏸ 暫停',()=>{stopClock();render();}),button('↻ 重設',()=>setClock(timer.total))
       ]),
-      el('div',{class:'dt-presets'},[30,60,180,300,600,900].map(sec=>button(sec<60?sec+' 秒':sec/60+' 分',()=>setClock(sec)))),
       el('div',{class:'dt-custom'},[custom,el('span',{text:'分鐘'}),button('設定',()=>{const minutes=Number(custom.value);if(!Number.isFinite(minutes)||minutes<=0||minutes>180)return U.toast('請輸入 0 到 180 之間的分鐘數','warn');setClock(Math.max(1,Math.round(minutes*60)));})])
     ]);
   }
