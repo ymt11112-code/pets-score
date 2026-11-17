@@ -351,7 +351,7 @@ ipcMain.handle('bubble-done', () => {
 
 const desktopLauncher=require('./launcher-settings').install({app,BrowserWindow,ipcMain,dialog,getMainWindow:()=>win,showMainWindow:showWidgetAgain});
 let classroomTools;
-const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:kind=>{if(kind==='points'){showWidgetAgain();return;}return classroomTools.openRemoteTool(kind);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState()});
+const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:(kind,action)=>{if(kind==='points'){showWidgetAgain();return;}return classroomTools.openRemoteTool(kind,action);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState()});
 
 classroomTools=require('./tools-window')({ app, BrowserWindow, ipcMain,
   getMainWindow: () => win, getPickerWindow: () => pickerWin,

@@ -795,3 +795,10 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 @media(max-width:860px) { .is-remote-home .side {display:none!important;} }
 .is-remote-device.is-remote-home .side,.is-remote-device.is-remote-home .topbar {display:none!important;}
 .float-fab {text-decoration:none;}
+.phone-computer-controls { padding:12px; border:1px solid var(--line); background:var(--bg-soft); border-radius:14px; margin-bottom:10px; }
+.phone-computer-controls p { margin:0 0 8px; font-size:13px; }
+.phone-computer-controls>div { display:flex; flex-wrap:wrap; gap:6px; }
+.phone-computer-controls .btn { flex:1 1 100px; min-height:42px; padding:8px; font-size:13px; }
+.modal.phone-timer-expanded { position:fixed; inset:8px; width:auto; max-width:none; height:calc(100dvh - 16px); max-height:none; }
+.phone-timer-expanded .modal__body { flex:1; overflow:auto; }
+.phone-timer-expanded .phone-timer-time { font-size:clamp(72px,22vw,220px); }

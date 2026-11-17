@@ -19,6 +19,7 @@ module.exports = function installTools({ app, BrowserWindow, ipcMain, getMainWin
     });
   }
   function owner(event) { return [...windows.values()].find(win=>!win.isDestroyed()&&win.webContents===event.sender); }
+  function setFullscreen(win,value){win.setFullScreen(value);win.webContents.send('tool-fullscreen-state',value);}
   function allowed(event) { return !!owner(event); }
   function open(kind, background=false, visible=true) {
     if (!kinds.includes(kind)) return;
@@ -41,12 +42,15 @@ module.exports = function installTools({ app, BrowserWindow, ipcMain, getMainWin
     win.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});
     win.loadFile(path.join(__dirname,'renderer','tools.html'),{query:{tool:kind,window:key}});
     win.once('ready-to-show',()=>{if(visible&&!win.isDestroyed()){if(background)win.showInactive();else win.show();}});
-    win.on('close',event=>{if(!quitting){event.preventDefault();if(win.isFullScreen())win.setFullScreen(false);win.hide();}});
+    win.on('close',event=>{if(!quitting){event.preventDefault();if(win.isFullScreen())setFullscreen(win,false);win.hide();}});
+    for(const name of ['enter-full-screen','leave-full-screen'])win.on(name,()=>{if(!win.isDestroyed())win.webContents.send('tool-fullscreen-state',win.isFullScreen());});
     win.on('closed',()=>windows.delete(key));
     return win;
   }
   ipcMain.handle('toggle-tool-maximize',event=>{const win=owner(event);if(!win)return;win.isMaximized()?win.unmaximize():win.maximize();return win.isMaximized();});
-  ipcMain.handle('toggle-tool-fullscreen',event=>{const win=owner(event);if(!win)return;win.setFullScreen(!win.isFullScreen());});
+  ipcMain.handle('get-tool-fullscreen',event=>owner(event)?.isFullScreen()||false);
+  ipcMain.handle('exit-tool-fullscreen',event=>{const win=owner(event);if(win)setFullscreen(win,false);});
+  ipcMain.handle('toggle-tool-fullscreen',event=>{const win=owner(event);if(!win)return;setFullscreen(win,!win.isFullScreen());});
   ipcMain.handle('control-tool-timer',(event,command)=>{if(!allowed(event))return;return controlTimer(command);});
   ipcMain.handle('get-desktop-timer-state',event=>allowed(event)?timerState:null);
   ipcMain.handle('open-tool', (event, kind) => {
@@ -103,5 +107,5 @@ module.exports = function installTools({ app, BrowserWindow, ipcMain, getMainWin
     if(tools.webContents.isLoadingMainFrame())await new Promise(resolve=>tools.webContents.once('did-finish-load',resolve));
     return new Promise((resolve,reject)=>{const id=++sequence,timeout=setTimeout(()=>{timerPending.delete(id);reject(Error('桌面計時器未回應，請重試'));},8000);timerPending.set(id,{resolve,reject,timeout});tools.webContents.send('desktop-timer-command',{id,kind:command.kind,mode:command.mode,seconds:command.seconds});});
   }
-  return { open, openRemoteTool:kind=>{if(!kinds.includes(kind))throw Error('不支援的桌面工具');open(kind,true);}, controlTimer, getTimerState:()=>timerState };
+  return { open, openRemoteTool:(kind,action='show')=>{if(!kinds.includes(kind)||!['show','maximize','restore','fullscreen','hide'].includes(action))throw Error('不支援的桌面工具');const win=open(kind,true,action!=='hide');if(action==='maximize'){setFullscreen(win,false);win.maximize();}else if(action==='restore'){setFullscreen(win,false);win.unmaximize();}else if(action==='fullscreen')setFullscreen(win,true);else if(action==='hide')win.hide();}, controlTimer, getTimerState:()=>timerState };
 };

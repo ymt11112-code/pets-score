@@ -411,3 +411,39 @@
 .dc-devil-ticket { position:absolute; left:50%; bottom:16px; width:min(92%,520px); max-height:46%; overflow:auto; z-index:2; transform:translate(-50%,calc((1 - var(--reveal,0))*30px)); }
 .dc-devil-hint { position:absolute; top:8px; left:8px; right:8px; }
 @container(max-width:560px){.dc-devil-tube { margin-top:0; }.dc-devil-who { font-size:18px; }}
+/* 全員名單與抽籤結果共用右欄，姓名不再只能擠在轉盤扇形中。 */
+.dc-result-tabs { display:flex; gap:6px; flex:none; padding-bottom:6px; }
+.dc-result-tabs .dc-button { flex:1; min-width:0; padding:8px; font-size:14px; }
+.dc-roster-toolbar { display:flex; gap:6px; flex-wrap:wrap; flex:none; }
+.dc-roster-toolbar input { flex:1; min-width:100px; width:100%; padding:8px; border:1px solid #b4d0c1; border-radius:10px; color:#173b34; background:#fff; }
+.dc-roster-list { flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:8px; align-content:start; padding:4px; }
+.dc-roster-person { display:flex; align-items:center; gap:8px; min-width:0; padding:10px; border:1px solid #bed6c8; border-radius:12px; background:#fff; color:#183e35; }
+.dc-roster-person>div { min-width:0; }
+.dc-roster-person strong { display:block; font-size:18px; line-height:1.35; overflow-wrap:anywhere; }
+.dc-roster-person small { display:block; margin-top:4px; font-size:12px; color:#56766a; }
+.dc-roster-person.is-excluded { background:#eef0ed; border-style:dashed; }
+.dc-roster-person>.draw-pet-avatar,.dc-roster-person>.dc-avatar { width:44px!important; height:44px!important; flex:none; }
+.dc-roster-person .pet-face { width:100%!important; height:100%!important; }
+.dc-roster-person .pet-face--emoji { font-size:34px!important; }
+.dc-results.is-roster-expanded { position:fixed!important; inset:16px!important; height:auto!important; width:auto!important; z-index:6000; padding:18px; background:#edf7f1; box-shadow:0 0 0 30px #092b2ccc; border-radius:20px; }
+.dc-results.is-roster-expanded .dc-roster-list { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+.dc-results.is-roster-expanded .dc-roster-person strong { font-size:24px; }
+.draw-center.is-projecting .dc-roster-person { color:#183e35; }
+@media(max-width:560px){.dc-roster-list {grid-template-columns:minmax(0,1fr);}.dc-roster-person {padding:7px;}.dc-roster-person strong {font-size:16px;}.dc-roster-person>.draw-pet-avatar {width:32px!important;height:32px!important;}.dc-result-tabs {flex-wrap:wrap;}.dc-result-tabs .dc-button {font-size:12px;}.dc-results.is-roster-expanded .dc-roster-list {grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}}
+@container(min-width:700px){
+ .draw-center:not(.is-projecting) .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-results-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .draw-center:not(.is-projecting) .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-card { grid-template-columns:28px minmax(0,1fr); padding:5px; }
+ .draw-center:not(.is-projecting) .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-name { grid-column:2; grid-row:2; font-size:18px; }
+ .draw-center:not(.is-projecting) .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-seat { grid-column:2; grid-row:1; }
+ .draw-center:not(.is-projecting) .dc-workspace .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-task { grid-column:1/-1; grid-row:3; }
+}
+.dc-exit-projection { display:none; }
+.draw-center.is-projecting .dc-header { display:none; }
+.draw-center.is-projecting .dc-exit-projection { display:block; position:fixed; right:12px; bottom:12px; z-index:6500; padding:7px 12px; min-height:30px; font-size:12px; opacity:.8; }
+.draw-center.is-projecting .dc-workspace { height:calc(100dvh - 130px); }
+.draw-center.is-projecting { padding:12px; }
+.draw-center.is-projecting :is(.dc-header,.dc-style-list,.dc-toolbar,.dc-notice,.dc-settings-card,.dc-history,.dc-result-tabs,.dc-roster-toolbar) { display:none; }
+.draw-center.is-projecting .dc-results>.dc-button { display:none; }
+.draw-center.is-projecting .dc-workspace { height:calc(100dvh - 24px); }
+.draw-center.is-projecting .dc-workspace { grid-template-rows:minmax(0,1fr); }
+.draw-center.is-projecting .dc-workspace .dc-wheel-wrap { width:min(100%,calc(100dvh - 85px)); max-width:none; }

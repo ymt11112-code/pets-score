@@ -23,7 +23,7 @@
   function create(adapter){
     let snapshot=adapter.getSnapshot(),data=E.normalize(snapshot.draw),running=false,projected=false,disposed=false,frame=null,presentation=0,revealNow=null;
     const clock=adapter.clock||root.PetLessonTimer.clock;
-    const audio=root.PetDrawSounds.create();const rootEl=el('section',{class:'draw-center'});let refs={},notice='',weightSearch='',settingsOpen=false;
+    const audio=root.PetDrawSounds.create();const rootEl=el('section',{class:'draw-center'});let refs={},notice='',weightSearch='',settingsOpen=false,rosterOpen=null,rosterExpanded=false,rosterQuery='';
     const currentPool=()=>E.candidates(snapshot,data);
     const formatStudent=st=>U.pad2(st.no)+' '+st.name;
     function btn(text,click,kind,attrs){return el('button',Object.assign({type:'button',class:'dc-button '+(kind||''),text,onclick:click},attrs||{}));}
@@ -99,7 +99,14 @@
     }
     function avatar(result){if(adapter.avatar)return adapter.avatar(result.studentId||result.id);return el('span',{class:'dc-avatar',text:result.emoji||'🐾'});}
     function paintResults(result){
-      refs.results.dataset.count=String(result?result.results.length:0);refs.results.replaceChildren();if(!result){refs.results.append(el('div',{class:'dc-result-placeholder'},[el('span',{text:running?'🎲':'🐾','aria-hidden':'true'}),el('h2',{text:running?'抽籤中…':'抽籤結果'}),el('p',{text:running?'結果將在這裡揭曉':'按「開始抽籤」，抽中的同學會顯示在這裡。'})]));return;}
+      refs.results.dataset.count=String(result?result.results.length:0);refs.results.replaceChildren();
+      const showRoster=rosterOpen===true||(rosterOpen===null&&!result&&!running);
+      refs.results.classList.toggle('is-roster-expanded',rosterExpanded&&showRoster);
+      refs.results.append(el('div',{class:'dc-result-tabs'},[btn('抽籤結果',()=>{rosterOpen=false;rosterExpanded=false;paintResults(result);},showRoster?'':'dc-primary',{'data-result-tab':'results'}),btn('全員名單 '+snapshot.students.length,()=>{rosterOpen=true;paintResults(result);},showRoster?'dc-primary':'',{'data-result-tab':'roster'})]));
+      if(showRoster){const pool=currentPool();const list=el('div',{class:'dc-roster-list'});function paintRoster(){list.replaceChildren(...snapshot.students.slice().sort((a,b)=>a.no-b.no).filter(st=>!rosterQuery||formatStudent(st).includes(rosterQuery)).map(st=>el('article',{class:'dc-roster-person'+(pool.some(x=>x.id===st.id)?'':' is-excluded'),'data-roster-id':st.id},[avatar(st),el('div',{},[el('strong',{text:formatStudent(st)}),el('small',{text:(snapshot.absentIds||[]).includes(st.id)?'今日不參加':pool.some(x=>x.id===st.id)?'本輪可抽':'本輪已抽'})])])));}
+      const search=el('input',{class:'dc-input',type:'search',value:rosterQuery,placeholder:'搜尋座號或姓名','aria-label':'搜尋全員名單',oninput:e=>{rosterQuery=e.target.value;paintRoster();}});
+      refs.results.append(el('div',{class:'dc-roster-toolbar'},[search,btn(rosterExpanded?'還原名單':'放大全員名單',()=>{rosterExpanded=!rosterExpanded;paintResults(result);},'',{'data-roster-expand':''})]),list);paintRoster();return;}
+      if(!result){refs.results.append(el('div',{class:'dc-result-placeholder'},[el('span',{text:running?'🎲':'🐾','aria-hidden':'true'}),el('h2',{text:running?'抽籤中…':'抽籤結果'}),el('p',{text:running?'結果將在這裡揭曉':'按「開始抽籤」，抽中的同學會顯示在這裡。'})]));return;}
       refs.results.append(el('h2',{text:result.order?'本次排序／分組結果':'本次抽中 '+result.results.length+' 位'}));
       if(result.results.length>5){const table=el('table',{class:'dc-order-table'},[el('thead',{},[el('tr',{},['名次','學生','任務','組別'].map(text=>el('th',{text})))]),el('tbody',{},result.results.map(item=>el('tr',{},[el('td',{text:item.rank}),el('td',{text:U.pad2(item.no)+' '+item.name}),el('td',{text:item.task||'—'}),el('td',{text:item.group?'第 '+item.group+' 組':'—'})])))]);refs.results.append(el('div',{class:'dc-order-scroll'},[table]));}
       else refs.results.append(el('div',{class:'dc-results-grid'},result.results.map(item=>el('article',{class:'dc-result-card'},[avatar(item),el('span',{class:'dc-result-seat',text:U.pad2(item.no)+' 號'}),el('strong',{class:'dc-result-name',text:item.name}),item.task?el('span',{class:'dc-result-task',text:item.task}):null,item.group?el('small',{text:'第 '+item.group+' 組'}):null]))));
@@ -121,7 +128,7 @@
       drawPane.append(el('div',{class:'dc-toolbar'},[refs.start,refs.order,btn('↻ 一鍵重置名單',async()=>{if(running)return;try{const next=await adapter.reset();if(next)update(next);notice='已開始新的一輪，原始學生名單完整保留。';render();}catch(error){setNotice(error.message);}},'',{'data-lock':'','data-reset-round':''}),refs.reveal]),refs.notice);
       refs.results=el('div',{class:'dc-results','aria-live':'polite','aria-label':'本次抽籤結果'});workspace.append(refs.results);paintResults(running?null:data.last);
       const configCard=el('details',{class:'dc-settings-card',open:settingsOpen?'open':null},[el('summary',{text:'⚙️ 抽籤設定（人數、任務、音效與權重）'}),settings()]);configCard.addEventListener('toggle',()=>{settingsOpen=configCard.open;});rootEl.append(configCard);
-      rootEl.append(history());refresh();paintClock();
+      rootEl.append(history(),btn('退出全螢幕',()=>toggleProject(false),'dc-exit-projection'));refresh();paintClock();
     }
     function buildScene(result,pool,animate){
       const mode=data.config.style,first=result&&result.results[0],scene=el('div',{class:'dc-scene dc-scene--'+mode});refs.stage.replaceChildren(scene);
@@ -181,7 +188,7 @@
       if(result.results.length<result.requested)setNotice('本輪只剩 '+result.results.length+' 位，已全部抽出；按重置可開始新一輪。');else setNotice('已抽出 '+result.results.length+' 位，本輪紀錄已保存。');
     }
     async function start(order){
-      if(running||disposed)return;const pool=currentPool();if(!pool.length)return;running=true;if(data.config.autoTimer)clock.pause();setNotice('正在抽取…');audio.unlock(data.config);refresh();const token=++presentation;
+      if(running||disposed)return;const pool=currentPool();if(!pool.length)return;running=true;rosterOpen=false;rosterExpanded=false;if(data.config.autoTimer)clock.pause();setNotice('正在抽取…');audio.unlock(data.config);refresh();const token=++presentation;
       try{
         const result=await adapter.draw({order:!!order});if(disposed||token!==presentation)return;
         const cfg=data.config,reduce=root.matchMedia&&root.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -196,8 +203,8 @@
     }
     function cancelPresentation(){presentation++;if(frame)cancelAnimationFrame(frame);frame=null;audio.stop();running=false;revealNow=null;}
     function toggleProject(force){projected=typeof force==='boolean'?force:!projected;rootEl.classList.toggle('is-projecting',projected);const button=rootEl.querySelector('.dc-header-actions button');if(button)button.textContent=projected?'結束投影':'⛶ 大字投影';if(projected&&rootEl.requestFullscreen){rootEl.requestFullscreen().catch(()=>{});}else if(!projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});}
-    function update(next){if(!next||disposed)return;const old=data,last=data.last&&data.last.id;snapshot=next;data=E.normalize(next.draw);if(!running&&(last!==(data.last&&data.last.id)||old.round!==data.round||old.config.style!==data.config.style))render();else {refresh();if(!running&&data.last)paintResults(data.last);}}
-    function escape(event){if(event.key==='Escape'&&projected)toggleProject(false);}
+    function update(next){if(!next||disposed)return;const rosterChanged=JSON.stringify([snapshot.students.map(st=>[st.id,st.no,st.name]),snapshot.absentIds])!==JSON.stringify([next.students.map(st=>[st.id,st.no,st.name]),next.absentIds]);const old=data,last=data.last&&data.last.id;snapshot=next;data=E.normalize(next.draw);if(!running&&(rosterChanged||last!==(data.last&&data.last.id)||old.round!==data.round||old.config.style!==data.config.style))render();else {refresh();if(!running&&data.last)paintResults(data.last);}}
+    function escape(event){if(event.key==='Escape'&&rosterExpanded){rosterExpanded=false;paintResults(data.last);return;}if(event.key==='Escape'&&projected)toggleProject(false);}
     document.addEventListener('keydown',escape);render();
     return{element:rootEl,update,get running(){return running;},destroy(){disposed=true;unsubscribeClock();cancelPresentation();document.removeEventListener('keydown',escape);if(projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});rootEl.remove();}};
   }

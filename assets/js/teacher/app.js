@@ -927,7 +927,7 @@
     paint();
     U.modal({title:'出席狀況・'+U.fmtDate(Date.now()),wide:true,body:el('div',{class:'stack'},[
       el('p',{class:'card__sub',text:'點學生依序切換六種狀態，或直接用下拉選單設定。病假、事假、喪假與早退會排除抽籤；遲到仍可參加。'}),
-      summary,el('div',{class:'row',style:{flexWrap:'wrap'}},[bulk,el('button',{class:'btn btn--ghost',text:'套用全班',onclick:()=>{S.setAllAttendance(S.get().students.map(st=>st.id),bulk.value,day);paint();}})]),grid
+      window.PetPhoneRemote.computerControls('attendance'),summary,el('div',{class:'row',style:{flexWrap:'wrap'}},[bulk,el('button',{class:'btn btn--ghost',text:'套用全班',onclick:()=>{S.setAllAttendance(S.get().students.map(st=>st.id),bulk.value,day);paint();}})]),grid
     ]),actions:[{label:'完成',kind:'primary'}]});
   }
 
@@ -1076,7 +1076,7 @@
           if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
         },
       }, [el('span', { text: '⚙️ 設定' })]),
-      body: el('div', { class: 'stack' }, [
+      body: el('div', { class: 'stack' }, [window.PetPhoneRemote.computerControls('tasks'),
         el('p', { class: 'card__sub', text: '點「設定名單」挑選完成的學生座號，人數會自動算好，不用自己填數字；學生前台的進度也會一起更新。' }),
         listEl,
       ]),
@@ -1397,20 +1397,21 @@
   function pageTools() {
     const E=window.PetDrawEngine;
     if(!drawController)drawController=window.PetDrawCenter.create({
+      clock:window.PetPhoneRemote.isPhone()?window.PetPhoneRemote.clock():lessonClock,
       getSnapshot:drawSnapshot,
       configure:async patch=>{S.commit(s=>E.settings(s,patch));return drawSnapshot();},
       draw:async request=>{let result;S.commit(s=>{result=E.run(s,s.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),request);});return result;},
       reset:async()=>{S.commit(s=>E.reset(s));return drawSnapshot();},
       avatar:id=>window.PetDrawAvatar(id,64),
       select:async ids=>openFeedbackModal(ids),
-      back:()=>go('overview')
+      back:()=>go(window.PetPhoneRemote.isPhone()?'quick':'overview')
     });
     else drawController.update(drawSnapshot());
     return el('div',{},[el('div',{class:'row',style:{gap:'8px',flexWrap:'wrap',marginBottom:'12px'}},[
       el('button',{class:'btn btn--ghost',text:'⏱️ 計時器',onclick:openTimerModal}),
       el('button',{class:'btn btn--ghost',text:'📋 出席',onclick:openAttendance}),
       el('button',{class:'btn btn--ghost',text:'✅ 今日任務',onclick:openDailyTasksQuick})
-    ]),drawController.element]);
+    ]),window.PetPhoneRemote.computerControls('draw'),drawController.element]);
   }
 
   /* 計時器元件（課堂小工具頁與批次加點的浮動計時器共用） */

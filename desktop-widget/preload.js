@@ -4,6 +4,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWidget', {
   toggleToolMaximize:()=>ipcRenderer.invoke('toggle-tool-maximize'),
+  getToolFullscreen:()=>ipcRenderer.invoke('get-tool-fullscreen'),
+  exitToolFullscreen:()=>ipcRenderer.invoke('exit-tool-fullscreen'),
+  onToolFullscreen:cb=>ipcRenderer.on('tool-fullscreen-state',(event,value)=>cb(value)),
   toggleToolFullscreen:()=>ipcRenderer.invoke('toggle-tool-fullscreen'),
   controlToolTimer:command=>ipcRenderer.invoke('control-tool-timer',command),
   getDesktopTimerState:()=>ipcRenderer.invoke('get-desktop-timer-state'),

@@ -223,20 +223,21 @@ function phoneRemote(req) {
     return {ok:true,className:s.className,desktopReady:!!liveAgent,desktopName:liveAgent?liveAgent.name:'',lastHost:liveAgent?liveAgent.lastSeen:s.lastHost,timer:liveAgent&&liveAgent.timer?liveAgent.timer:s.timer,ack:s.ack,pendingSeqs:(s.pendingAgentSeqs||[]).concat(s.commands.map(function(c){return c.seq;})),shortcuts:(s.shortcuts||[]).map(function(x){var copy=Object.assign({},x);if(x.type==='program')copy.ready=!!ebookAgentReady(props,s.classKey,x.agentId,x.agentSlotId);return copy;}),result:s.result||null,expires:s.expires,serverNow:now};
   }
   if (req.action === 'remoteSend') {
-    var c=req.command || {},allowed=['open','start','pause','resume','reset','shortcut','tool'];
+    var c=req.command || {},allowed=['open','start','pause','resume','reset','shortcut','tool','window','configure'];
     if (allowed.indexOf(c.kind)<0 || !/^[a-f0-9]{32}$/.test(String(c.id||''))) throw new Error('不支援的控制指令');
-    if(c.kind==='tool'&&['points','timer','attendance','draw','tasks'].indexOf(c.tool)<0)throw new Error('不支援的桌面工具');
+    if((c.kind==='tool'||c.kind==='window')&&['points','timer','attendance','draw','tasks'].indexOf(c.tool)<0)throw new Error('不支援的桌面工具');
+    if(c.kind==='window'&&(['timer','draw','attendance','tasks'].indexOf(c.tool)<0||['show','maximize','restore','fullscreen','hide'].indexOf(c.windowAction)<0))throw new Error('不支援的視窗控制');
     if(c.kind==='shortcut'&&!/^s[1-6]$/.test(String(c.shortcutId||'')))throw new Error('無效的教材捷徑');
     s.commands=s.commands.filter(function(x){return x.seq>(s.webAck||0)&&x.at>=now-30000;});
     s.seen=s.seen||[];
     var old=s.seen.filter(function(x){return x.id===c.id;})[0];
     if(!old){
       if(s.commands.length>=12) throw new Error('電腦處理中，請稍候再操作');
-      old={seq:++s.seq,id:String(c.id),kind:c.kind,tool:c.kind==='tool'?c.tool:'',shortcutId:c.kind==='shortcut'?String(c.shortcutId):'',mode:c.mode==='up'?'up':'down',seconds:Math.max(1,Math.min(10800,Math.round(Number(c.seconds)||60))),at:now};
+      old={seq:++s.seq,id:String(c.id),kind:c.kind,tool:(c.kind==='tool'||c.kind==='window')?c.tool:'',windowAction:c.kind==='window'?c.windowAction:'',show:c.show!==false,shortcutId:c.kind==='shortcut'?String(c.shortcutId):'',mode:c.mode==='up'?'up':'down',seconds:Math.max(1,Math.min(10800,Math.round(Number(c.seconds)||60))),at:now};
       var shortcut=c.kind==='shortcut'?(s.shortcuts||[]).filter(function(x){return x.id===c.shortcutId;})[0]:null;
       if(c.kind!=='shortcut'||(shortcut&&shortcut.type==='program')){
         var agent=c.kind==='shortcut'?ebookAgentReady(props,s.classKey,shortcut.agentId,shortcut.agentSlotId):desktopControlAgent(props,s.classKey,s.timerAgentId||'none');if(!agent)throw new Error('桌面工具未連線，請開啟 1.12.0 以上桌面工具並啟用手機控制');if(agent.queue.length>=12)throw new Error('桌面工具處理中，請稍候');
-        agent.queue.push({id:token+':'+old.seq,token:token,seq:old.seq,kind:c.kind,tool:old.tool,mode:old.mode,seconds:old.seconds,slotId:shortcut?shortcut.agentSlotId:'',at:now});props.setProperty(ebookAgentKey(agent.id),JSON.stringify(agent));s.pendingAgentSeqs=(s.pendingAgentSeqs||[]).concat([old.seq]);
+        agent.queue.push({id:token+':'+old.seq,token:token,seq:old.seq,kind:c.kind,tool:old.tool,windowAction:old.windowAction,show:old.show,mode:old.mode,seconds:old.seconds,slotId:shortcut?shortcut.agentSlotId:'',at:now});props.setProperty(ebookAgentKey(agent.id),JSON.stringify(agent));s.pendingAgentSeqs=(s.pendingAgentSeqs||[]).concat([old.seq]);
       }else{if(now-s.lastHost>15000)throw new Error('電腦網頁目前沒有回應，請保持網頁開啟');s.commands.push(old);}
       s.seen.push({id:old.id,seq:old.seq});s.seen=s.seen.slice(-24);
     }
@@ -274,7 +275,7 @@ function ebookAgent(req) {
   if(req.action!=='remoteAgentPoll')throw new Error('不支援的桌面工具操作');
   a.slots=ebookAgentCards(req.slots);a.lastSeen=now;a.capabilities={timer:!!(req.capabilities&&req.capabilities.timer),tools:!!(req.capabilities&&req.capabilities.tools)};
   var t=req.timer;if(t)a.timer={mode:t.mode==='up'?'up':'down',total:Math.max(1,Number(t.total)||300),seconds:Math.max(0,Number(t.seconds)||0),running:!!t.running,done:!!t.done,at:now};props.setProperty(key,JSON.stringify(a));
-  return {ok:true,commands:a.queue.map(function(c){return {id:c.id,kind:c.kind,tool:c.tool,mode:c.mode,seconds:c.seconds,slotId:c.slotId,at:c.at};}),serverNow:now};
+  return {ok:true,commands:a.queue.map(function(c){return {id:c.id,kind:c.kind,tool:c.tool,windowAction:c.windowAction,show:c.show!==false,mode:c.mode,seconds:c.seconds,slotId:c.slotId,at:c.at};}),serverNow:now};
 }
 function ebookAgentReady(props,classKey,id,slotId){try{var raw=props.getProperty(ebookAgentKey(id));if(!raw)return null;var a=JSON.parse(raw);if(a.classKey!==classKey||Date.now()-a.lastSeen>15000)return null;return (a.slots||[]).some(function(s){return s.id===slotId&&s.ready;})?a:null;}catch(_){return null;}}
 

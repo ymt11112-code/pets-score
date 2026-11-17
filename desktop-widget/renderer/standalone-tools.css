@@ -12,7 +12,7 @@ body[data-window=draw] .dc-workspace { height:clamp(370px,calc(100dvh - 330px),1
 body[data-window=draw] .dc-workspace .dc-results { min-width:0; }
 body[data-window=draw] .dc-workspace .dc-result-card { overflow:visible; }
 body[data-window=draw] .dc-workspace .dc-results[data-count="1"] .dc-result-card { gap:12px; }
-body[data-window=draw] .draw-center.is-projecting .dc-workspace { height:calc(100dvh - 210px); }
+body[data-window=draw] .draw-center.is-projecting .dc-workspace { height:calc(100dvh - 130px); }
 @media(min-width:1100px) {
  body[data-window=draw] .dc-workspace { grid-template-columns:minmax(0,1.2fr) minmax(320px,1fr); }
 }
@@ -20,3 +20,22 @@ body[data-window=draw] .draw-center.is-projecting .dc-workspace { height:calc(10
  .dt-header .dt-clock-badge { display:none; }
  .dt-window-controls .btn { padding:7px; font-size:12px; }
 }
+.dt-exit-fullscreen { display:none; position:fixed; bottom:12px; right:12px; z-index:6500; padding:7px 12px; font-size:12px; opacity:.8; }
+body.is-tool-fullscreen { overflow:hidden; }
+body.is-tool-fullscreen .dt-header,body.is-tool-fullscreen .dt-tabs,body.is-tool-fullscreen .dc-header { display:none; }
+body.is-tool-fullscreen .dt-exit-fullscreen { display:block; }
+body.is-tool-fullscreen .dt-content { padding:12px; height:100dvh; overflow:auto; }
+body.is-tool-fullscreen[data-window=draw] .dc-workspace { height:calc(100dvh - 210px); }
+body.is-tool-fullscreen[data-window=timer] .dt-panel { min-height:calc(100dvh - 24px); }
+body.is-tool-fullscreen[data-window=timer] .dt-panel>h2,body.is-tool-fullscreen[data-window=timer] .dt-panel>.dt-note { display:none; }
+body.is-tool-fullscreen[data-window=draw] .draw-center { padding:0; border:0; margin:0; }
+body.is-tool-fullscreen[data-window=draw] .dc-workspace { height:calc(100dvh - 24px); }
+body.is-tool-fullscreen[data-window=draw] :is(.dc-style-list,.dc-toolbar,.dc-notice,.dc-settings-card,.dc-history,.dc-result-tabs,.dc-roster-toolbar) { display:none; }
+body.is-tool-fullscreen[data-window=draw] .dc-results>.dc-button { display:none; }
+body.is-tool-fullscreen[data-window=draw] .dc-workspace { grid-template-rows:minmax(0,1fr); }
+body.is-tool-fullscreen[data-window=draw] .dc-workspace .dc-wheel-wrap { width:min(100%,calc(100dvh - 85px)); max-width:none; }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-card>.draw-pet-avatar { width:clamp(150px,28vh,340px)!important; height:clamp(150px,28vh,340px)!important; }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-name { font-size:clamp(40px,6vh,90px); }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-seat { font-size:clamp(22px,3vh,40px); }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-card { gap:16px; }
+body.is-tool-fullscreen[data-window=draw] .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-name { font-size:clamp(22px,3vh,40px); }

@@ -20,7 +20,9 @@
   const controls=el('div',{class:'dt-window-controls'},[button('⛶ 全螢幕',()=>bridge.toggleToolFullscreen()),button('▢ 放大／還原',()=>bridge.toggleToolMaximize())]);
   document.querySelector('.dt-header').append(controls);
   document.querySelector('.dt-header h1').textContent=windowKind==='draw'?'課堂抽籤':timerOwner?'課堂計時器':'課堂小工具';
-  document.addEventListener('keydown',e=>{if(e.key==='F11'){e.preventDefault();bridge.toggleToolFullscreen();}});
+  const exitFullscreen=button('退出全螢幕',()=>bridge.exitToolFullscreen());exitFullscreen.classList.add('dt-exit-fullscreen');document.body.append(exitFullscreen);
+  const fullscreenState=value=>document.body.classList.toggle('is-tool-fullscreen',value);bridge.onToolFullscreen(fullscreenState);bridge.getToolFullscreen().then(fullscreenState);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')bridge.exitToolFullscreen();if(e.key==='F11'){e.preventDefault();bridge.toggleToolFullscreen();}});
   const timer={total:300,left:300,running:false,mode:'down',done:false};
   let audio=null;
   const A=window.PetAttendance;
