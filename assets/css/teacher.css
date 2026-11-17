@@ -808,3 +808,17 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .phone-desktop-launcher { padding:12px; margin:12px 0; border:1px solid var(--line); border-radius:18px; background:#fff; }
 .phone-desktop-launcher>.btn { width:100%; min-height:52px; font-size:16px; }
 .phone-desktop-launcher p { margin:8px 0 0; font-size:12px; line-height:1.6; }
+.phone-launch-status { min-height:44px; font-size:14px!important; line-height:1.7!important; padding:10px; border-radius:10px; background:#edf6f0; color:#245347; overflow-wrap:anywhere; }
+.phone-desktop-launcher[data-phase=error] .phone-launch-status,.phone-desktop-launcher[data-phase=offline] .phone-launch-status { background:#fff0db; color:#76501c; }
+.phone-desktop-launcher[data-phase=success] .phone-launch-status { background:#d7f3e2; color:#14633e; }
+.phone-launch-help { margin-top:10px; font-size:13px; }
+.phone-launch-help summary { cursor:pointer; font-weight:700; }
+.phone-launch-help li { margin:6px 0; line-height:1.7; }
+.phone-scan-video { display:block; width:100%; max-height:38dvh; aspect-ratio:4/3; object-fit:cover; border-radius:16px; background:#102b2a; }
+.phone-scan-status { padding:12px; border-radius:12px; background:#edf6f0; line-height:1.7; font-weight:700; }
+.phone-scan-steps { margin:0; padding-left:22px; font-size:14px; line-height:1.7; }
+.phone-scan-body input[type=file] { width:100%; padding:12px 0; }
+@media(max-width:600px){#connectPhone { white-space:normal; min-height:44px; max-width:170px; line-height:1.4; }.phone-scan-body .btn { min-height:46px; }.phone-scan-body textarea { font-size:16px; }}
+.phone-desktop-launcher>.btn:disabled { opacity:1; background:#f6d47c; border-color:#efc458; color:#5c481e; cursor:progress; }
+.phone-scan-video { display:block; width:100%; max-height:36dvh; aspect-ratio:4/3; object-fit:cover; background:#173e38; border-radius:14px; }
+.phone-scan-video[hidden] { display:none; }
