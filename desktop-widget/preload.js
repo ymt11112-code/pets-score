@@ -3,6 +3,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopWidget', {
+  toggleToolMaximize:()=>ipcRenderer.invoke('toggle-tool-maximize'),
+  toggleToolFullscreen:()=>ipcRenderer.invoke('toggle-tool-fullscreen'),
+  controlToolTimer:command=>ipcRenderer.invoke('control-tool-timer',command),
+  getDesktopTimerState:()=>ipcRenderer.invoke('get-desktop-timer-state'),
+  onDesktopTimerSync:cb=>ipcRenderer.on('desktop-timer-sync',(event,state)=>cb(state)),
   getLauncherState:()=>ipcRenderer.invoke('get-launcher-settings'),
   chooseLauncherFolder:()=>ipcRenderer.invoke('choose-launcher-folder'),
   testDesktopLauncher:()=>ipcRenderer.invoke('test-desktop-launcher'),

@@ -8,7 +8,19 @@
   if(!kinds.some(x=>x[0]===active))active='attendance';
   let state=null,busy=false,drawController=null;
   let editingTask=null, taskDraft=new Set();
-  const lessonClock=window.PetLessonTimer.clock;
+  const windowKind=new URLSearchParams(location.search).get('window')||active;
+  const timerOwner=windowKind==='timer';
+  document.body.dataset.window=windowKind;
+  let timerQueue=Promise.resolve(),clockState={mode:'down',total:300,seconds:300,running:false,done:false};
+  const clockListeners=new Set();
+  function syncClock(next){if(!next)return;clockState=next;for(const cb of clockListeners)cb(next,'sync');}
+  function sendClock(kind,config={}){timerQueue=timerQueue.then(()=>bridge.controlToolTimer({kind,...config,show:kind==='start'||kind==='resume'})).then(syncClock).catch(error=>U.toast(error.message,'error'));return timerQueue;}
+  const lessonClock=timerOwner?window.PetLessonTimer.clock:{get:()=>clockState,subscribe(cb){clockListeners.add(cb);cb(clockState,'init');return()=>clockListeners.delete(cb);},configure:config=>sendClock('configure',config),start:()=>sendClock('resume'),pause:()=>sendClock('pause'),reset:()=>sendClock('reset')};
+  if(!timerOwner){bridge.onDesktopTimerSync(syncClock);bridge.getDesktopTimerState().then(syncClock);}
+  const controls=el('div',{class:'dt-window-controls'},[button('⛶ 全螢幕',()=>bridge.toggleToolFullscreen()),button('▢ 放大／還原',()=>bridge.toggleToolMaximize())]);
+  document.querySelector('.dt-header').append(controls);
+  document.querySelector('.dt-header h1').textContent=windowKind==='draw'?'課堂抽籤':timerOwner?'課堂計時器':'課堂小工具';
+  document.addEventListener('keydown',e=>{if(e.key==='F11'){e.preventDefault();bridge.toggleToolFullscreen();}});
   const timer={total:300,left:300,running:false,mode:'down',done:false};
   let audio=null;
   const A=window.PetAttendance;
@@ -48,6 +60,7 @@
   function drawSnapshot(){return {students:state.students,absentIds:state.students.filter(st=>isAbsent(st.id)).map(st=>st.id),draw:state.draw,className:state.className};}
   function draw(){
     if(!drawController)drawController=window.PetDrawCenter.create({
+      clock:lessonClock,
       getSnapshot:drawSnapshot,
       configure:async patch=>{state=await bridge.configureDraw(patch);return drawSnapshot();},
       draw:async request=>{state=await bridge.runDraw(request);drawController.update(drawSnapshot());return state.draw.last;},
@@ -109,7 +122,7 @@
   }
   function render(){
     if(state)document.querySelector('.dt-header p').textContent=state.className||'班級寵物探險隊';
-    tabs.replaceChildren(...kinds.map(([kind,image,label])=>el('button',{class:'dt-tab'+(active===kind?' is-active':''),type:'button','data-tool':kind,'aria-pressed':String(active===kind),onclick:()=>{active=kind;render();}},[el('span',{text:image}),el('span',{text:label})])));
+    tabs.replaceChildren(...kinds.map(([kind,image,label])=>el('button',{class:'dt-tab'+(active===kind?' is-active':''),type:'button','data-tool':kind,'aria-pressed':String(active===kind),onclick:()=>{if(kind==='draw'||kind==='timer'||windowKind!=='general'){bridge.openTool(kind);return;}active=kind;render();}},[el('span',{text:image}),el('span',{text:label})])));
     if(active==='timer')content.replaceChildren(timerPanel());
     else if(!state)content.replaceChildren(note('正在讀取班級資料…'),button('重新讀取',load));
     else if(active==='draw'&&drawController&&content.contains(drawController.element))drawController.update(drawSnapshot());
@@ -120,8 +133,8 @@
   bridge.onOpenTool(kind=>{if(kinds.some(x=>x[0]===kind)){active=kind;render();load();}});
   bridge.onToolState(next=>{state=next;if(active==='timer')return;render();});
   let lastTimerPublish=0;
-  lessonClock.subscribe((state,event)=>{if(event!=='tick'||Date.now()-lastTimerPublish>=800){lastTimerPublish=Date.now();bridge.publishDesktopTimer(state);}});
-  bridge.onDesktopTimerCommand(command=>{try{active='timer';if(command.kind==='start'){lessonClock.configure({mode:command.mode,seconds:command.seconds});lessonClock.start();}else if(command.kind==='pause')lessonClock.pause();else if(command.kind==='resume')lessonClock.start();else if(command.kind==='reset')lessonClock.reset();else if(command.kind!=='open')throw Error('不支援的桌面計時指令');render();bridge.desktopTimerResult({id:command.id,state:lessonClock.get()});}catch(error){bridge.desktopTimerResult({id:command.id,error:error.message});}});
+  if(timerOwner)lessonClock.subscribe((state,event)=>{if(event!=='tick'||Date.now()-lastTimerPublish>=800){lastTimerPublish=Date.now();bridge.publishDesktopTimer(state);}});
+  if(timerOwner)bridge.onDesktopTimerCommand(command=>{try{active='timer';if(command.kind==='start'){lessonClock.configure({mode:command.mode,seconds:command.seconds});lessonClock.start();}else if(command.kind==='pause')lessonClock.pause();else if(command.kind==='resume')lessonClock.start();else if(command.kind==='reset')lessonClock.reset();else if(command.kind==='configure')lessonClock.configure({mode:command.mode,seconds:command.seconds});else if(command.kind!=='open')throw Error('不支援的桌面計時指令');render();bridge.desktopTimerResult({id:command.id,state:lessonClock.get()});}catch(error){bridge.desktopTimerResult({id:command.id,error:error.message});}});
   render();load();
 })();
 

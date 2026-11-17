@@ -1,0 +1,22 @@
+﻿/* 獨立視窗隨視窗大小配置，不沿用加點側欄的尺寸。 */
+.dt-header { flex-wrap:wrap; padding:10px 16px; }
+.dt-window-controls { display:flex; gap:6px; margin-left:auto; }
+.dt-window-controls .btn { padding:8px 12px; min-height:36px; font-size:13px; }
+.dt-tabs { position:static; padding-bottom:8px; }
+.dt-tab { flex-direction:row; justify-content:center; min-height:38px; padding:6px; }
+body[data-window=timer] .dt-content > .dt-panel { min-height:calc(100dvh - 160px); }
+body[data-window=timer] .dt-timer-stage { flex:1; min-height:160px; display:flex; flex-direction:column; justify-content:center; padding:20px; }
+body[data-window=timer] .dt-timer-time { font-size:clamp(72px,19vw,280px); line-height:1.2; }
+body[data-window=timer] .dt-actions .btn { min-height:52px; font-size:20px; }
+body[data-window=draw] .dc-workspace { height:clamp(370px,calc(100dvh - 330px),1400px); }
+body[data-window=draw] .dc-workspace .dc-results { min-width:0; }
+body[data-window=draw] .dc-workspace .dc-result-card { overflow:visible; }
+body[data-window=draw] .dc-workspace .dc-results[data-count="1"] .dc-result-card { gap:12px; }
+body[data-window=draw] .draw-center.is-projecting .dc-workspace { height:calc(100dvh - 210px); }
+@media(min-width:1100px) {
+ body[data-window=draw] .dc-workspace { grid-template-columns:minmax(0,1.2fr) minmax(320px,1fr); }
+}
+@media(max-width:600px) {
+ .dt-header .dt-clock-badge { display:none; }
+ .dt-window-controls .btn { padding:7px; font-size:12px; }
+}
