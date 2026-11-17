@@ -822,3 +822,6 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .phone-desktop-launcher>.btn:disabled { opacity:1; background:#f6d47c; border-color:#efc458; color:#5c481e; cursor:progress; }
 .phone-scan-video { display:block; width:100%; max-height:36dvh; aspect-ratio:4/3; object-fit:cover; background:#173e38; border-radius:14px; }
 .phone-scan-video[hidden] { display:none; }
+.timer-mode-tabs { display:flex; gap:8px; margin-bottom:12px; }
+.timer-mode-tabs>.btn { flex:1; min-height:44px; }
+.modal.exam-timer-modal { width:min(1240px,96vw); max-height:94dvh; }

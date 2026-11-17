@@ -896,11 +896,14 @@
   function openRandomDraw() { if(window.PetPhoneRemote.desktopTool('draw'))return;floatOpen=false; renderFloatWidget(); go('tools'); }
 
   let timerModalHandle=null;
-  function openTimerModal(fromRemote) {
-    if(fromRemote!==true&&window.PetPhoneRemote.phoneTimer())return;
+  function openTimerModal(fromRemote,initialView) {
+    if(initialView!=='exam'&&fromRemote!==true&&window.PetPhoneRemote.phoneTimer())return;
     if(timerModalHandle&&timerModalHandle.box.isConnected)return;
-    timerModalHandle=U.modal({ wide:fromRemote===true, onClose:()=>{timerModalHandle=null;},title: '課堂計時器', body: el('div', { class: 'stack' }, [el('p', { class: 'card__sub', text: '計時器在這台電腦／裝置運作；配對的手機可遙控，關閉面板後仍會繼續倒數。' }), timerWidget()]) });
-    if(fromRemote===true)timerModalHandle.box.classList.add('remote-screen-timer');
+    let view=initialView==='exam'?'exam':'simple',exam=null;
+    const body=el('div',{class:'stack'}),tabs=el('div',{class:'timer-mode-tabs'}),panel=el('div');body.append(tabs,panel);
+    function paint(){tabs.replaceChildren(...[['simple','一般計時'],['exam','📋 考試看板']].map(([id,label])=>el('button',{class:'btn'+(view===id?' btn--primary':' btn--ghost'),type:'button','data-timer-view':id,'aria-pressed':String(view===id),text:label,onclick:()=>{view=id;paint();}})));if(view==='exam'){if(!exam)exam=window.PetExamBoard.create({getAttendance:date=>{const state=S.get();return {students:state.students,absentIds:state.students.filter(st=>S.isAbsent(st.id,date)).map(st=>st.id),unconfirmed:date!==U.todayKey()&&!Object.prototype.hasOwnProperty.call(state.attendance||{},date)};}});panel.replaceChildren(exam.element);}else panel.replaceChildren(timerWidget());timerModalHandle.box.classList.toggle('exam-timer-modal',view==='exam');}
+    timerModalHandle=U.modal({wide:fromRemote===true,onClose:()=>{exam?.destroy();timerModalHandle=null;},title:'課堂計時器',body});
+    if(fromRemote===true)timerModalHandle.box.classList.add('remote-screen-timer');paint();
   }
 
   function openAttendance() {
@@ -4282,7 +4285,7 @@
 
   /* ---------- 啟動 ---------- */
   S.init().then(() => {
-    window.PetPhoneRemote.init({clock:lessonClock,openTimer:openTimerModal,go});
+    window.PetPhoneRemote.init({clock:lessonClock,openTimer:openTimerModal,openExam:()=>openTimerModal(false,'exam'),go});
     const hash = location.hash.slice(1);
     if (PAGES[hash]) page = hash;
     if(hash==='classroom')page='quick';

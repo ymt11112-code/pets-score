@@ -1,0 +1,93 @@
+﻿.exam-board { --exam-ink:#30483d; color:var(--exam-ink); min-width:0; container-type:inline-size; }
+.exam-toolbar { display:flex; gap:8px; justify-content:flex-end; margin:0 0 10px; }
+.exam-button { padding:10px 16px; min-height:42px; border:2px solid #c0d8c9; border-radius:13px; background:#fff; color:#254e40; font-family:inherit; font-size:14px; font-weight:700; line-height:1.3; cursor:pointer; }
+.exam-button.is-primary { background:#16604e; color:#fff; border-color:#16604e; }
+.exam-surface { padding:clamp(16px,2.4cqw,36px); border:3px solid #526454; border-radius:28px; background-color:#fffdf2; background-image:radial-gradient(#c9ded8 1.3px,transparent 1.3px); background-size:26px 26px; }
+.exam-surface-header { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:20px; align-items:center; margin-bottom:20px; }
+.exam-surface h1 { margin:0; font-size:clamp(22px,3.2cqw,56px); font-weight:900; line-height:1.35; overflow-wrap:anywhere; }
+.exam-date { margin:0; text-align:right; font-size:clamp(12px,1.5cqw,26px); }
+.exam-wall-clock { font-size:clamp(32px,6.2cqw,100px); line-height:1.15; font-weight:850; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.exam-main { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(220px,.85fr); gap:18px; }
+.exam-current,.exam-attendance { border:3px solid #53695b; border-radius:23px; padding:clamp(14px,2.2cqw,30px); min-width:0; background:#eaf3fb; }
+.exam-current { display:flex; flex-direction:column; justify-content:space-between; gap:14px; }
+.exam-badge { display:inline-block; align-self:flex-start; padding:7px 16px; background:#f4c8d5; border:2px solid #80545e; border-radius:999px; font-size:clamp(12px,1.6cqw,24px); font-weight:800; }
+.exam-subject-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+.exam-subject { margin:0; font-size:clamp(32px,6cqw,96px); font-weight:900; line-height:1.25; overflow-wrap:anywhere; }
+.exam-range { padding:8px 12px; border:2px solid #8faebb; border-radius:12px; background:#dfeef9; font-size:clamp(14px,2cqw,30px); white-space:nowrap; }
+.exam-count-caption { margin:0; font-size:clamp(15px,2cqw,30px); font-weight:750; }
+.exam-countdown { text-align:center; font-size:clamp(56px,11.5cqw,180px); line-height:1.15; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
+.exam-board[data-phase=finished] .exam-countdown { font-size:clamp(36px,7cqw,100px); }
+.exam-board[data-phase=exam] .exam-countdown { color:#164d43; }
+.exam-progress { display:block; width:100%; height:26px; border:2px solid #698b77; border-radius:999px; overflow:hidden; accent-color:#55b9a1; background:#fff; }
+.exam-progress::-webkit-progress-bar { background:#fff; }
+.exam-progress::-webkit-progress-value { background:repeating-linear-gradient(135deg,#62c2a9 0 16px,#87d1bd 16px 32px); border-radius:999px; }
+.exam-progress-labels { display:flex; justify-content:space-between; gap:10px; margin-top:7px; font-size:clamp(12px,1.4cqw,22px); font-variant-numeric:tabular-nums; }
+.exam-attendance { display:flex; flex-direction:column; gap:14px; background:#eff7ed; }
+.exam-attendance h2 { margin:0; font-size:clamp(18px,2.4cqw,36px); }
+.exam-attendance-counts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.exam-attendance-counts>div { display:flex; flex-direction:column; align-items:center; padding:12px 6px; background:#dcebf5; border:2px solid #9db7b8; border-radius:18px; }
+.exam-attendance-counts>div+div { background:#d5eee0; }
+.exam-attendance-counts span { font-size:clamp(14px,1.8cqw,28px); }
+.exam-attendance-counts strong { font-size:clamp(36px,5.8cqw,88px); line-height:1.2; }
+.exam-absent-box { flex:1; padding:14px; background:#f7e2e6; border:2px solid #d2aab5; border-radius:18px; }
+.exam-absent-box h3 { margin:0; font-size:clamp(14px,1.9cqw,28px); }
+.exam-absent-seats { margin:12px 0 0; font-size:clamp(18px,2.5cqw,38px); line-height:1.6; overflow-wrap:anywhere; }
+.exam-attendance-note { margin:0; font-size:11px; color:#527363; }
+.exam-schedule { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-top:18px; }
+.exam-schedule-card { display:flex; gap:8px; justify-content:space-between; align-items:center; padding:12px 14px; border:2px solid #a3bab3; background:#fff; border-radius:17px; }
+.exam-schedule-card.is-current { background:#fff0b9; border-color:#b79a4b; }
+.exam-schedule-card strong { font-size:clamp(18px,2.4cqw,34px); overflow-wrap:anywhere; }
+.exam-schedule-card p { margin:4px 0 0; font-size:clamp(12px,1.5cqw,23px); font-variant-numeric:tabular-nums; }
+.exam-schedule-card>span { font-size:clamp(12px,1.4cqw,20px); white-space:nowrap; }
+.exam-reminder { text-align:center; font-size:clamp(14px,1.8cqw,28px); line-height:1.6; margin:14px 0 0; font-weight:700; overflow-wrap:anywhere; }
+.exam-settings { margin-top:14px; border:1px solid #cadfd2; border-radius:16px; background:#f6fbf7; padding:14px; }
+.exam-settings>summary { cursor:pointer; font-weight:800; font-size:16px; }
+.exam-editor { display:flex; flex-direction:column; gap:12px; margin-top:14px; }
+.exam-editor-meta { display:grid; grid-template-columns:minmax(0,2fr) minmax(150px,1fr); gap:12px; }
+.exam-editor label { display:flex; flex-direction:column; gap:6px; min-width:0; font-size:13px; font-weight:700; }
+.exam-editor input,.exam-editor textarea { min-width:0; width:100%; min-height:42px; padding:9px; border:1px solid #bbd2c5; background:#fff; color:#224d3d; border-radius:10px; font:inherit; }
+.exam-editor-row { display:grid; grid-template-columns:minmax(120px,2fr) minmax(95px,1fr) minmax(95px,1fr) minmax(65px,.6fr) auto; align-items:end; gap:8px; padding:12px; border:1px solid #d6e3d9; border-radius:12px; background:#fff; }
+.exam-editor-actions { display:flex; gap:10px; justify-content:flex-end; }
+.exam-setting-hint { margin:0; color:#4f7162; font-size:13px; line-height:1.6; }
+.exam-settings-error { margin:0; color:#a63832; font-weight:700; }
+.exam-exit-projection { display:none; }
+.exam-board.is-projecting,body.is-tool-fullscreen .exam-board { position:fixed; inset:0; z-index:6000; padding:12px; background:#fffdf2; overflow:auto; }
+.exam-board.is-projecting>.exam-toolbar,.exam-board.is-projecting>.exam-settings,body.is-tool-fullscreen .exam-board>.exam-toolbar,body.is-tool-fullscreen .exam-board>.exam-settings { display:none; }
+.exam-board.is-projecting>.exam-surface,body.is-tool-fullscreen .exam-board>.exam-surface { min-height:calc(100dvh - 24px); display:flex; flex-direction:column; }
+.exam-board.is-projecting .exam-main,body.is-tool-fullscreen .exam-board .exam-main { flex:1; }
+.exam-board.is-projecting .exam-exit-projection { display:block; position:fixed; bottom:10px; right:12px; opacity:.7; z-index:6501; font-size:12px; padding:6px; min-height:30px; }
+body.is-tool-fullscreen .exam-exit-projection { display:none; }
+body.is-tool-fullscreen .timer-mode-tabs { display:none; }
+.timer-mode-tabs { display:flex; gap:8px; margin-bottom:12px; }
+.timer-mode-tabs .btn { flex:1; }
+.timer-mode-tabs .is-selected { background:#d8efe1; border:2px solid #248360; color:#154d3e; }
+.exam-timer-modal { width:min(1420px,96vw); max-height:94dvh; }
+@container(max-width:650px){.exam-surface-header {grid-template-columns:minmax(0,1fr);gap:10px;}.exam-date {text-align:left;}.exam-wall-clock {font-size:clamp(40px,12cqw,68px);}.exam-main {grid-template-columns:minmax(0,1fr);}.exam-attendance-counts strong {font-size:44px;}.exam-subject {font-size:clamp(36px,10cqw,60px);}.exam-countdown {font-size:clamp(64px,18cqw,100px);}.exam-editor-row {grid-template-columns:1fr 1fr;}.exam-editor-row>label:first-child {grid-column:1/-1;}.exam-editor-row>.exam-button {min-width:0;}.exam-editor-meta {grid-template-columns:minmax(0,1fr);}.exam-schedule {grid-template-columns:minmax(0,1fr);}}
+.exam-board.is-projecting>.exam-surface,body.is-tool-fullscreen .exam-board>.exam-surface { padding:clamp(14px,2cqw,26px); }
+.exam-board.is-projecting .exam-countdown,body.is-tool-fullscreen .exam-board .exam-countdown { font-size:clamp(64px,10cqw,160px); }
+@media(max-height:900px){
+ .exam-board.is-projecting .exam-surface,body.is-tool-fullscreen .exam-board .exam-surface {padding:16px;}
+ .exam-board.is-projecting .exam-surface-header,body.is-tool-fullscreen .exam-board .exam-surface-header {margin-bottom:12px;}
+ .exam-board.is-projecting h1,body.is-tool-fullscreen .exam-board h1 {font-size:32px;}
+ .exam-board.is-projecting .exam-wall-clock,body.is-tool-fullscreen .exam-board .exam-wall-clock {font-size:clamp(32px,7vh,60px);}
+ .exam-board.is-projecting .exam-date,body.is-tool-fullscreen .exam-board .exam-date {font-size:16px;}
+ .exam-board.is-projecting .exam-current,body.is-tool-fullscreen .exam-board .exam-current {padding:12px;gap:6px;}
+ .exam-board.is-projecting .exam-badge,body.is-tool-fullscreen .exam-board .exam-badge {font-size:14px;padding:6px 12px;}
+ .exam-board.is-projecting .exam-subject,body.is-tool-fullscreen .exam-board .exam-subject {font-size:clamp(32px,6vh,54px);}
+ .exam-board.is-projecting .exam-range,body.is-tool-fullscreen .exam-board .exam-range {font-size:16px;padding:6px 10px;}
+ .exam-board.is-projecting .exam-count-caption,body.is-tool-fullscreen .exam-board .exam-count-caption {font-size:16px;}
+ .exam-board.is-projecting .exam-countdown,body.is-tool-fullscreen .exam-board .exam-countdown {font-size:clamp(64px,14vh,120px);}
+ .exam-board.is-projecting .exam-progress,body.is-tool-fullscreen .exam-board .exam-progress {height:20px;}
+ .exam-board.is-projecting .exam-progress-labels,body.is-tool-fullscreen .exam-board .exam-progress-labels {font-size:14px;}
+ .exam-board.is-projecting .exam-attendance,body.is-tool-fullscreen .exam-board .exam-attendance {padding:12px;gap:10px;}
+ .exam-board.is-projecting .exam-attendance h2,body.is-tool-fullscreen .exam-board .exam-attendance h2 {font-size:24px;}
+ .exam-board.is-projecting .exam-attendance-counts strong,body.is-tool-fullscreen .exam-board .exam-attendance-counts strong {font-size:52px;}
+ .exam-board.is-projecting .exam-attendance-counts span,body.is-tool-fullscreen .exam-board .exam-attendance-counts span {font-size:18px;}
+ .exam-board.is-projecting .exam-absent-seats,body.is-tool-fullscreen .exam-board .exam-absent-seats {font-size:24px;}
+ .exam-board.is-projecting .exam-schedule,body.is-tool-fullscreen .exam-board .exam-schedule {margin-top:12px;}
+ .exam-board.is-projecting .exam-schedule-card,body.is-tool-fullscreen .exam-board .exam-schedule-card {padding:8px 10px;}
+ .exam-board.is-projecting .exam-schedule-card strong,body.is-tool-fullscreen .exam-board .exam-schedule-card strong {font-size:24px;}
+ .exam-board.is-projecting .exam-schedule-card p,body.is-tool-fullscreen .exam-board .exam-schedule-card p {font-size:16px;}
+ .exam-board.is-projecting .exam-schedule-card>span,body.is-tool-fullscreen .exam-board .exam-schedule-card>span {font-size:14px;}
+ .exam-board.is-projecting .exam-reminder,body.is-tool-fullscreen .exam-board .exam-reminder {font-size:16px;margin-top:10px;}
+}

@@ -48,3 +48,7 @@ body[data-window=timer] .dt-presets .dt-preset { display:flex; flex-direction:co
 .dt-preset small { font-size:12px; font-variant-numeric:tabular-nums; }
 body[data-window=timer] .dt-presets .dt-preset.is-selected { background:#d6f1e2; border-color:#17966f; box-shadow:0 0 0 1px #17966f; }
 @media(max-width:560px){body[data-window=timer] .dt-presets {grid-template-columns:repeat(2,minmax(0,1fr));}.dt-preset strong {font-size:18px;}}
+.timer-mode-tabs { display:flex; gap:8px; margin-bottom:12px; }
+.timer-mode-tabs>.btn { flex:1; min-height:42px; }
+body.is-tool-fullscreen .timer-mode-tabs { display:none; }
+body.is-tool-fullscreen .exam-exit-projection { display:none; }
