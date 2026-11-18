@@ -249,3 +249,5 @@ img { max-width: 100%; display: block; }
 .clay-icon { display:inline-block; width:1.5em; height:1.5em; flex-shrink:0; background-image:url('img/rule-icons/clay-classroom-v1.png'); background-size:400% 300%; background-repeat:no-repeat; vertical-align:-.3em; }
 
 .clay-icon[data-sheet="v2"] { background-image:url('img/rule-icons/clay-classroom-v2.png'); background-size:800% 600%; }
+.clay-icon[data-sheet="svg"] { background-size:contain; background-position:center; }
+.draw-center .dc-perform-btn .clay-icon { width:1.35em; height:1.35em; vertical-align:0; }

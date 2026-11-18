@@ -3,6 +3,7 @@
   'use strict';
   const U=window.PetUtil, el=U.el, bridge=window.desktopWidget;
   const content=document.getElementById('toolContent'), tabs=document.getElementById('toolTabs');
+  const taskReward=t=>{const sign=n=>(n>0?'+':'')+n,p=Number(t.points)||0,x=Number(t.xp)||0,c=Number(t.coins)||0,a=[p?sign(p)+' 點':'',x?sign(x)+' XP':'',c?sign(c)+' 金幣':''].filter(Boolean);return a.length?a.join('・'):'只記錄進度';};
   const kinds=[['attendance','📋','出席'],['draw','🎲','抽籤'],['timer','⏱️','計時器'],['tasks','✅','今日任務']];
   let active=new URLSearchParams(location.search).get('tool') || 'attendance';
   if(!kinds.some(x=>x[0]===active))active='attendance';
@@ -117,7 +118,7 @@
     if(task){
       return el('section',{class:'dt-panel'},[
         el('h2',{text:(task.icon||'✅')+' '+task.title}),note('勾選完成的學生，再儲存名單。任務獎勵沿用網頁設定。'),
-        el('div',{class:'dt-summary'},[el('strong',{text:'已選 '+taskDraft.size+' 位'}),el('span',{text:'目標 '+task.target+' 位 · +'+(task.xp||0)+' XP'})]),
+        el('div',{class:'dt-summary'},[el('strong',{text:'已選 '+taskDraft.size+' 位'}),el('span',{text:'目標 '+task.target+' 位 · '+taskReward(task)})]),
         el('div',{class:'dt-actions'},[button('選取到校學生',()=>{students().filter(s=>!isAbsent(s.id)).forEach(s=>taskDraft.add(s.id));render();}),button('清空',()=>{taskDraft.clear();render();})]),
         el('div',{class:'dt-students'},students().map(s=>studentButton(s,taskDraft.has(s.id),()=>{taskDraft.has(s.id)?taskDraft.delete(s.id):taskDraft.add(s.id);render();},isAbsent(s.id)))),
         el('button',{class:'btn btn--primary dt-wide',text:busy?'儲存中…':'儲存完成名單',disabled:busy,onclick:()=>change(async()=>{const next=await bridge.setToolTaskStudents(task.id,[...taskDraft]);editingTask=null;return next;})}),
@@ -126,9 +127,9 @@
     }
     const tasks=state.tasks||[];
     return el('section',{class:'dt-panel'},[
-      el('h2',{text:'今日任務'}),note('加分方式：① 點下方任務 → ② 勾選完成的學生 → ③ 按「儲存完成名單」，系統會依任務 XP 自動加分（同一位學生不會重複加）。任務名稱、目標與 XP 請在網頁「規則設定」管理。'),
+      el('h2',{text:'今日任務'}),note('加分方式：① 點下方任務 → ② 勾選完成的學生 → ③ 按「儲存完成名單」，系統會依任務的點數／XP／金幣自動加分（同一位學生不會重複加）。任務名稱、目標與 XP 請在網頁「規則設定」管理。'),
       ...tasks.map(task=>el('button',{class:'dt-task',type:'button','data-task':task.id,onclick:()=>{editingTask=task.id;taskDraft=new Set(task.doneBy||[]);render();}},[
-        el('span',{class:'dt-task-icon',text:task.icon||'✅'}),el('div',{},[el('strong',{text:task.title}),el('small',{text:'完成 '+(task.doneBy||[]).length+' / '+task.target+' 位 · +'+(task.xp||0)+' XP'}),el('progress',{value:Math.min((task.doneBy||[]).length,task.target||1),max:Math.max(1,task.target||1)})]),el('span',{text:'›'})
+        el('span',{class:'dt-task-icon',text:task.icon||'✅'}),el('div',{},[el('strong',{text:task.title}),el('small',{text:'完成 '+(task.doneBy||[]).length+' / '+task.target+' 位 · '+taskReward(task)}),el('progress',{value:Math.min((task.doneBy||[]).length,task.target||1),max:Math.max(1,task.target||1)})]),el('span',{text:'›'})
       ])),
       tasks.length?null:note('目前沒有任務，請先在網頁「規則設定」新增。')
     ]);

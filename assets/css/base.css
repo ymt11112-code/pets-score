@@ -263,3 +263,5 @@ img { max-width: 100%; display: block; }
 .award-notice { display:grid; grid-template-columns:32px minmax(0,1fr) 44px; max-height:calc(100dvh - 48px); overflow:auto; box-sizing:border-box; }
 .award-notice strong { min-width:0; overflow-wrap:anywhere; }
 @media(max-width:640px) { .award-notices { top:auto; bottom:calc(88px + env(safe-area-inset-bottom,0px)); } }
+.clay-icon[data-sheet="svg"] { background-size:contain; background-position:center; }
+.draw-center .dc-perform-btn .clay-icon { width:1.35em; height:1.35em; vertical-align:0; }

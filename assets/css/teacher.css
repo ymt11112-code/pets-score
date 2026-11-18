@@ -836,3 +836,6 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .ledger-pick-tile:focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
 .ledger-pick-count { font-size:15px; }
 .ledger-pick-diff { color:#6b7a73; }
+.rule-edit-heading.task-edit-heading { grid-template-columns:64px minmax(0,1fr) minmax(130px,.5fr); }
+@media(max-width:640px) { .rule-edit-heading.task-edit-heading { grid-template-columns:64px minmax(0,1fr); } }
+.pill--soft { opacity:.6; }

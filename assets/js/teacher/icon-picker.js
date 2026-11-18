@@ -29,8 +29,9 @@
     ]]
   ];
   groups.unshift(['clay', '黏土圖示（新）', []]);
+  groups.unshift(['music', '🎼 音樂圖示（自繪）', []]);
   const libraryItems = groups.flatMap(([group, , entries]) => entries.map(([icon, label, keywords]) => ({ group, icon, label, keywords })));
-  libraryItems.unshift(...window.PetUtil.CLAY_ICONS.map(item=>Object.assign({group:'clay'},item)));
+  libraryItems.unshift(...window.PetUtil.CLAY_ICONS.map(item=>Object.assign({group:item.sheet==='svg'?'music':'clay'},item)));
   const RECENT = 'classpet.recentRuleIcons.v1';
   function recentIcons() { try { return JSON.parse(localStorage.getItem(RECENT) || '[]').filter(v => typeof v === 'string' && v.length <= 32).slice(0,12); } catch { return []; } }
   function create(input, options) {
@@ -47,7 +48,7 @@
       const value = input.value.trim();
       const item = items.find(x => x.icon === value);
       window.PetUtil.setIconText(preview, value || '⭐');
-      chosen.textContent = value.startsWith('clay:') ? '' : item ? item.label : '自訂 emoji';
+      chosen.textContent = value.startsWith('clay:') && !(item && item.group === 'music') ? '' : item ? item.label : '自訂 emoji';
       grid.querySelectorAll('button[data-icon]').forEach(button => {
         const selected = button.dataset.icon === value;
         button.classList.toggle('is-selected', selected);
@@ -76,7 +77,7 @@
       else if (category === 'suggested') list = suggested();
       else if (category === 'recent') list = recentIcons().map(icon => items.find(x=>x.icon===icon) || {icon,label:'自訂 emoji'});
       else list = category === 'all' ? items : items.filter(x=>x.group===category);
-      grid.replaceChildren(...list.map(item => el('button', { class: 'rule-icons__item', type: 'button', 'data-icon': item.icon, title: item.label, 'aria-label': item.label, 'aria-pressed': 'false', onclick: () => pick(item) }, [el('span', { class: 'rule-icons__emoji', text: item.icon }), item.icon.startsWith('clay:') ? null : el('span', { class: 'rule-icons__label', text: item.label })])));
+      grid.replaceChildren(...list.map(item => el('button', { class: 'rule-icons__item', type: 'button', 'data-icon': item.icon, title: item.label, 'aria-label': item.label, 'aria-pressed': 'false', onclick: () => pick(item) }, [el('span', { class: 'rule-icons__emoji', text: item.icon }), item.icon.startsWith('clay:') && item.group !== 'music' ? null : el('span', { class: 'rule-icons__label', text: item.label })])));
       if (!list.length) grid.append(el('p', { class: 'rule-icons__empty', text: category === 'recent' && !query ? '選過的圖示會出現在這裡。' : '找不到符合的圖示，試試其他關鍵字，或直接貼上 emoji。' }));
       status.textContent = query ? '找到 ' + list.length + ' 個圖示' : category === 'suggested' ? '依規則名稱與加扣分推薦' : list.length + ' 個圖示';
       grid.scrollTop = 0;

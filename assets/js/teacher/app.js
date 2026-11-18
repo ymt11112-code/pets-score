@@ -1092,7 +1092,7 @@
           el('span', { style: { fontSize: '20px' }, text: t.icon }),
           el('div', { class: 'grow' }, [
             el('div', { style: { fontWeight: 700 }, text: t.title }),
-            el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・+' + t.xp + ' XP' }),
+            el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・' + M.taskRewardText(t) }),
           ]),
           el('span', { class: 'pill', style: { pointerEvents: 'none' }, text: '👥 設定名單' }),
         ]));
@@ -3277,8 +3277,12 @@
 
     /* ---- 兌換商店：格子卡片，點卡片開編輯視窗（圖示、名稱、說明、點數、數量） ---- */
     function openEditShopItem(i, isNew) {
-      const iconInput = el('input', { class: 'input', value: i.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
+      const iconInput = el('input', { class: 'rule-icon-input', type: 'hidden', value: i.icon });
       const nameInput = el('input', { class: 'input grow', value: i.name, placeholder: '商品名稱' });
+      const iconLibrary = iconPicker(iconInput, { nameInput });
+      const iconFold = el('details', { class: 'rule-icon-fold' }, [el('summary', { text: '圖示選擇 · 點此展開' }), iconLibrary]);
+      const iconButton = el('button', { type: 'button', class: 'rule-current-icon', 'aria-label': '選擇商品圖示', onclick: () => { iconFold.open = true; iconLibrary.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, [iconInput, el('span', { class: 'rule-current-icon__image', text: i.icon })]);
+      iconInput.addEventListener('input', () => { const f = iconButton.querySelector('.rule-current-icon__image'); if (f) U.setIconText(f, iconInput.value); });
       const descInput = el('input', { class: 'input', value: i.desc || '', placeholder: '說明（選填）' });
       const costInput = el('input', { class: 'input', type: 'number', value: i.cost });
       const stockInput = el('input', { class: 'input', type: 'number', value: i.stock });
@@ -3317,13 +3321,36 @@
       U.modal({
         title: isNew ? '新增商品' : '編輯商品',
         body: el('div', { class: 'stack' }, [
-          el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
-          iconPicker(iconInput),
+          el('div', { class: 'row', style: { gap: '10px', alignItems: 'end' } }, [iconButton, field('名稱', nameInput)]),
           field('說明', descInput),
           el('div', { class: 'row', style: { gap: '10px' } }, [field('需要點數', costInput), field('數量', stockInput)]),
+          iconFold,
         ]),
         actions,
       });
+    }
+
+    /* ---- 創意獎勵包：一次把福利卡、音樂班專屬獎勵加進兌換商店（已經加過的不會重複，也不會改到老師自己調過的商品） ---- */
+    function openShopPacks() {
+      const body = el('div', { class: 'stack' });
+      function paint() {
+        const have = new Set((S.get().shop || []).map((x) => x.id));
+        body.replaceChildren(...M.SHOP_PACKS.map((pack) => {
+          const missing = pack.items.filter((it) => !have.has(it.id));
+          return el('div', { class: 'card', style: { padding: '14px' } }, [
+            el('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } }, [
+              el('div', {}, [el('b', { text: pack.name + '（' + pack.items.length + ' 項）' }), el('p', { class: 'card__sub', style: { margin: '2px 0 0' }, text: pack.desc })]),
+              el('button', {
+                class: 'btn btn--primary btn--sm', 'data-shop-pack': pack.id, disabled: !missing.length, text: missing.length ? '加入 ' + missing.length + ' 項' : '已全部加入',
+                onclick: () => { S.commit((d) => { const ids = new Set(d.shop.map((x) => x.id)); pack.items.forEach((it) => { if (!ids.has(it.id)) d.shop.push(Object.assign({}, it)); }); }); U.toast('已加入「' + pack.name.replace(/^\S+\s/, '') + '」' + missing.length + ' 項商品'); paint(); },
+              }),
+            ]),
+            el('div', { class: 'row', style: { flexWrap: 'wrap', gap: '6px 10px', marginTop: '10px' } }, pack.items.map((it) => el('span', { class: 'pill' + (have.has(it.id) ? ' pill--soft' : ''), title: it.desc, text: it.icon + ' ' + it.name + ' ' + it.cost + '點' }))),
+          ]);
+        }));
+      }
+      paint();
+      U.modal({ title: '🎁 創意獎勵包', wide: true, body: el('div', { class: 'stack' }, [el('p', { class: 'card__sub', text: '按「加入」就會把整包商品放進兌換商店，之後每一項都能再點開修改點數、數量與說明。價格是參考值，請依班上的點數行情調整。' }), body]), actions: [{ label: '關閉', kind: 'primary' }] });
     }
 
     function shopCardGrid() {
@@ -3341,13 +3368,22 @@
       return el('div', { class: 'rule-grid rule-grid--cols5' }, cards);
     }
 
-    /* ---- 今日任務：格子卡片，點卡片開編輯視窗（圖示、名稱、全班目標、XP）。完成名單不在這裡改，
-       到「今日任務進度」（批次加點快捷列「今日任務」）用座號點選，done 會自動跟著名單算。 ---- */
+    /* ---- 今日任務：格子卡片，點卡片開編輯視窗。版面和「編輯規則」一樣：圖示、名稱、全班目標、
+       課堂點數／寵物 XP／金幣，圖示庫收在下面的「圖示選擇」。完成名單不在這裡改，
+       到「今日任務進度」（批次加點快捷列「今日任務」）用座號點選，done 會自動跟著名單算。
+       每位學生第一次被勾選完成時，依這裡設定的點數、XP、金幣自動加分（同一位學生不會重複加）。 ---- */
     function openEditTask(t, isNew) {
-      const iconInput = el('input', { class: 'input', value: t.icon, style: { maxWidth: '64px', textAlign: 'center', fontSize: '20px', flexShrink: '0' } });
-      const nameInput = el('input', { class: 'input grow', value: t.title, placeholder: '任務名稱' });
-      const targetInput = el('input', { class: 'input', type: 'number', value: t.target });
-      const xpInput = el('input', { class: 'input', type: 'number', value: t.xp });
+      const iconInput = el('input', { class: 'rule-icon-input', type: 'hidden', value: t.icon });
+      const nameInput = el('input', { class: 'input grow', value: t.title, placeholder: '任務名稱', 'data-task-name': '' });
+      const targetInput = el('input', { class: 'input', type: 'number', min: '0', value: t.target });
+      const ptsInput = el('input', { class: 'input', type: 'number', value: t.points || 0, 'data-task-points': '' });
+      const xpInput = el('input', { class: 'input', type: 'number', value: t.xp || 0, 'data-task-xp': '' });
+      const coinsInput = el('input', { class: 'input', type: 'number', value: t.coins || 0, 'data-task-coins': '' });
+      const iconLibrary = iconPicker(iconInput, { nameInput, pointsInput: ptsInput });
+      const iconFold = el('details', { class: 'rule-icon-fold' }, [el('summary', { text: '圖示選擇 · 點此展開' }), iconLibrary]);
+      const iconButton = el('button', { type: 'button', class: 'rule-current-icon', 'aria-label': '選擇任務圖示', onclick: () => { iconFold.open = true; iconLibrary.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, [iconInput]);
+      iconButton.appendChild(el('span', { class: 'rule-current-icon__image', text: iconInput.value }));
+      iconInput.addEventListener('input', () => { const f = iconButton.querySelector('.rule-current-icon__image'); if (f) U.setIconText(f, iconInput.value); });
       const field = (label, input) => el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: label }), input]);
 
       const actions = [
@@ -3359,9 +3395,10 @@
             if (!nm) { U.toast('請輸入任務名稱', 'warn'); return true; }
             const patch = {
               icon: iconInput.value.trim() || '📌', title: nm,
-              target: Number(targetInput.value) || 0, xp: Number(xpInput.value) || 0,
+              target: Number(targetInput.value) || 0,
+              points: Number(ptsInput.value) || 0, xp: Number(xpInput.value) || 0, coins: Number(coinsInput.value) || 0,
             };
-            if (isNew) { S.commit((d) => d.dailyTasks.push(Object.assign({ id: U.uid('dt'), doneBy: [], done: 0 }, patch))); U.toast('已新增任務'); }
+            if (isNew) { S.commit((d) => d.dailyTasks.push(Object.assign({ id: U.uid('dt'), doneBy: [], rewardedBy: [], done: 0 }, patch))); U.toast('已新增任務'); }
             else { S.commit((d) => Object.assign(d.dailyTasks.find((x) => x.id === t.id), patch)); U.toast('已更新任務'); }
           },
         },
@@ -3383,10 +3420,10 @@
       const modalHandle = U.modal({
         title: isNew ? '新增任務' : '編輯任務',
         body: el('div', { class: 'stack' }, [
-          el('div', { class: 'row', style: { gap: '10px' } }, [iconInput, field('名稱', nameInput)]),
-          iconPicker(iconInput),
-          el('div', { class: 'row', style: { gap: '10px' } }, [field('全班目標', targetInput), field('達成後的 XP', xpInput)]),
-          el('p', { class: 'card__sub', text: 'XP 目前僅顯示於學生前台，尚未自動加總發放。' }),
+          el('div', { class: 'rule-edit-heading task-edit-heading' }, [iconButton, field('名稱', nameInput), field('全班目標（人）', targetInput)]),
+          el('div', { class: 'row rule-score-fields', style: { gap: '10px' } }, [field('課堂點數', ptsInput), field('寵物 XP', xpInput), field('金幣', coinsInput)]),
+          el('p', { class: 'card__sub', text: '學生第一次被勾選完成時，會各自獲得上面設定的點數、XP、金幣（三項都是 0 就只記錄進度）；同一位學生不會重複加。' }),
+          iconFold,
           isNew ? null : el('div', { class: 'row', style: { gap: '10px', alignItems: 'center', marginTop: '4px' } }, [
             el('span', { class: 'card__sub', style: { margin: 0 }, text: '目前已完成 ' + (t.doneBy || []).length + ' 人' }),
             el('button', {
@@ -3405,10 +3442,11 @@
         el('div', { class: 'rule-btn__emoji', text: t.icon }),
         el('div', { class: 'rule-btn__pts', text: (t.done || 0) + '/' + (t.target || 0) }),
         el('div', { class: 'rule-btn__label', text: t.title }),
+        el('div', { class: 'rule-btn__sub', text: M.taskRewardText(t) }),
       ])).concat([
         el('button', {
           class: 'rule-btn rule-btn--add', title: '新增任務',
-          onclick: () => openEditTask({ icon: '📌', title: '', xp: 2, target: S.get().students.length, done: 0 }, true),
+          onclick: () => openEditTask({ icon: '📌', title: '', points: 0, xp: 2, coins: 0, target: S.get().students.length, done: 0 }, true),
         }, [el('div', { class: 'rule-btn__emoji', text: '＋' }), el('div', { class: 'rule-btn__label', text: '新增' })]),
       ]);
       return el('div', { class: 'rule-grid rule-grid--cols5' }, cards);
@@ -3432,10 +3470,11 @@
           categoryCardGrid(),
         ]),
         batchShortcutSettingsCard(),
-        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標、達成後的 XP；完成名單請到批次加點快捷列「今日任務」設定，XP 目前僅顯示於學生前台，尚未自動加總發放。', [
+        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標，以及完成後的課堂點數、寵物 XP、金幣（和規則設定一樣）；完成名單請到批次加點快捷列「今日任務」勾選，學生第一次被勾選時自動加分。', [
           taskCardGrid(),
         ]),
-        sectionCard('shop', '兌換商店', '學生用課堂點數兌換；點卡片可以編輯。', [
+        sectionCard('shop', '兌換商店', '學生用課堂點數兌換；點卡片可以編輯。想要更多創意獎勵，按「加入獎勵包」。', [
+          el('button', { class: 'btn btn--ghost', text: '🎁 加入獎勵包（福利卡／音樂班）', 'data-shop-packs': '', onclick: openShopPacks }),
           shopCardGrid(),
         ]),
       ]),

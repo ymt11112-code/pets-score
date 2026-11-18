@@ -1699,9 +1699,11 @@
      完整的新名單再一次寫入），done 永遠等於 doneBy.length，不會分開存。
      doneBy 只是「目前勾選狀態」，可以自由勾掉重勾；rewardedBy 才是「有沒有實際發過 XP」，
      只會增加不會減少——這樣老師不小心勾掉又勾回來，不會重複發兩次 XP，取消勾選也不會
-     收回已經發出去的 XP（不處理補扣，避免情況變複雜）。沒有設定 XP（0 或留空）的任務
+     收回已經發出去的 XP（不處理補扣，避免情況變複雜）。點數、XP、金幣都沒設定（0 或留空）的任務
      純粹是進度紀錄，不會產生點數紀錄。 */
   function setDailyTaskStudents(taskId, studentIds) {
+    let taskPoints = 0;
+    let taskCoins = 0;
     let toReward = [];
     let taskXp = 0;
     let taskTitle = '';
@@ -1713,9 +1715,11 @@
       t.rewardedBy = t.rewardedBy || [];
       const rewarded = new Set(t.rewardedBy);
       taskXp = t.xp || 0;
+      taskPoints = Number(t.points) || 0;
+      taskCoins = Number(t.coins) || 0;
       taskTitle = t.title || '今日任務';
       taskIcon = t.icon || '📗';
-      if (taskXp > 0) {
+      if (taskXp !== 0 || taskPoints !== 0 || taskCoins !== 0) {
         toReward = ids.filter((id) => !rewarded.has(id));
         toReward.forEach((id) => t.rewardedBy.push(id));
       }
@@ -1723,10 +1727,10 @@
       t.done = ids.length;
     });
     if (toReward.length) {
-      award(toReward, { id: 'dailyTask:' + taskId, label: '今日任務：' + taskTitle, points: 0, xp: taskXp, coins: 0 }, '', state.classInfo.teacher);
+      award(toReward, { id: 'dailyTask:' + taskId, label: '今日任務：' + taskTitle, points: taskPoints, xp: taskXp, coins: taskCoins }, '', state.classInfo.teacher);
       /* XP 已經直接發到學生帳上了（不是待領取的獎勵），這則訊息純粹是通知，不帶 reward，
          不然學生還要跑去訊息中心「領取」一次，會跟已經到帳的 XP 搞混、重複的感覺。 */
-      sendMessage(toReward, '完成了今日任務！', '「' + taskTitle + '」完成了，獲得 +' + taskXp + ' XP！', taskIcon);
+      sendMessage(toReward, '完成了今日任務！', '「' + taskTitle + '」完成了，獲得 ' + M.taskRewardText({ points: taskPoints, xp: taskXp, coins: taskCoins }) + '！', taskIcon);
     }
   }
 

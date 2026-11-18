@@ -285,6 +285,50 @@
     { id: 'sh_game',   name: '班級遊戲時間', icon: '🎲', cost: 200, stock: 1,  desc: '全班一起玩 15 分鐘（團體兌換）' },
   ];
 
+  /* 創意獎勵包：老師在「規則設定 → 兌換商店」按「加入獎勵包」才會加進商店（id 固定，已加過的不會重複）。
+     福利卡包參考老師自製的「福利卡抽抽樂」；音樂班包用自繪的音樂圖示。 */
+  const SHOP_PACKS = [
+    { id: 'welfare', name: '🎴 福利卡獎勵包', desc: '依「福利卡抽抽樂」整理：免寫、減免、延遲、點歌、換座位等小特權。', items: [
+      { id: 'shw_notes',   name: '筆記減半卡',   icon: '📒', cost: 50,  stock: 6, desc: '國語筆記作業減半' },
+      { id: 'shw_copy',    name: '抄寫免除卡',   icon: '🧾', cost: 60,  stock: 5, desc: '可免罰寫，或免除訂正加倍' },
+      { id: 'shw_erase',   name: '痕跡消除卡',   icon: '🧽', cost: 45,  stock: 6, desc: '被登記了嗎？可以直接擦掉' },
+      { id: 'shw_hint',    name: '考試神力卡',   icon: '🔮', cost: 90,  stock: 3, desc: '小考時老師可以告訴你一題答案' },
+      { id: 'shw_quiz10',  name: '小考加分卡',   icon: '💯', cost: 150, stock: 2, desc: '小考直接加 10 分' },
+      { id: 'shw_essay',   name: '免寫短文卡',   icon: '📓', cost: 55,  stock: 5, desc: '短文或小日記免寫一次' },
+      { id: 'shw_sheet',   name: '免寫學單卡',   icon: '📑', cost: 60,  stock: 5, desc: '學習單免寫一次' },
+      { id: 'shw_fix3',    name: '訂正省力卡',   icon: '🛠️', cost: 70,  stock: 4, desc: '減免 3 個訂正作業' },
+      { id: 'shw_delay',   name: '時間延遲卡',   icon: '⏳', cost: 50,  stock: 5, desc: '作業沒寫？訂正來不及？可延遲一天不扣星' },
+      { id: 'shw_snack',   name: '能量補充卡',   icon: '🍪', cost: 35,  stock: 8, desc: '肚子餓可和老師領一包餅乾' },
+      { id: 'shw_nap',     name: '免除午休卡',   icon: '😎', cost: 70,  stock: 4, desc: '午休時間免趴下（不干擾他人即可）' },
+      { id: 'shw_credit',  name: '如願信用卡',   icon: '💳', cost: 65,  stock: 4, desc: '忘記簽名？可免簽；學單不見？送一張' },
+      { id: 'shw_safe',    name: '趨吉避凶卡',   icon: '🧿', cost: 75,  stock: 3, desc: '～保平安～免抽魔鬼籤' },
+      { id: 'shw_fast',    name: '快速通關卡',   icon: '🎟️', cost: 40,  stock: 6, desc: '免排隊優先尊榮（一次）' },
+      { id: 'shw_freeseat',name: '自在悠遊卡',   icon: '🧳', cost: 180, stock: 1, desc: '可自由換座位一週' },
+      { id: 'shw_lucky',   name: '幸運女神卡',   icon: '🍀', cost: 100, stock: 2, desc: '幸運女神降臨，直接發 3 張獎卡' },
+      { id: 'shw_draw',    name: '福利卡抽抽樂',  icon: '🎰', cost: 30,  stock: 30, desc: '兌換後由老師當場抽一張福利卡（可能抽到銘謝惠顧喔）' },
+    ] },
+    { id: 'music', name: '🎼 音樂班專屬獎勵包', desc: '指揮、選曲、獨奏、琴房、午休 DJ……只有音樂班才有的特別待遇。', items: [
+      { id: 'shm_baton',    name: '指揮家體驗',   icon: 'clay:m-baton',        cost: 100, stock: 2, desc: '擔任一首曲子的指揮，全班跟著你的手勢演奏' },
+      { id: 'shm_song',     name: '曲目決定權',   icon: 'clay:m-note-beamed',  cost: 80,  stock: 3, desc: '決定下一次合奏或欣賞的曲目' },
+      { id: 'shm_solo',     name: '獨奏小舞台',   icon: 'clay:m-music-trophy', cost: 120, stock: 2, desc: '站上舞台表演 3 分鐘，全班掌聲伺候' },
+      { id: 'shm_section',  name: '聲部長一日',   icon: 'clay:m-treble',       cost: 110, stock: 2, desc: '當一次聲部長，帶大家暖身、對音' },
+      { id: 'shm_dj',       name: '午休 DJ',      icon: 'clay:m-headphones',   cost: 90,  stock: 3, desc: '午休音樂由你選歌單，老師幫你播放' },
+      { id: 'shm_pick',     name: '樂器優先選',   icon: 'clay:m-xylophone',    cost: 60,  stock: 4, desc: '分配打擊或小樂器時可以優先挑選' },
+      { id: 'shm_practice', name: '練習紀錄補簽券', icon: 'clay:m-staff',      cost: 70,  stock: 3, desc: '家中練習紀錄忘了簽？補簽一次' },
+      { id: 'shm_beat',     name: '節拍小隊長',   icon: 'clay:m-metronome',    cost: 50,  stock: 4, desc: '帶全班打拍子、拍節奏 5 分鐘' },
+      { id: 'shm_room',     name: '琴房優先券',   icon: 'clay:m-piano',        cost: 85,  stock: 3, desc: '下次使用鋼琴／琴房時優先' },
+      { id: 'shm_choir',    name: '全班合唱點播', icon: 'clay:m-singing',      cost: 150, stock: 1, desc: '全班一起合唱你點的歌（團體兌換）' },
+    ] },
+  ];
+
+  /* 今日任務的獎勵：可以同時設定課堂點數、寵物 XP、金幣（舊任務只有 XP，沒設的當 0）。 */
+  function taskRewardParts(t) {
+    const p = Number(t && t.points) || 0, x = Number(t && t.xp) || 0, c = Number(t && t.coins) || 0;
+    const sign = (n) => (n > 0 ? '+' : '') + n;
+    return [p ? sign(p) + ' 點' : '', x ? sign(x) + ' XP' : '', c ? sign(c) + ' 金幣' : ''].filter(Boolean);
+  }
+  function taskRewardText(t) { const a = taskRewardParts(t); return a.length ? a.join('・') : '只記錄進度'; }
+
   /* 批次加點頁底部工具列：預設項目與順序（util: 開頭是內建工具，其餘是規則 id） */
   const DEFAULT_TOOLBAR = [
     'util:attendance', 'ontime', 'util:multi', 'util:invert', 'util:random', 'util:timer', 'util:custom',
@@ -702,7 +746,7 @@
            所以 rewardedBy 直接等於 doneBy——不然老師一打開範例班級，點一下今日任務名單，
            就會突然看到一大筆「今日任務」的 XP 加點紀錄，那些其實都是展示用的假進度。 */
         const doneBy = students.slice(0, Math.min(t.n, students.length)).map((x) => x.id);
-        return { id: t.id, title: t.title, icon: t.icon, xp: t.xp, target: t.target, doneBy, rewardedBy: doneBy.slice(), done: doneBy.length };
+        return { id: t.id, title: t.title, icon: t.icon, points: 0, coins: 0, xp: t.xp, target: t.target, doneBy, rewardedBy: doneBy.slice(), done: doneBy.length };
       }),
       classMission: {
         title: '抵達閱讀森林',
@@ -770,7 +814,7 @@
     return x&&y ? x.localeCompare(y,'en',{numeric:true,sensitivity:'base'}) : x?-1:y?1:0;
   }
   global.PetModel = { ruleFields, compareRuleCodes,
-    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, SHOP_PACKS, taskRewardParts, taskRewardText, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_STAGES_BY_RARITY, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_PATH_COUNT_BY_RARITY,
     stageLevelsForRarity, stageLevelsForPet, pathCountForRarity, allowedPathsForPet,

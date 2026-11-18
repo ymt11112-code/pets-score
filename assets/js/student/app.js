@@ -449,7 +449,7 @@
         el('div', { class: 'task-row__title', text: t.title }),
         el('div', { class: 'task-row__meta', text: (done ? '✅ 全班完成！' : '已完成 ' + t.done + ' / ' + t.target) }),
       ]),
-      el('span', { class: 'task-row__xp', text: '+' + t.xp + ' XP' }),
+      el('span', { class: 'task-row__xp', text: M.taskRewardText(t) }),
     ]);
   }
 
