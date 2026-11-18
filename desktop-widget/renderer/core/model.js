@@ -339,6 +339,13 @@
     if (parts.length) out.push('每人 ' + parts.join('・'));
     return out.join('・');
   }
+  /* 全班目標不可能超過全班人數：設得比人數多（或沒設）就當作「全班都要完成」。 */
+  function taskTarget(t, studentCount) {
+    const n = Math.max(0, Number(studentCount) || 0);
+    const goal = Number(t && t.target) || 0;
+    if (!n) return goal;
+    return goal > 0 ? Math.min(goal, n) : n;
+  }
   function taskRewardText(t) { const a = taskRewardParts(t); return a.length ? a.join('・') : '只記錄進度'; }
 
   /* 批次加點頁底部工具列：預設項目與順序（util: 開頭是內建工具，其餘是規則 id） */
@@ -826,7 +833,7 @@
     return x&&y ? x.localeCompare(y,'en',{numeric:true,sensitivity:'base'}) : x?-1:y?1:0;
   }
   global.PetModel = { ruleFields, compareRuleCodes,
-    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, DEFAULT_SUBJECTS, SHOP_PACKS, taskRewardParts, taskRewardText, taskBonusText, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, DEFAULT_SUBJECTS, SHOP_PACKS, taskRewardParts, taskRewardText, taskBonusText, taskTarget, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_STAGES_BY_RARITY, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_PATH_COUNT_BY_RARITY,
     stageLevelsForRarity, stageLevelsForPet, pathCountForRarity, allowedPathsForPet,

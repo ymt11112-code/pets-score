@@ -442,12 +442,13 @@
   }
 
   function taskRow(t) {
-    const done = t.done >= t.target;
+    const goal = M.taskTarget(t, S.get().students.length);
+    const done = t.done >= goal;
     return el('div', { class: 'task-row' + (done ? ' is-done' : '') }, [
       el('span', { class: 'task-row__icon', text: t.icon }),
       el('div', { class: 'grow' }, [
         el('div', { class: 'task-row__title', text: t.title }),
-        el('div', { class: 'task-row__meta', text: (done ? '✅ 全班完成！' : '已完成 ' + t.done + ' / ' + t.target) + (!done && M.taskBonusText(t) ? '・全班完成可得 ' + M.taskBonusText(t) : '') }),
+        el('div', { class: 'task-row__meta', text: (done ? '✅ 全班完成！' : '已完成 ' + t.done + ' / ' + goal) + (!done && M.taskBonusText(t) ? '・全班完成可得 ' + M.taskBonusText(t) : '') }),
       ]),
       el('span', { class: 'task-row__xp', text: M.taskRewardText(t) }),
     ]);

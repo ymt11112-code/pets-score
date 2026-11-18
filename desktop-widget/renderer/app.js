@@ -371,7 +371,7 @@
       students: state.students.map(st => {const avatar=window.PetDrawAvatar(st,64);avatar.querySelectorAll('img').forEach(img=>{const src=img.getAttribute('src');if(src&&src.startsWith('assets/'))img.src='https://ymt11112-code.github.io/pets-score/'+src;});const level=window.PetModel.levelFromXp(st.xp||0),pet=st.petId?window.PetModel.petById(st.petId):null;return {id:st.id,no:st.no,name:st.name,groupId:st.groupId,avatarHtml:avatar.outerHTML,petInfo:{level:level.level,inLevel:level.inLevel,need:level.need,percent:level.percent,xp:Math.floor(st.xp||0),petName:pet?pet.name:''}};}),
       draw:window.PetDrawEngine.normalize(state.drawCenter),performance:window.PetDrawEngine.performanceList(state),
       attendance: Object.assign({}, S.attendanceOf()), sync: S.getSync(),
-      tasks: state.dailyTasks.map(({ id, icon, title, target, xp, points, coins, bonusClass, bonusPoints, bonusXp, bonusCoins, bonusDone, doneBy }) => ({ id, icon, title, target, xp, points: points || 0, coins: coins || 0, bonusClass: bonusClass || 0, bonusPoints: bonusPoints || 0, bonusXp: bonusXp || 0, bonusCoins: bonusCoins || 0, bonusDone: !!bonusDone, doneBy: (doneBy || []).slice() })),
+      tasks: state.dailyTasks.map(({ id, icon, title, target: rawTarget, xp, points, coins, bonusClass, bonusPoints, bonusXp, bonusCoins, bonusDone, doneBy }) => ({ id, icon, title, target: M.taskTarget({ target: rawTarget }, state.students.length), xp, points: points || 0, coins: coins || 0, bonusClass: bonusClass || 0, bonusPoints: bonusPoints || 0, bonusXp: bonusXp || 0, bonusCoins: bonusCoins || 0, bonusDone: !!bonusDone, doneBy: (doneBy || []).slice() })),
     };
   }
   if (window.desktopWidget) window.desktopWidget.onToolCommand(async request => {

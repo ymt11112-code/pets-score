@@ -1096,7 +1096,7 @@
           el('span', { style: { fontSize: '20px' }, text: t.icon }),
           el('div', { class: 'grow' }, [
             el('div', { style: { fontWeight: 700 }, text: t.title }),
-            el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・' + M.taskRewardText(t) + (M.taskBonusText(t) ? '・🎉全班完成 ' + M.taskBonusText(t) + (t.bonusDone ? '（已發）' : '') : '') }),
+            el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + M.taskTarget(t, S.get().students.length) + '・' + M.taskRewardText(t) + (M.taskBonusText(t) ? '・🎉全班完成 ' + M.taskBonusText(t) + (t.bonusDone ? '（已發）' : '') : '') }),
           ]),
           el('span', { class: 'pill', style: { pointerEvents: 'none' }, text: '👥 設定名單' }),
         ]));
@@ -2935,6 +2935,8 @@
     const colName = (k) => k || '未指定';
     const sums = { all: [0, 0] };
     cols.forEach((k) => { sums[k] = [0, 0]; });
+    const spentOf = (st) => (s.redeems || []).filter((r) => r.studentId === st.id).reduce((n, r) => n + (Number(r.cost) || 0), 0);
+    let sumNow = 0, sumSpent = 0;
     const rows = students.map((st) => {
       const row = data[st.id] || {};
       let tp = 0, tn = 0;
@@ -2944,16 +2946,16 @@
         tp += c[0]; tn += c[1]; sums[k][0] += c[0]; sums[k][1] += c[1];
         return el('td', { style: { textAlign: 'center' } }, [el('b', { style: { color: c[0] < 0 ? 'var(--red)' : '' }, text: String(c[0]) }), el('small', { text: c[1] + ' 次' })]);
       });
-      sums.all[0] += tp; sums.all[1] += tn;
-      return { st, tp, tn, tr: el('tr', {}, [el('td', { class: 'nowrap', text: U.pad2(st.no) + ' ' + st.name })].concat(cells, [el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(tp) }), el('small', { text: tn + ' 次' })])])) };
+      sums.all[0] += tp; sums.all[1] += tn; sumNow += st.points || 0; sumSpent += spentOf(st);
+      return { st, tp, tn, tr: el('tr', {}, [el('td', { class: 'nowrap', text: U.pad2(st.no) + ' ' + st.name })].concat(cells, [el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(tp) }), el('small', { text: tn + ' 次' })]), el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(st.points || 0) })]), el('td', { style: { textAlign: 'center' } }, [spentOf(st) ? el('span', { text: '−' + spentOf(st) }) : el('span', { class: 'muted', text: '—' })])])) };
     });
     function exportSubjects() {
-      const head = ['座號', '姓名'].concat(cols.reduce((a, k) => a.concat([colName(k) + '點數', colName(k) + '次數']), []), ['合計點數', '合計加分次數']);
+      const head = ['座號', '姓名'].concat(cols.reduce((a, k) => a.concat([colName(k) + '點數', colName(k) + '次數']), []), ['合計點數', '合計加分次數', '目前點數', '兌換花費']);
       const lines = [head].concat(students.map((st) => {
         const row = data[st.id] || {};
         let tp = 0, tn = 0;
         const cells = cols.reduce((a, k) => { const c = row[k] || [0, 0]; tp += c[0]; tn += c[1]; return a.concat([c[0], c[1]]); }, []);
-        return [st.no, st.name].concat(cells, [tp, tn]);
+        return [st.no, st.name].concat(cells, [tp, tn, st.points || 0, spentOf(st)]);
       })).map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(','));
       const url = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
       const a = el('a', { href: url, download: '各科表現_' + (term ? '學期累計' : ledgerFilter.range) + '_' + U.todayKey() + '.csv' });
@@ -2962,7 +2964,7 @@
       U.toast('已匯出 CSV');
     }
     const sel = (val, opts, onchange, style) => el('select', { class: 'select', style: style || { maxWidth: '170px' }, onchange }, opts.map((o) => el('option', { value: o.v, text: o.t, selected: o.v === val ? 'selected' : null })));
-    return card('科目統計', '全班每位學生在各科的課堂表現：格子上方是點數合計，下方是加分次數。切換上課科目請用上方「📚 科目」選單。', [
+    return card('科目統計', '全班每位學生在各科的課堂表現：格子上方是點數合計，下方是加分次數。切換上課科目請用上方「📚 科目」選單。學生用點數去兌換商店只會減少「目前點數」，各科的原始表現紀錄不受影響。', [
       el('div', { class: 'tbl-toolbar' }, [
         el('div', { class: 'seg-toggle' }, [
           el('button', { class: 'seg-toggle__btn' + (!term ? ' is-active' : ''), 'data-subject-mode': 'range', text: '依時間範圍', onclick: () => { subjectStatsMode = 'range'; render(); } }),
@@ -2980,8 +2982,8 @@
       ]),
       el('p', { class: 'card__sub', text: term ? '學期累計：從啟用科目功能後開始累加，撤銷與編輯會一併回沖，不受點數紀錄 2000 筆上限影響。啟用前的舊紀錄沒有科目，不會列入。' : '依時間範圍：由點數紀錄計算（只保留最近 2000 筆）；沒選科目時的紀錄歸在「未指定」。' }),
       cols.length ? el('div', { class: 'tbl-wrap subject-stats' }, [el('table', { class: 'tbl', 'data-subject-table': '' }, [
-        el('thead', {}, [el('tr', {}, [el('th', { text: '學生' })].concat(cols.map((k) => el('th', { style: { textAlign: 'center' }, text: colName(k) })), [el('th', { style: { textAlign: 'center' }, text: '合計' })]))]),
-        el('tbody', {}, rows.map((r) => r.tr).concat([el('tr', { class: 'is-total' }, [el('td', { text: '全班合計' })].concat(cols.map((k) => el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(sums[k][0]) }), el('small', { text: sums[k][1] + ' 次' })])), [el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(sums.all[0]) }), el('small', { text: sums.all[1] + ' 次' })])]))])),
+        el('thead', {}, [el('tr', {}, [el('th', { text: '學生' })].concat(cols.map((k) => el('th', { style: { textAlign: 'center' }, text: colName(k) })), [el('th', { style: { textAlign: 'center' }, text: '合計' }), el('th', { style: { textAlign: 'center' }, title: '學生現在的點數（兌換商店花掉的已經扣除）', text: '目前點數' }), el('th', { style: { textAlign: 'center' }, text: '兌換花費' })]))]),
+        el('tbody', {}, rows.map((r) => r.tr).concat([el('tr', { class: 'is-total' }, [el('td', { text: '全班合計' })].concat(cols.map((k) => el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(sums[k][0]) }), el('small', { text: sums[k][1] + ' 次' })])), [el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(sums.all[0]) }), el('small', { text: sums.all[1] + ' 次' })]), el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(sumNow) })]), el('td', { style: { textAlign: 'center' } }, [el('b', { text: sumSpent ? '−' + sumSpent : '—' })])]))])),
       ])]) : el('div', { class: 'empty', style: { padding: '18px' }, text: term ? '還沒有累計資料。先在上方選好「📚 科目」，之後的加扣分就會記錄在該科。' : '這個範圍內沒有課堂加扣分紀錄。' }),
     ]);
   }
@@ -3551,7 +3553,7 @@
     function openEditTask(t, isNew) {
       const iconInput = el('input', { class: 'rule-icon-input', type: 'hidden', value: t.icon });
       const nameInput = el('input', { class: 'input grow', value: t.title, placeholder: '任務名稱', 'data-task-name': '' });
-      const targetInput = el('input', { class: 'input', type: 'number', min: '0', value: t.target });
+      const targetInput = el('input', { class: 'input', type: 'number', min: '0', max: String(S.get().students.length || ''), value: M.taskTarget(t, S.get().students.length), title: '不能超過全班人數（' + S.get().students.length + ' 人）' });
       const ptsInput = el('input', { class: 'input', type: 'number', value: t.points || 0, 'data-task-points': '' });
       const xpInput = el('input', { class: 'input', type: 'number', value: t.xp || 0, 'data-task-xp': '' });
       const coinsInput = el('input', { class: 'input', type: 'number', value: t.coins || 0, 'data-task-coins': '' });
@@ -3573,9 +3575,10 @@
           onClick: () => {
             const nm = nameInput.value.trim();
             if (!nm) { U.toast('請輸入任務名稱', 'warn'); return true; }
+            if ((Number(targetInput.value) || 0) > S.get().students.length) U.toast('全班目標不能超過全班人數，已改成 ' + S.get().students.length + ' 人', 'warn');
             const patch = {
               icon: iconInput.value.trim() || '📌', title: nm,
-              target: Number(targetInput.value) || 0,
+              target: M.taskTarget({ target: Number(targetInput.value) || 0 }, S.get().students.length),
               points: Number(ptsInput.value) || 0, xp: Number(xpInput.value) || 0, coins: Number(coinsInput.value) || 0,
               bonusClass: Number(bClass.value) || 0, bonusPoints: Number(bPts.value) || 0, bonusXp: Number(bXp.value) || 0, bonusCoins: Number(bCoins.value) || 0,
             };
@@ -3637,7 +3640,7 @@
       const s2 = S.get();
       const cards = (s2.dailyTasks || []).map((t) => el('button', { class: 'rule-btn', onclick: () => openEditTask(t, false) }, [
         el('div', { class: 'rule-btn__emoji', text: t.icon }),
-        el('div', { class: 'rule-btn__pts', text: (t.done || 0) + '/' + (t.target || 0) }),
+        el('div', { class: 'rule-btn__pts', text: (t.done || 0) + '/' + M.taskTarget(t, S.get().students.length) }),
         el('div', { class: 'rule-btn__label', text: t.title }),
         el('div', { class: 'rule-btn__sub', text: M.taskRewardText(t) }),
         M.taskBonusText(t) ? el('div', { class: 'rule-btn__sub', text: '🎉 全班完成：' + M.taskBonusText(t) }) : null,
