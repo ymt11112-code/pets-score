@@ -3,6 +3,7 @@
   'use strict';
   const U=window.PetUtil, el=U.el, bridge=window.desktopWidget;
   const content=document.getElementById('toolContent'), tabs=document.getElementById('toolTabs');
+  const taskBonus=t=>{const sign=n=>(n>0?'+':'')+n,c=Number(t.bonusClass)||0,p=Number(t.bonusPoints)||0,x=Number(t.bonusXp)||0,k=Number(t.bonusCoins)||0,a=[c?'班級分數 '+sign(c):'',p||x||k?'每人 '+[p?sign(p)+' 點':'',x?sign(x)+' XP':'',k?sign(k)+' 金幣':''].filter(Boolean).join('・'):''].filter(Boolean);return a.length?'🎉全班完成 '+a.join('・')+(t.bonusDone?'（今日已發）':''):'';};
   const taskReward=t=>{const sign=n=>(n>0?'+':'')+n,p=Number(t.points)||0,x=Number(t.xp)||0,c=Number(t.coins)||0,a=[p?sign(p)+' 點':'',x?sign(x)+' XP':'',c?sign(c)+' 金幣':''].filter(Boolean);return a.length?a.join('・'):'只記錄進度';};
   const kinds=[['attendance','📋','出席'],['draw','🎲','抽籤'],['timer','⏱️','計時器'],['tasks','✅','今日任務']];
   let active=new URLSearchParams(location.search).get('tool') || 'attendance';
@@ -130,7 +131,7 @@
     return el('section',{class:'dt-panel'},[
       el('h2',{text:'今日任務'}),note('加分方式：① 點下方任務 → ② 勾選完成的學生 → ③ 按「儲存完成名單」，系統會依任務的點數／XP／金幣自動加分（同一位學生不會重複加）。任務名稱、目標與 XP 請在網頁「規則設定」管理。'),
       ...tasks.map(task=>el('button',{class:'dt-task',type:'button','data-task':task.id,onclick:()=>{editingTask=task.id;taskDraft=new Set(task.doneBy||[]);render();}},[
-        el('span',{class:'dt-task-icon',text:task.icon||'✅'}),el('div',{},[el('strong',{text:task.title}),el('small',{text:'完成 '+(task.doneBy||[]).length+' / '+task.target+' 位 · '+taskReward(task)}),el('progress',{value:Math.min((task.doneBy||[]).length,task.target||1),max:Math.max(1,task.target||1)})]),el('span',{text:'›'})
+        el('span',{class:'dt-task-icon',text:task.icon||'✅'}),el('div',{},[el('strong',{text:task.title}),el('small',{text:'完成 '+(task.doneBy||[]).length+' / '+task.target+' 位 · '+taskReward(task)+(taskBonus(task)?' · '+taskBonus(task):'')}),el('progress',{value:Math.min((task.doneBy||[]).length,task.target||1),max:Math.max(1,task.target||1)})]),el('span',{text:'›'})
       ])),
       tasks.length?null:note('目前沒有任務，請先在網頁「規則設定」新增。')
     ]);

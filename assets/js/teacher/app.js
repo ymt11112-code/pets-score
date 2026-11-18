@@ -1070,7 +1070,7 @@
         { label: '取消' },
         {
           label: '完成', kind: 'primary',
-          onClick: () => { S.setDailyTaskStudents(task.id, Array.from(doneSet)); if (onSaved) onSaved(); },
+          onClick: () => { const r = S.setDailyTaskStudents(task.id, Array.from(doneSet)); if (r && r.bonus) U.toast('🎉 全班完成「' + r.bonus.title + '」！' + r.bonus.text); if (onSaved) onSaved(); },
         },
       ],
     });
@@ -1096,7 +1096,7 @@
           el('span', { style: { fontSize: '20px' }, text: t.icon }),
           el('div', { class: 'grow' }, [
             el('div', { style: { fontWeight: 700 }, text: t.title }),
-            el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・' + M.taskRewardText(t) }),
+            el('div', { class: 'log-row__meta', text: '已完成 ' + done + ' / ' + t.target + '・' + M.taskRewardText(t) + (M.taskBonusText(t) ? '・🎉全班完成 ' + M.taskBonusText(t) + (t.bonusDone ? '（已發）' : '') : '') }),
           ]),
           el('span', { class: 'pill', style: { pointerEvents: 'none' }, text: '👥 設定名單' }),
         ]));
@@ -3555,6 +3555,10 @@
       const ptsInput = el('input', { class: 'input', type: 'number', value: t.points || 0, 'data-task-points': '' });
       const xpInput = el('input', { class: 'input', type: 'number', value: t.xp || 0, 'data-task-xp': '' });
       const coinsInput = el('input', { class: 'input', type: 'number', value: t.coins || 0, 'data-task-coins': '' });
+      const bClass = el('input', { class: 'input', type: 'number', value: t.bonusClass || 0, 'data-bonus-class': '' });
+      const bPts = el('input', { class: 'input', type: 'number', value: t.bonusPoints || 0, 'data-bonus-points': '' });
+      const bXp = el('input', { class: 'input', type: 'number', value: t.bonusXp || 0, 'data-bonus-xp': '' });
+      const bCoins = el('input', { class: 'input', type: 'number', value: t.bonusCoins || 0, 'data-bonus-coins': '' });
       const iconLibrary = iconPicker(iconInput, { nameInput, pointsInput: ptsInput });
       const iconFold = el('details', { class: 'rule-icon-fold' }, [el('summary', { text: '圖示選擇 · 點此展開' }), iconLibrary]);
       const iconButton = el('button', { type: 'button', class: 'rule-current-icon', 'aria-label': '選擇任務圖示', onclick: () => { iconFold.open = true; iconLibrary.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, [iconInput]);
@@ -3573,6 +3577,7 @@
               icon: iconInput.value.trim() || '📌', title: nm,
               target: Number(targetInput.value) || 0,
               points: Number(ptsInput.value) || 0, xp: Number(xpInput.value) || 0, coins: Number(coinsInput.value) || 0,
+              bonusClass: Number(bClass.value) || 0, bonusPoints: Number(bPts.value) || 0, bonusXp: Number(bXp.value) || 0, bonusCoins: Number(bCoins.value) || 0,
             };
             if (isNew) { S.commit((d) => d.dailyTasks.push(Object.assign({ id: U.uid('dt'), doneBy: [], rewardedBy: [], done: 0 }, patch))); U.toast('已新增任務'); }
             else { S.commit((d) => Object.assign(d.dailyTasks.find((x) => x.id === t.id), patch)); U.toast('已更新任務'); }
@@ -3599,6 +3604,10 @@
           el('div', { class: 'rule-edit-heading task-edit-heading' }, [iconButton, field('名稱', nameInput), field('全班目標（人）', targetInput)]),
           el('div', { class: 'row rule-score-fields', style: { gap: '10px' } }, [field('課堂點數', ptsInput), field('寵物 XP', xpInput), field('金幣', coinsInput)]),
           el('p', { class: 'card__sub', text: '學生第一次被勾選完成時，會各自獲得上面設定的點數、XP、金幣（三項都是 0 就只記錄進度）；同一位學生不會重複加。' }),
+          el('div', { class: 'field' }, [
+            el('label', { class: 'field__label', text: '🎉 全班完成獎勵：今天到校的同學全部完成時，由最後一位完成的那一刻自動發放（每個任務每天一次）' }),
+            el('div', { class: 'row rule-score-fields', style: { gap: '10px' } }, [field('班級分數', bClass), field('每人點數', bPts), field('每人 XP', bXp), field('每人金幣', bCoins)]),
+          ]),
           iconFold,
           isNew ? null : el('div', { class: 'row', style: { gap: '10px', alignItems: 'center', marginTop: '4px' } }, [
             el('span', { class: 'card__sub', style: { margin: 0 }, text: '目前已完成 ' + (t.doneBy || []).length + ' 人' }),
@@ -3612,6 +3621,18 @@
       });
     }
 
+    /* 每天自動重設完成名單＋手動立即重設。重設只清名單與「已發獎勵」記錄，已經發出的點數不會收回。 */
+    function taskResetBar() {
+      const auto = !((S.get().settings || {}).dailyTaskAutoReset === false);
+      return el('div', { class: 'row', style: { gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' } }, [
+        el('label', { class: 'row', style: { gap: '6px', cursor: 'pointer' } }, [
+          el('input', { class: 'checkbox', type: 'checkbox', 'data-task-auto-reset': '', checked: auto ? 'checked' : null, onchange: (e) => S.commit((d) => { d.settings = d.settings || {}; d.settings.dailyTaskAutoReset = e.target.checked; }) }),
+          el('span', { text: '每天自動重設完成名單（隔天第一次開啟時清空，同學可重新完成並再次獲得獎勵）' }),
+        ]),
+        el('button', { class: 'btn btn--ghost btn--sm', 'data-task-reset-now': '', text: '🔄 立即重設今天的名單', onclick: () => U.confirmDialog('重設今天的完成名單？', '所有任務的完成名單會清空；已經發出的點數不會收回，同學可以重新完成並再次獲得獎勵。', '重設').then((ok) => { if (ok) { S.resetDailyTasks(); U.toast('已重設今日任務名單'); } }) }),
+      ]);
+    }
+
     function taskCardGrid() {
       const s2 = S.get();
       const cards = (s2.dailyTasks || []).map((t) => el('button', { class: 'rule-btn', onclick: () => openEditTask(t, false) }, [
@@ -3619,6 +3640,7 @@
         el('div', { class: 'rule-btn__pts', text: (t.done || 0) + '/' + (t.target || 0) }),
         el('div', { class: 'rule-btn__label', text: t.title }),
         el('div', { class: 'rule-btn__sub', text: M.taskRewardText(t) }),
+        M.taskBonusText(t) ? el('div', { class: 'rule-btn__sub', text: '🎉 全班完成：' + M.taskBonusText(t) }) : null,
       ])).concat([
         el('button', {
           class: 'rule-btn rule-btn--add', title: '新增任務',
@@ -3646,7 +3668,8 @@
           categoryCardGrid(),
         ]),
         batchShortcutSettingsCard(),
-        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標，以及完成後的課堂點數、寵物 XP、金幣（和規則設定一樣）；完成名單請到批次加點快捷列「今日任務」勾選，學生第一次被勾選時自動加分。', [
+        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標，以及完成後的課堂點數、寵物 XP、金幣，還能設定「全班完成獎勵」（最後一位完成時自動發班級分數與每人獎勵）；完成名單請到批次加點快捷列「今日任務」勾選，學生第一次被勾選時自動加分。', [
+          taskResetBar(),
           taskCardGrid(),
         ]),
         sectionCard('shop', '兌換商店', '學生用課堂點數兌換；點卡片可以編輯。想要更多創意獎勵，按「加入獎勵包」。', [
@@ -4312,7 +4335,7 @@
     const sel = el('select', {
       class: 'select subject-select', 'aria-label': '目前上課科目', title: '目前上課科目：之後的加扣分會記在這一科', 'data-current-subject': '',
       onchange: (e) => { S.setCurrentSubject(e.target.value); U.toast(e.target.value ? '目前科目：' + e.target.value : '已取消指定科目'); },
-    }, [el('option', { value: '', text: '📚 科目：未指定', selected: cur === '' ? 'selected' : null })].concat(list.map((n) => el('option', { value: n, text: '📚 ' + n, selected: n === cur ? 'selected' : null }))));
+    }, [el('option', { value: '', text: '📚 未指定科目', selected: cur === '' ? 'selected' : null })].concat(list.map((n) => el('option', { value: n, text: '📚 ' + n, selected: n === cur ? 'selected' : null }))));
     host.replaceChildren(sel, el('button', { type: 'button', class: 'btn btn--ghost', title: '管理科目', 'aria-label': '管理科目', text: '⚙', onclick: openSubjectManager }));
   }
 
@@ -4589,6 +4612,9 @@
       if(h==='classroom'){go('quick');return;}
       if (PAGES[h] && h !== page) { page = h; render(); }
     });
+    S.rollDailyTasks();
+    setInterval(() => S.rollDailyTasks(), 60000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) S.rollDailyTasks(); });
     S.subscribe(render);
     S.subscribe(renderFloatWidget);
     bindSync();

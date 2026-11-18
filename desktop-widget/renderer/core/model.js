@@ -330,6 +330,15 @@
     const sign = (n) => (n > 0 ? '+' : '') + n;
     return [p ? sign(p) + ' 點' : '', x ? sign(x) + ' XP' : '', c ? sign(c) + ' 金幣' : ''].filter(Boolean);
   }
+  /* 全班完成獎勵的文字：例如「班級分數 +5・每人 +1 點・+2 XP」，沒設定回傳空字串。 */
+  function taskBonusText(t) {
+    const c = Number(t && t.bonusClass) || 0;
+    const parts = taskRewardParts({ points: t && t.bonusPoints, xp: t && t.bonusXp, coins: t && t.bonusCoins });
+    const out = [];
+    if (c) out.push('班級分數 ' + (c > 0 ? '+' : '') + c);
+    if (parts.length) out.push('每人 ' + parts.join('・'));
+    return out.join('・');
+  }
   function taskRewardText(t) { const a = taskRewardParts(t); return a.length ? a.join('・') : '只記錄進度'; }
 
   /* 批次加點頁底部工具列：預設項目與順序（util: 開頭是內建工具，其餘是規則 id） */
@@ -817,7 +826,7 @@
     return x&&y ? x.localeCompare(y,'en',{numeric:true,sensitivity:'base'}) : x?-1:y?1:0;
   }
   global.PetModel = { ruleFields, compareRuleCodes,
-    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, DEFAULT_SUBJECTS, SHOP_PACKS, taskRewardParts, taskRewardText, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, DEFAULT_SUBJECTS, SHOP_PACKS, taskRewardParts, taskRewardText, taskBonusText, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_STAGES_BY_RARITY, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_PATH_COUNT_BY_RARITY,
     stageLevelsForRarity, stageLevelsForPet, pathCountForRarity, allowedPathsForPet,

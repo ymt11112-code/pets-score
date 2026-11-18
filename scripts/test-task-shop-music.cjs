@@ -11,7 +11,7 @@ const {browser,wait,assert}=require('./browser-test-helper.cjs');let b;
   await run("document.querySelector('[data-page=rules]').click()");await wait(300);
   await run("document.querySelector('#sec-tasks .rule-btn').click()");await wait(300);
   const dlg=await run("(()=>{const m=document.querySelector('.modal');return {title:m.querySelector('h2,h3,.modal__title')?.textContent,heading:!!m.querySelector('.rule-edit-heading'),score:m.querySelectorAll('.rule-score-fields input').length,fold:!!m.querySelector('details.rule-icon-fold'),music:[...m.querySelectorAll('.rule-icons__tab')].some(x=>/音樂/.test(x.textContent))}})()");
-  assert(dlg.heading&&dlg.score===3&&dlg.fold&&dlg.music,JSON.stringify(dlg));
+  assert(dlg.heading&&dlg.score===7&&dlg.fold&&dlg.music,JSON.stringify(dlg));
   const taskId=await run("PetStore.get().dailyTasks[0].id");
   await run("(()=>{const m=document.querySelector('.modal');const set=(s,v)=>{const i=m.querySelector(s);i.value=v;i.dispatchEvent(new Event('input',{bubbles:true}));};set('[data-task-points]','3');set('[data-task-xp]','4');set('[data-task-coins]','2');m.querySelector('details summary').click();[...m.querySelectorAll('.rule-icons__tab')].find(x=>/音樂/.test(x.textContent)).click();m.querySelector('[data-icon=\"clay:m-baton\"]').click();[...m.querySelectorAll('button')].find(x=>x.textContent==='儲存').click();})()");await wait(300);
   const t=await run(`PetStore.get().dailyTasks.find(x=>x.id==='${taskId}')`);assert.equal(t.points,3);assert.equal(t.xp,4);assert.equal(t.coins,2);assert.equal(t.icon,'clay:m-baton');

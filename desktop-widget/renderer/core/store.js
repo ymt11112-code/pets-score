@@ -1021,6 +1021,7 @@
         classPoints,
       });
       if (s.ledger.length > 2000) s.ledger.length = 2000;
+      if (o.noSubject) delete s.ledger[0].subject;
       tallyEntry(s, s.ledger[0], 1);
     });
     return levelUps;
@@ -1737,6 +1738,7 @@
      收回已經發出去的 XP（不處理補扣，避免情況變複雜）。點數、XP、金幣都沒設定（0 或留空）的任務
      純粹是進度紀錄，不會產生點數紀錄。 */
   function setDailyTaskStudents(taskId, studentIds) {
+    rollDailyTasks();
     let taskPoints = 0;
     let taskCoins = 0;
     let toReward = [];
@@ -1763,11 +1765,52 @@
     });
     if (toReward.length) {
       award(toReward, { id: 'dailyTask:' + taskId, label: '今日任務：' + taskTitle, points: taskPoints, xp: taskXp, coins: taskCoins, subject: '' }, '', state.classInfo.teacher);
-      /* XP 已經直接發到學生帳上了（不是待領取的獎勵），這則訊息純粹是通知，不帶 reward，
-         不然學生還要跑去訊息中心「領取」一次，會跟已經到帳的 XP 搞混、重複的感覺。 */
+      /* 個人獎勵已經直接發到學生帳上了（不是待領取的獎勵），這則訊息純粹是通知，不帶 reward。 */
       sendMessage(toReward, '完成了今日任務！', '「' + taskTitle + '」完成了，獲得 ' + M.taskRewardText({ points: taskPoints, xp: taskXp, coins: taskCoins }) + '！', taskIcon);
     }
+    return { rewarded: toReward.length, bonus: maybeTaskBonus(taskId) };
   }
+
+  /* 全班完成獎勵：所有「今天有到校」的學生都勾完時，由最後一位完成的那一刻觸發，每個任務每天只發一次
+     （隔天名單重設時一併重設）。發的是任務設定的班級分數＋每位到校同學的點數／XP／金幣。 */
+  function taskBonusOf(t) {
+    return { classPoints: Number(t && t.bonusClass) || 0, points: Number(t && t.bonusPoints) || 0, xp: Number(t && t.bonusXp) || 0, coins: Number(t && t.bonusCoins) || 0 };
+  }
+  function maybeTaskBonus(taskId) {
+    const t = (state.dailyTasks || []).find((x) => x.id === taskId);
+    if (!t || t.bonusDone) return null;
+    const b = taskBonusOf(t);
+    if (!b.classPoints && !b.points && !b.xp && !b.coins) return null;
+    const present = state.students.filter((st) => !isAbsent(st.id));
+    const done = new Set(t.doneBy || []);
+    if (!present.length || !present.every((st) => done.has(st.id))) return null;
+    commit((s) => { const x = s.dailyTasks.find((y) => y.id === taskId); if (x) x.bonusDone = true; });
+    awardClass({
+      label: '今日任務全班完成：' + (t.title || ''), classPoints: b.classPoints,
+      points: b.points, xp: b.xp, coins: b.coins, linkPoints: b.points !== 0, linkXp: b.xp !== 0, linkCoins: b.coins !== 0,
+      noSubject: true, by: state.classInfo.teacher,
+    });
+    const parts = [b.classPoints ? '班級分數 +' + b.classPoints : '', M.taskRewardText({ points: b.points, xp: b.xp, coins: b.coins }) !== '只記錄進度' ? '每人 ' + M.taskRewardText({ points: b.points, xp: b.xp, coins: b.coins }) : ''].filter(Boolean);
+    sendMessage(present.map((st) => st.id), '全班完成今日任務！', '「' + (t.title || '') + '」全班都完成了！' + parts.join('，'), t.icon || '🎉');
+    return { title: t.title || '', text: parts.join('，') };
+  }
+
+  /* 隔天自動重設：每天第一次開啟時，把所有任務的完成名單、已發獎勵紀錄、全班獎勵旗標清掉，
+     同學就能重新完成、重新獲得任務獎勵。設定 settings.dailyTaskAutoReset === false 可以關掉；
+     第一次啟用時只記下今天日期，不會動到目前的名單。 */
+  function resetDailyTaskLists(s) {
+    (s.dailyTasks || []).forEach((t) => { t.doneBy = []; t.done = 0; t.rewardedBy = []; t.bonusDone = false; });
+  }
+  function rollDailyTasks() {
+    if (!state || !Array.isArray(state.dailyTasks)) return false;
+    const today = U.todayKey();
+    if (state.dailyTaskDate === today) return false;
+    const auto = !(state.settings && state.settings.dailyTaskAutoReset === false);
+    const hadDate = !!state.dailyTaskDate;
+    commit((s) => { if (auto && hadDate) resetDailyTaskLists(s); s.dailyTaskDate = today; });
+    return auto && hadDate;
+  }
+  function resetDailyTasks() { commit((s) => { resetDailyTaskLists(s); s.dailyTaskDate = U.todayKey(); }); }
 
   global.PetStore = {
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
@@ -1784,6 +1827,6 @@
     storylineStars, storylineWeeklyGain, storylineCurrentIndex, storylineChapterActionProgress,
     storylineChapterParticipantIds, storylineChapterParticipantStats,
     activateStoryline, updateChapterConfig, setChapterTaskDone, revertChapterClear, grantChapterPathReward,
-    setDailyTaskStudents,
+    setDailyTaskStudents, rollDailyTasks, resetDailyTasks,
   };
 })(window);

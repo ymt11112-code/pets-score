@@ -840,7 +840,7 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 @media(max-width:640px) { .rule-edit-heading.task-edit-heading { grid-template-columns:64px minmax(0,1fr); } }
 .pill--soft { opacity:.6; }
 .subject-pick { display:inline-flex; align-items:center; gap:6px; }
-.subject-select { background:#fff; color:#1f4a3f; padding:8px 10px; max-width:150px; font-weight:800; border-radius:12px; }
+.subject-select { background:#fff; color:#1f4a3f; padding:8px 10px; max-width:132px; font-weight:800; border-radius:12px; }
 .subject-pick .btn { padding:6px 10px; min-height:36px; }
 @media(max-width:900px) { .subject-select { max-width:110px; } }
 .subject-stats td small { display:block; color:#7a9288; font-size:11px; }
