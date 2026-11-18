@@ -48,6 +48,16 @@ const {browser,wait,assert}=require('./browser-test-helper.cjs');let b;
   assert(await run("/回答優秀/.test(document.querySelector('.award-notice')?.textContent||'')"),'bottom-right award notice appears');
   assert.equal(await run("document.querySelector('.dc-order-item [data-perform=excellent]').classList.contains('is-done')"),true);
   await run("document.querySelector('.dc-order-item [data-perform=excellent]').click()");await wait(200);assert.equal(await run('PetStore.get().ledger.length'),beforeLedger+1,'the same icon does not award twice');
+  // 左右分隔線可拖曳、雙擊恢復，並且記住位置；窄欄時圖示不擠掉姓名
+  const split0=await run("(()=>{const h=document.querySelector('.dc-splitter'),a=document.querySelector('.dc-stage').getBoundingClientRect(),b=document.querySelector('.dc-side').getBoundingClientRect(),r=h.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2,gapMid:(a.right+b.left)/2,side:b.width,stage:a.width}})()");
+  assert(Math.abs(split0.x-split0.gapMid)<2,'splitter sits in the gap '+JSON.stringify(split0));
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:split0.x,y:split0.y});await send('Input.dispatchMouseEvent',{type:'mousePressed',x:split0.x,y:split0.y,button:'left',clickCount:1});
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:split0.x-200,y:split0.y,button:'left'});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:split0.x-200,y:split0.y,button:'left',clickCount:1});await wait(200);
+  const split1=await run("(()=>{const a=document.querySelector('.dc-stage').getBoundingClientRect(),b=document.querySelector('.dc-side').getBoundingClientRect();return {side:b.width,stage:a.width,saved:localStorage.getItem('classpet.drawSplit.v1')}})()");
+  assert(split1.side>split0.side+150&&split1.stage<split0.stage-150&&split1.saved,'dragging the splitter widens the right side '+JSON.stringify(split1));
+  await run("document.querySelector('.dc-splitter').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))");await wait(150);
+  const split2=await run("({side:document.querySelector('.dc-side').getBoundingClientRect().width,saved:localStorage.getItem('classpet.drawSplit.v1')})");
+  assert(Math.abs(split2.side-split0.side)<3&&!split2.saved,'double click restores '+JSON.stringify(split2));
   // 重置後回到結果版面
   await run("document.querySelector('[data-reset-round]').click()");await wait(250);
   assert.notEqual(await run("document.querySelector('.dc-side').dataset.view"),'order');

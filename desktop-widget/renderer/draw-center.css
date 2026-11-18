@@ -624,3 +624,21 @@
 .draw-center .dc-workspace .dc-roster-person { min-height:28px; padding:1px 6px; }
 .draw-center .dc-weight-step { width:24px; height:24px; font-size:15px; }
 .draw-center .dc-roster-person .dc-weight input:not([type=checkbox]):not([type=range]) { width:32px; height:24px; min-height:24px; }
+
+/* v4: 抽籤左右分隔線可拖曳調整寬度，雙擊或按 Home 恢復預設。 */
+.dc-workspace { position:relative; }
+.dc-splitter { position:absolute; top:0; bottom:0; width:20px; margin-left:-10px; z-index:6; display:flex; align-items:center; justify-content:center; cursor:col-resize; touch-action:none; user-select:none; outline:0; }
+.dc-splitter span { width:6px; height:64px; max-height:60%; border-radius:99px; background:#9bbfae; box-shadow:0 0 0 3px rgba(255,255,255,.75); transition:background .15s,height .15s; }
+.dc-splitter:hover span,.dc-splitter:focus-visible span,.dc-splitter.is-dragging span { background:#17966f; height:96px; }
+.dc-splitter:focus-visible span { box-shadow:0 0 0 3px #fff,0 0 0 5px #17966f; }
+.dc-splitter.is-dragging { cursor:col-resize; }
+.draw-center.is-projecting .dc-splitter span { background:#44716b; box-shadow:0 0 0 3px rgba(0,0,0,.25); }
+
+/* v4: 整輪排序的加分圖示固定大小，窄欄時先讓出姓名位置（拖曳分隔線可再加寬）。 */
+.draw-center .dc-perform-btn { width:clamp(24px,2.3em,36px); height:clamp(24px,2.3em,36px); max-height:100%; aspect-ratio:auto; flex:none; }
+.dc-order-name { flex:1 1 2.4em; min-width:2.4em; }
+.dc-order-list.is-narrow .dc-order-item { gap:4px; padding:0 4px; }
+.dc-order-list.is-narrow .dc-order-item b { min-width:1.7em; }
+.dc-order-list.is-narrow .dc-order-info { display:none; }
+.dc-order-list.is-narrow .dc-perform { gap:2px; }
+.draw-center .dc-order-list.is-narrow .dc-perform-btn { width:clamp(22px,1.9em,28px); height:clamp(22px,1.9em,28px); font-size:.85em; }

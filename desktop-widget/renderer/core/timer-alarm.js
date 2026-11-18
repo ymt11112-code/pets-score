@@ -113,7 +113,8 @@
 .timer-alarm-panel button.is-playing{background:#f4cd61;border-color:#d9a92a}
 .timer-alarm-panel input[type=range]{flex:1 1 120px;min-width:90px}
 `;
-    root.document.head.append(style);
+    try{if(root.CSSStyleSheet&&'adoptedStyleSheets' in root.document){const sheet=new root.CSSStyleSheet();sheet.replaceSync(style.textContent);root.document.adoptedStyleSheets=[...root.document.adoptedStyleSheets,sheet];return;}}catch{}
+    style.hidden=true;style.setAttribute('style','display:none!important');root.document.head.append(style);
   }
 
   function dismiss(){

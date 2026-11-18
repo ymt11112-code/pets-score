@@ -126,7 +126,7 @@
     }
     const tasks=state.tasks||[];
     return el('section',{class:'dt-panel'},[
-      el('h2',{text:'今日任務'}),note('點選任務設定完成學生；任務名稱、目標與 XP 請在網頁「規則設定」管理。'),
+      el('h2',{text:'今日任務'}),note('加分方式：① 點下方任務 → ② 勾選完成的學生 → ③ 按「儲存完成名單」，系統會依任務 XP 自動加分（同一位學生不會重複加）。任務名稱、目標與 XP 請在網頁「規則設定」管理。'),
       ...tasks.map(task=>el('button',{class:'dt-task',type:'button','data-task':task.id,onclick:()=>{editingTask=task.id;taskDraft=new Set(task.doneBy||[]);render();}},[
         el('span',{class:'dt-task-icon',text:task.icon||'✅'}),el('div',{},[el('strong',{text:task.title}),el('small',{text:'完成 '+(task.doneBy||[]).length+' / '+task.target+' 位 · +'+(task.xp||0)+' XP'}),el('progress',{value:Math.min((task.doneBy||[]).length,task.target||1),max:Math.max(1,task.target||1)})]),el('span',{text:'›'})
       ])),
