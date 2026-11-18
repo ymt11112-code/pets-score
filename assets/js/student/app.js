@@ -868,15 +868,21 @@
     if (!rows.length) return [el('div', { class: 'empty' }, [el('div', { class: 'empty__icon', text: '🌱' }), el('div', { text: '還沒有紀錄，今天就開始吧！' })])];
     return rows.map((e) => {
       const rule = S.rule(e.ruleId);
-      const minus = (e.points || 0) < 0 || (e.coins || 0) < 0;
-      const amount = e.points ? (e.points > 0 ? '+' : '') + e.points + ' 點' : (e.xp ? '+' + e.xp + ' XP' : (e.coins || 0) + ' 🪙');
+      const sign = (n) => (n > 0 ? '+' : '') + n;
+      const parts = [];
+      if (e.points) parts.push({ t: sign(e.points) + ' 點', minus: e.points < 0 });
+      if (e.xp) parts.push({ t: sign(e.xp) + ' XP', minus: e.xp < 0 });
+      if (e.coins) parts.push({ t: '🪙 ' + sign(e.coins), minus: e.coins < 0 });
+      if (!parts.length) parts.push({ t: '紀錄', minus: false });
+      const task = String(e.ruleId || '').indexOf('dailyTask:') === 0 ? S.get().dailyTasks.find((t) => t.id === e.ruleId.slice(10)) : null;
+      const icon = rule ? rule.icon : task ? task.icon : e.ruleId === 'redeem' ? '🎁' : '⭐';
       return el('div', { class: 'timeline-row' }, [
-        el('span', { class: 'timeline-row__icon', text: rule ? rule.icon : '⭐' }),
+        el('span', { class: 'timeline-row__icon', text: icon }),
         el('div', { class: 'grow' }, [
           el('div', { style: { fontWeight: 700 }, text: e.label }),
           el('div', { class: 'timeline-row__time', text: U.fmtDateTime(e.ts) + (e.note ? ' · ' + e.note : '') }),
         ]),
-        el('span', { class: 'timeline-row__pts' + (minus ? ' is-minus' : ''), text: amount }),
+        el('div', { class: 'timeline-row__amounts' }, parts.map((x) => el('span', { class: 'timeline-row__pts' + (x.minus ? ' is-minus' : ''), text: x.t }))),
       ]);
     });
   }

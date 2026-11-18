@@ -234,3 +234,5 @@
   .food-grid { grid-template-columns: repeat(2, 1fr); }
   .sect { padding: 34px 0; }
 }
+.timeline-row__amounts { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px; text-align:right; }
+.timeline-row__amounts .timeline-row__pts { margin-left:0; }
