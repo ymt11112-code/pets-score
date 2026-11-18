@@ -339,8 +339,8 @@
     if (!state) throw new Error('班級資料尚未載入');
     return {
       day: U.todayKey(), className: state.classInfo.className,
-      students: state.students.map(st => {const avatar=window.PetDrawAvatar(st,64);avatar.querySelectorAll('img').forEach(img=>{const src=img.getAttribute('src');if(src&&src.startsWith('assets/'))img.src='https://ymt11112-code.github.io/pets-score/'+src;});return {id:st.id,no:st.no,name:st.name,groupId:st.groupId,avatarHtml:avatar.outerHTML};}),
-      draw:window.PetDrawEngine.normalize(state.drawCenter),
+      students: state.students.map(st => {const avatar=window.PetDrawAvatar(st,64);avatar.querySelectorAll('img').forEach(img=>{const src=img.getAttribute('src');if(src&&src.startsWith('assets/'))img.src='https://ymt11112-code.github.io/pets-score/'+src;});const level=window.PetModel.levelFromXp(st.xp||0),pet=st.petId?window.PetModel.petById(st.petId):null;return {id:st.id,no:st.no,name:st.name,groupId:st.groupId,avatarHtml:avatar.outerHTML,petInfo:{level:level.level,inLevel:level.inLevel,need:level.need,percent:level.percent,xp:Math.floor(st.xp||0),petName:pet?pet.name:''}};}),
+      draw:window.PetDrawEngine.normalize(state.drawCenter),performance:window.PetDrawEngine.performanceList(state),
       attendance: Object.assign({}, S.attendanceOf()), sync: S.getSync(),
       tasks: state.dailyTasks.map(({ id, icon, title, target, xp, doneBy }) => ({ id, icon, title, target, xp, doneBy: (doneBy || []).slice() })),
     };
@@ -362,6 +362,13 @@
         S.commit(s=>window.PetDrawEngine.settings(s,request.payload));
       } else if(request.type==='draw-run') {
         S.commit(s=>window.PetDrawEngine.run(s,s.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),request.payload));
+      } else if(request.type==='draw-perform') {
+        const { id, key } = request.payload;
+        if (!S.student(id)) throw new Error('找不到這位學生');
+        if (S.isAbsent(id)) throw new Error('這位學生今天不在出席名單');
+        const rule = window.PetDrawEngine.performanceRule(S.get(), key);
+        suppressNextDiff = true;
+        try { S.award([id], rule, '', S.get().classInfo.teacher); } finally { suppressNextDiff = false; }
       } else if(request.type==='draw-reset') {
         S.commit(s=>window.PetDrawEngine.reset(s));
       } else if (request.type === 'task-students') {

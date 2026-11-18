@@ -23,7 +23,7 @@
   function create(adapter){
     let snapshot=adapter.getSnapshot(),data=E.normalize(snapshot.draw),running=false,projected=false,disposed=false,frame=null,presentation=0,revealNow=null;
     const clock=adapter.clock||root.PetLessonTimer.clock;
-    const audio=root.PetDrawSounds.create();const rootEl=el('section',{class:'draw-center'});let refs={},notice='',weightSearch='',settingsOpen=false,rosterOpen=null,rosterExpanded=false,rosterQuery='';
+    const audio=root.PetDrawSounds.create();const rootEl=el('section',{class:'draw-center'});let refs={},notice='',weightSearch='',settingsOpen=false,view='result',rosterQuery='';const performed=new Map();
     const currentPool=()=>E.candidates(snapshot,data);
     const formatStudent=st=>U.pad2(st.no)+' '+st.name;
     function btn(text,click,kind,attrs){return el('button',Object.assign({type:'button',class:'dc-button '+(kind||''),text,onclick:click},attrs||{}));}
@@ -86,31 +86,59 @@
           optionControl('timerMode','計時方式',[['down','倒數計時'],['up','從0秒正向計時']]),
           field('預設倒數秒數',control(cfg,'timerSeconds','number',{min:1,max:10800,'aria-label':'預設倒數秒數'}))
         ]),...extras,
-        el('details',{},[el('summary',{text:'排名／分組與手動權重'}),field('抽完整輪時',group),weightPanel()])
+        el('details',{},[el('summary',{text:'整輪排序分組'}),field('抽完整輪時',group),el('p',{class:'dc-note',text:'每位同學的中籤權重，請按抽籤區右上方的「全員名單・權重」設定。'})])
       ]);
     }
-    function weightPanel(){
-      const search=el('input',{type:'search',placeholder:'搜尋座號或姓名','aria-label':'搜尋學生權重',value:weightSearch,oninput:e=>{weightSearch=e.target.value;paintWeightRows();}});
-      refs.weights=el('div',{class:'dc-weight-list'});
-      function paintWeightRows(){const pool=currentPool(),total=pool.reduce((sum,st)=>sum+(data.weights[st.id]||1),0);refs.weights.replaceChildren(...snapshot.students.filter(st=>!weightSearch||formatStudent(st).includes(weightSearch)).slice().sort((a,b)=>a.no-b.no).map(st=>el('label',{class:'dc-weight-row','data-weight-id':st.id},[
-        el('span',{text:formatStudent(st)}),el('input',{type:'number',min:1,max:10,step:1,value:data.weights[st.id]||1,'aria-label':st.name+'中籤權重','data-lock':'',onchange:e=>{const value=Math.max(1,Math.min(10,Math.round(Number(e.target.value)||1)));e.target.value=value;configure({weights:{[st.id]:value}});}}),el('small',{text:pool.some(x=>x.id===st.id)&&total?'首抽 '+((data.weights[st.id]||1)/total*100).toFixed(1)+'%':'本輪不參加'})
-      ])));}
-      paintWeightRows();return el('div',{class:'dc-weights'},[el('p',{class:'dc-note',text:'權重 1～10：數字越大越容易抽到。首抽機率會依目前可抽名單重算，不代表多人連抽的總中籤率。'}),search,refs.weights,btn('所有權重恢復 1',()=>configure({resetWeights:true}),'',{'data-lock':''})]);
-    }
     function avatar(result){if(adapter.avatar)return adapter.avatar(result.studentId||result.id);return el('span',{class:'dc-avatar',text:result.emoji||'🐾'});}
+    function petMeta(item){
+      const info=adapter.info&&adapter.info(item.studentId||item.id);if(!info)return null;
+      return el('div',{class:'dc-pet-meta','data-pet-meta':''},[
+        el('span',{class:'dc-pet-level',text:'Lv.'+info.level+(info.petName?' · '+info.petName:'')}),
+        el('span',{class:'dc-pet-bar','aria-hidden':'true'},[el('i',{style:{width:Math.max(0,Math.min(100,info.percent||0))+'%'}})]),
+        el('small',{class:'dc-pet-xp',text:'XP '+info.inLevel+' / '+info.need+'・累積 '+info.xp})
+      ]);
+    }
+    function focusSide(){if(projected||!refs.side||!refs.side.scrollIntoView)return;requestAnimationFrame(()=>{try{refs.side.scrollIntoView({block:'start',behavior:'smooth'});}catch{}});}
+    let flashTimer=null;
+    function flash(text){if(!projected)return;rootEl.querySelectorAll('.dc-award-flash').forEach(node=>node.remove());const box=el('div',{class:'dc-award-flash',role:'status'},[el('span',{text:'✅','aria-hidden':'true'}),el('strong',{text})]);rootEl.append(box);clearTimeout(flashTimer);flashTimer=setTimeout(()=>box.remove(),4200);}
+    function performBar(item){
+      const list=adapter.performance&&adapter.perform?adapter.performance():null;if(!list||!list.length)return null;
+      const id=item.studentId||item.id;
+      return el('span',{class:'dc-perform',role:'group','aria-label':item.name+' 課堂表現','data-perform-for':id},list.map(p=>{
+        const mark=performed.get(id),button=el('button',{type:'button',class:'dc-perform-btn'+(mark&&mark.has(p.key)?' is-done':''),title:p.label+' +'+p.points,'aria-label':item.name+' '+p.label+' 加 '+p.points+' 點','aria-pressed':String(!!(mark&&mark.has(p.key))),'data-perform':p.key,text:p.icon});
+        button.addEventListener('click',async()=>{const got=performed.get(id)||new Set();if(got.has(p.key)){setNotice(item.name+' 已經加過「'+p.label+'」。');return;}button.disabled=true;got.add(p.key);performed.set(id,got);button.classList.add('is-done');button.setAttribute('aria-pressed','true');try{await adapter.perform(id,p.key);setNotice(item.name+' '+p.label+' +'+p.points+' 點');flash(item.name+' '+p.label+' +'+p.points+' 點');}catch(error){got.delete(p.key);button.classList.remove('is-done');button.setAttribute('aria-pressed','false');setNotice(error.message||'加分失敗，請稍後再試。');}finally{button.disabled=false;}});
+        return button;}));
+    }
+    function weightStepper(st){
+      const input=el('input',{type:'number',min:1,max:10,step:1,value:data.weights[st.id]||1,'aria-label':st.name+'中籤權重','data-lock':'',onchange:e=>set(e.target.value)});
+      function set(raw){const value=Math.max(1,Math.min(10,Math.round(Number(raw)||1)));input.value=value;configure({weights:{[st.id]:value}});}
+      return el('span',{class:'dc-weight'},[el('button',{type:'button',class:'dc-weight-step','aria-label':st.name+'權重減 1','data-lock':'',text:'−',onclick:()=>set(Number(input.value)-1)}),input,el('button',{type:'button',class:'dc-weight-step','aria-label':st.name+'權重加 1','data-lock':'',text:'+',onclick:()=>set(Number(input.value)+1)})]);
+    }
+    function paintRest(result){
+      if(!refs.rest)return;
+      const absent=snapshot.absentIds||[],drawn=data.drawnIds.map(id=>snapshot.students.find(st=>st.id===id)).filter(Boolean),latest=new Set(result&&!result.order?result.results.map(item=>item.studentId):[]);
+      const award=btn('為抽中學生加點',async()=>{try{const ids=result.results.filter(item=>!absent.includes(item.studentId)&&snapshot.students.some(st=>st.id===item.studentId)).map(item=>item.studentId);if(!ids.length)return setNotice('這些學生目前不在可加點名單，請檢查出席。');await adapter.select(ids);}catch(error){setNotice(error.message);}},'dc-primary',{'data-award-drawn':''});award.disabled=!result||running;
+      refs.rest.replaceChildren(el('div',{class:'dc-rest-head'},[el('strong',{text:'本輪已抽 '+drawn.length+' 位'}),award]),el('div',{class:'dc-rest-chips'},drawn.length?drawn.slice().reverse().map(st=>el('span',{class:'dc-chip'+(latest.has(st.id)?' is-latest':''),text:formatStudent(st)})):[el('small',{class:'dc-note',text:'尚未抽取，抽出的同學會依序列在這裡。'})]));
+    }
     function paintResults(result){
       refs.results.dataset.count=String(result?result.results.length:0);refs.results.replaceChildren();
-      const showRoster=rosterOpen===true||(rosterOpen===null&&!result&&!running);
-      refs.results.classList.toggle('is-roster-expanded',rosterExpanded&&showRoster);
-      refs.results.append(el('div',{class:'dc-result-tabs'},[btn('抽籤結果',()=>{rosterOpen=false;rosterExpanded=false;paintResults(result);},showRoster?'':'dc-primary',{'data-result-tab':'results'}),btn('全員名單 '+snapshot.students.length,()=>{rosterOpen=true;paintResults(result);},showRoster?'dc-primary':'',{'data-result-tab':'roster'})]));
-      if(showRoster){const pool=currentPool();const list=el('div',{class:'dc-roster-list'});function paintRoster(){list.replaceChildren(...snapshot.students.slice().sort((a,b)=>a.no-b.no).filter(st=>!rosterQuery||formatStudent(st).includes(rosterQuery)).map(st=>el('article',{class:'dc-roster-person'+(pool.some(x=>x.id===st.id)?'':' is-excluded'),'data-roster-id':st.id},[avatar(st),el('div',{},[el('strong',{text:formatStudent(st)}),el('small',{text:(snapshot.absentIds||[]).includes(st.id)?'今日不參加':pool.some(x=>x.id===st.id)?'本輪可抽':'本輪已抽'})])])));}
-      const search=el('input',{class:'dc-input',type:'search',value:rosterQuery,placeholder:'搜尋座號或姓名','aria-label':'搜尋全員名單',oninput:e=>{rosterQuery=e.target.value;paintRoster();}});
-      refs.results.append(el('div',{class:'dc-roster-toolbar'},[search,btn(rosterExpanded?'還原名單':'放大全員名單',()=>{rosterExpanded=!rosterExpanded;paintResults(result);},'',{'data-roster-expand':''})]),list);paintRoster();return;}
+      const mode=view==='roster'?'roster':result&&result.order?'order':'result';
+      refs.side.dataset.view=mode;refs.rosterBtn.textContent=mode==='roster'?'↩ 返回抽籤結果':'👥 全員名單・權重';refs.rosterBtn.classList.toggle('dc-primary',mode==='roster');refs.rosterBtn.setAttribute('aria-pressed',String(mode==='roster'));
+      paintRest(result);
+      if(mode==='roster'){
+        const pool=currentPool(),list=el('div',{class:'dc-roster-list'});
+        function paintRoster(){const total=pool.reduce((sum,st)=>sum+(data.weights[st.id]||1),0);list.replaceChildren(...snapshot.students.slice().sort((a,b)=>a.no-b.no).filter(st=>!rosterQuery||formatStudent(st).includes(rosterQuery)).map(st=>{const eligible=pool.some(x=>x.id===st.id);return el('article',{class:'dc-roster-person'+(eligible?'':' is-excluded'),'data-roster-id':st.id,'data-weight-id':st.id},[el('strong',{text:formatStudent(st)}),el('small',{text:eligible&&total?'首抽 '+((data.weights[st.id]||1)/total*100).toFixed(1)+'%':(snapshot.absentIds||[]).includes(st.id)?'今日不參加':'本輪已抽'}),weightStepper(st)]);}));}
+        const search=el('input',{class:'dc-input',type:'search',value:rosterQuery,placeholder:'搜尋座號或姓名','aria-label':'搜尋全員名單',oninput:e=>{rosterQuery=e.target.value;paintRoster();}});
+        refs.results.append(el('div',{class:'dc-roster-head'},[el('h2',{text:'全員名單 '+snapshot.students.length+' 位・中籤權重'}),search,btn('權重全部恢復 1',()=>configure({resetWeights:true}),'',{'data-lock':'','data-weights-reset':''})]),el('p',{class:'dc-note',text:'權重 1～10，數字越大越容易抽到；灰色為今日不參加或本輪已抽。首抽機率依目前可抽名單重算。'}),list);paintRoster();return;
+      }
       if(!result){refs.results.append(el('div',{class:'dc-result-placeholder'},[el('span',{text:running?'🎲':'🐾','aria-hidden':'true'}),el('h2',{text:running?'抽籤中…':'抽籤結果'}),el('p',{text:running?'結果將在這裡揭曉':'按「開始抽籤」，抽中的同學會顯示在這裡。'})]));return;}
-      refs.results.append(el('h2',{text:result.order?'本次排序／分組結果':'本次抽中 '+result.results.length+' 位'}));
-      if(result.results.length>5){const table=el('table',{class:'dc-order-table'},[el('thead',{},[el('tr',{},['名次','學生','任務','組別'].map(text=>el('th',{text})))]),el('tbody',{},result.results.map(item=>el('tr',{},[el('td',{text:item.rank}),el('td',{text:U.pad2(item.no)+' '+item.name}),el('td',{text:item.task||'—'}),el('td',{text:item.group?'第 '+item.group+' 組':'—'})])))]);refs.results.append(el('div',{class:'dc-order-scroll'},[table]));}
-      else refs.results.append(el('div',{class:'dc-results-grid'},result.results.map(item=>el('article',{class:'dc-result-card'},[avatar(item),el('span',{class:'dc-result-seat',text:U.pad2(item.no)+' 號'}),el('strong',{class:'dc-result-name',text:item.name}),item.task?el('span',{class:'dc-result-task',text:item.task}):null,item.group?el('small',{text:'第 '+item.group+' 組'}):null]))));
-      refs.results.append(btn('為抽中學生加點',async()=>{try{const ids=result.results.filter(item=>!(snapshot.absentIds||[]).includes(item.studentId)&&snapshot.students.some(st=>st.id===item.studentId)).map(item=>item.studentId);if(!ids.length)return setNotice('這些學生目前不在可加點名單，請檢查出席。');await adapter.select(ids);}catch(error){setNotice(error.message);}},'dc-primary'));
+      if(mode==='order'){
+        const n=result.results.length,rows=Math.max(1,Math.ceil(n/2));
+        refs.results.append(el('h2',{text:'本輪完整排序・共 '+n+' 位'}),adapter.performance&&adapter.perform?el('p',{class:'dc-perform-legend',text:'點圖示即加分：'+adapter.performance().map(p=>p.icon+' '+p.label.replace('回答','')+' +'+p.points).join('　')}):null,el('ol',{class:'dc-order-list','data-order-count':String(n),style:{'--rows':String(rows),'--order-size':(n<=12?20:n<=20?17:n<=28?15:13)+'px'}},result.results.map(item=>el('li',{class:'dc-order-item'+(item.group?' has-group':'')},[el('b',{text:item.rank}),el('span',{class:'dc-order-name',text:U.pad2(item.no)+' '+item.name}),item.group||item.task?el('small',{class:'dc-order-info',text:[item.group?'第 '+item.group+' 組':'',item.task||''].filter(Boolean).join('・')}):null,performBar(item)]))));
+        return;
+      }
+      refs.results.append(el('h2',{text:'本次抽中 '+result.results.length+' 位'}));
+      refs.results.append(el('div',{class:'dc-results-grid'},result.results.map(item=>el('article',{class:'dc-result-card'},[avatar(item),petMeta(item),el('span',{class:'dc-result-seat',text:U.pad2(item.no)+' 號'}),el('strong',{class:'dc-result-name',text:item.name}),item.task?el('span',{class:'dc-result-task',text:item.task}):null,item.group?el('small',{text:'第 '+item.group+' 組'}):null]))));
     }
     function history(){return el('details',{class:'dc-history'},[el('summary',{text:'本輪已抽與歷史紀錄（'+data.history.length+' 筆）'}),el('p',{class:'dc-note',text:'本輪已抽：'+(data.drawnIds.map(id=>snapshot.students.find(st=>st.id===id)).filter(Boolean).map(formatStudent).join('、')||'尚未抽取')}),...data.history.slice(0,20).map(batch=>el('div',{class:'dc-history-row'},[el('small',{text:'第 '+batch.round+' 輪 · '+new Date(batch.ts).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}),el('span',{text:batch.results.map(item=>U.pad2(item.no)+' '+item.name+(item.task?' → '+item.task:'')).join('、')})]))]);}
     function render(){
@@ -124,9 +152,9 @@
       const workspace=el('div',{class:'dc-workspace'}),drawPane=el('div',{class:'dc-draw-pane'});rootEl.append(workspace);workspace.append(drawPane);
       refs.stage=el('div',{class:'dc-stage','aria-label':'抽籤動畫區'});drawPane.append(refs.stage);
       buildScene(null,currentPool(),false);
-      refs.start=btn('開始抽籤',()=>start(false),'dc-primary',{'data-draw-start':''});refs.order=btn('抽出整輪排序',()=>start(true),'',{'data-lock':'','data-draw-order':''});refs.reveal=btn('直接揭曉全部結果',()=>{if(revealNow)revealNow();},'');refs.reveal.hidden=true;
-      drawPane.append(el('div',{class:'dc-toolbar'},[refs.start,refs.order,btn('↻ 一鍵重置名單',async()=>{if(running)return;try{const next=await adapter.reset();if(next)update(next);notice='已開始新的一輪，原始學生名單完整保留。';render();}catch(error){setNotice(error.message);}},'',{'data-lock':'','data-reset-round':''}),refs.reveal]),refs.notice);
-      refs.results=el('div',{class:'dc-results','aria-live':'polite','aria-label':'本次抽籤結果'});workspace.append(refs.results);paintResults(running?null:data.last);
+      refs.start=btn('開始抽籤',()=>start(false),'dc-primary',{'data-draw-start':''});refs.order=btn('🔢 抽出整輪排序',()=>start(true),'',{'data-lock':'','data-draw-order':''});refs.rosterBtn=btn('👥 全員名單・權重',()=>{if(running)return;view=view==='roster'?'result':'roster';paintResults(data.last);if(view==='roster')focusSide();},'',{'data-lock':'','data-roster-toggle':''});refs.reveal=btn('直接揭曉全部結果',()=>{if(revealNow)revealNow();},'');refs.reveal.hidden=true;
+      const resetButton=btn('↻ 一鍵重置名單',async()=>{if(running)return;view='result';performed.clear();try{const next=await adapter.reset();if(next)update(next);notice='已開始新的一輪，原始學生名單完整保留。';render();}catch(error){setNotice(error.message);}},'',{'data-lock':'','data-reset-round':''});drawPane.append(el('div',{class:'dc-toolbar'},[refs.start,refs.reveal]),refs.notice);
+      refs.results=el('div',{class:'dc-results','aria-live':'polite','aria-label':'本次抽籤結果'});refs.rest=el('div',{class:'dc-side-rest','aria-label':'本輪已抽進度'});refs.side=el('div',{class:'dc-side'},[el('div',{class:'dc-side-actions'},[refs.rosterBtn,refs.order,resetButton]),refs.results,refs.rest]);workspace.append(refs.side);paintResults(running?null:data.last);
       const configCard=el('details',{class:'dc-settings-card',open:settingsOpen?'open':null},[el('summary',{text:'⚙️ 抽籤設定（人數、任務、音效與權重）'}),settings()]);configCard.addEventListener('toggle',()=>{settingsOpen=configCard.open;});rootEl.append(configCard);
       rootEl.append(history(),btn('退出全螢幕',()=>toggleProject(false),'dc-exit-projection'));refresh();paintClock();
     }
@@ -185,12 +213,13 @@
     }
     function finishResult(result){
       if(!running||disposed)return;running=false;revealNow=null;if(data.config.autoTimer){clock.configure({mode:data.config.timerMode,seconds:data.config.timerSeconds});clock.start();}audio.finish(data.config);paintResults(result);const oldHistory=rootEl.querySelector('.dc-history');if(oldHistory)oldHistory.replaceWith(history());refresh();
-      if(result.results.length<result.requested)setNotice('本輪只剩 '+result.results.length+' 位，已全部抽出；按重置可開始新一輪。');else setNotice('已抽出 '+result.results.length+' 位，本輪紀錄已保存。');
+      if(result.order)setNotice('已排出整輪 '+result.results.length+' 位同學的順序；按「一鍵重置名單」可開始新的一輪。');else if(result.results.length<result.requested)setNotice('本輪只剩 '+result.results.length+' 位，已全部抽出；按重置可開始新一輪。');else setNotice('已抽出 '+result.results.length+' 位，本輪紀錄已保存。');
     }
     async function start(order){
-      if(running||disposed)return;const pool=currentPool();if(!pool.length)return;running=true;rosterOpen=false;rosterExpanded=false;if(data.config.autoTimer)clock.pause();setNotice('正在抽取…');audio.unlock(data.config);refresh();const token=++presentation;
+      if(running||disposed)return;const pool=currentPool();if(!pool.length)return;running=true;view='result';if(order)performed.clear();if(data.config.autoTimer)clock.pause();setNotice('正在抽取…');audio.unlock(data.config);refresh();const token=++presentation;
       try{
         const result=await adapter.draw({order:!!order});if(disposed||token!==presentation)return;
+        if(order){buildScene(null,pool,false);finishResult(result);focusSide();return;}
         const cfg=data.config,reduce=root.matchMedia&&root.matchMedia('(prefers-reduced-motion: reduce)').matches;
         const duration=reduce?350:cfg.duration*1000*(cfg.style==='bomb'?.7+Math.random()*.7:1);
         const scene=buildScene(result,pool,true);paintResults(null);refresh();
@@ -203,10 +232,10 @@
     }
     function cancelPresentation(){presentation++;if(frame)cancelAnimationFrame(frame);frame=null;audio.stop();running=false;revealNow=null;}
     function toggleProject(force){projected=typeof force==='boolean'?force:!projected;rootEl.classList.toggle('is-projecting',projected);const button=rootEl.querySelector('.dc-header-actions button');if(button)button.textContent=projected?'結束投影':'⛶ 大字投影';if(projected&&rootEl.requestFullscreen){rootEl.requestFullscreen().catch(()=>{});}else if(!projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});}
-    function update(next){if(!next||disposed)return;const rosterChanged=JSON.stringify([snapshot.students.map(st=>[st.id,st.no,st.name]),snapshot.absentIds])!==JSON.stringify([next.students.map(st=>[st.id,st.no,st.name]),next.absentIds]);const old=data,last=data.last&&data.last.id;snapshot=next;data=E.normalize(next.draw);if(!running&&(rosterChanged||last!==(data.last&&data.last.id)||old.round!==data.round||old.config.style!==data.config.style))render();else {refresh();if(!running&&data.last)paintResults(data.last);}}
-    function escape(event){if(event.key==='Escape'&&rosterExpanded){rosterExpanded=false;paintResults(data.last);return;}if(event.key==='Escape'&&projected)toggleProject(false);}
+    function update(next){if(!next||disposed)return;const rosterChanged=JSON.stringify([snapshot.students.map(st=>[st.id,st.no,st.name]),snapshot.absentIds])!==JSON.stringify([next.students.map(st=>[st.id,st.no,st.name]),next.absentIds]);const old=data,last=data.last&&data.last.id;snapshot=next;data=E.normalize(next.draw);if(!running&&(rosterChanged||last!==(data.last&&data.last.id)||old.round!==data.round||old.config.style!==data.config.style))render();else {refresh();if(!running&&data.last&&view!=='roster')paintResults(data.last);}}
+    function escape(event){if(event.key==='Escape'&&projected){toggleProject(false);return;}if(event.key==='Escape'&&view==='roster'){view='result';paintResults(data.last);}}
     document.addEventListener('keydown',escape);render();
-    return{element:rootEl,update,get running(){return running;},destroy(){disposed=true;unsubscribeClock();cancelPresentation();document.removeEventListener('keydown',escape);if(projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});rootEl.remove();}};
+    return{element:rootEl,update,get running(){return running;},destroy(){disposed=true;clearTimeout(flashTimer);unsubscribeClock();cancelPresentation();document.removeEventListener('keydown',escape);if(projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});rootEl.remove();}};
   }
   root.PetDrawCenter={create};
 })(window);

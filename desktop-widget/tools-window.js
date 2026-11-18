@@ -65,6 +65,7 @@ module.exports = function installTools({ app, BrowserWindow, ipcMain, getMainWin
   ipcMain.handle('configure-draw', (event,patch)=>{if(!allowed(event)||!patch||typeof patch!=='object')return null;return askMain('draw-config',{config:patch.config||{},weights:patch.weights||{},resetWeights:patch.resetWeights===true});});
   ipcMain.handle('run-draw', (event,request)=>{if(!allowed(event))return null;return askMain('draw-run',{order:request?.order===true});});
   ipcMain.handle('reset-draw', event=>{if(!allowed(event))return null;return askMain('draw-reset');});
+  ipcMain.handle('award-draw-performance',(event,id,key)=>{if(!allowed(event)||typeof id!=='string'||!['excellent','complete','correct'].includes(key))throw new Error('不支援的課堂表現');return askMain('draw-perform',{id,key});});
   ipcMain.handle('select-drawn-students',async(event,ids)=>{if(!allowed(event)||!Array.isArray(ids)||ids.some(id=>typeof id!=='string'))return false;const state=await askMain('snapshot');const selected=[...new Set(ids)].filter(id=>state.students.some(st=>st.id===id)&&!A.isExcluded(state.attendance[id]||''));if(!selected.length)return false;selectForAward(selected);owner(event).hide();return true;});
   ipcMain.handle('set-tool-attendance', (event, id, absent) => {
     if (!allowed(event) || typeof id !== 'string' || !(typeof absent === 'boolean' || A.valid(absent))) return null;

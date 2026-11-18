@@ -10,11 +10,12 @@ body[data-window=timer] .dt-timer-time { font-size:clamp(72px,19vw,280px); line-
 body[data-window=timer] .dt-actions .btn { min-height:52px; font-size:20px; }
 body[data-window=draw] .dc-workspace { height:clamp(370px,calc(100dvh - 330px),1400px); }
 body[data-window=draw] .dc-workspace .dc-results { min-width:0; }
+body[data-window=draw] .dc-workspace .dc-wheel-wrap { width:min(100%,calc(clamp(370px,calc(100dvh - 330px),1400px) - 200px)); }
 body[data-window=draw] .dc-workspace .dc-result-card { overflow:visible; }
 body[data-window=draw] .dc-workspace .dc-results[data-count="1"] .dc-result-card { gap:12px; }
 body[data-window=draw] .draw-center.is-projecting .dc-workspace { height:calc(100dvh - 130px); }
 @media(min-width:1100px) {
- body[data-window=draw] .dc-workspace { grid-template-columns:minmax(0,1.2fr) minmax(320px,1fr); }
+ body[data-window=draw] .dc-workspace { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
 }
 @media(max-width:600px) {
  .dt-header .dt-clock-badge { display:none; }
@@ -30,13 +31,17 @@ body.is-tool-fullscreen[data-window=timer] .dt-panel { min-height:calc(100dvh - 
 body.is-tool-fullscreen[data-window=timer] .dt-panel>h2,body.is-tool-fullscreen[data-window=timer] .dt-panel>.dt-note { display:none; }
 body.is-tool-fullscreen[data-window=draw] .draw-center { padding:0; border:0; margin:0; }
 body.is-tool-fullscreen[data-window=draw] .dc-workspace { height:calc(100dvh - 24px); }
-body.is-tool-fullscreen[data-window=draw] :is(.dc-style-list,.dc-toolbar,.dc-notice,.dc-settings-card,.dc-history,.dc-result-tabs,.dc-roster-toolbar) { display:none; }
-body.is-tool-fullscreen[data-window=draw] .dc-results>.dc-button { display:none; }
+body.is-tool-fullscreen[data-window=draw] :is(.dc-style-list,.dc-toolbar,.dc-notice,.dc-settings-card,.dc-history,.dc-side-rest) { display:none; }
+body.is-tool-fullscreen[data-window=draw] .dc-side { grid-template-rows:auto minmax(0,1fr); }
 body.is-tool-fullscreen[data-window=draw] .dc-workspace { grid-template-rows:minmax(0,1fr); }
 body.is-tool-fullscreen[data-window=draw] .dc-workspace .dc-wheel-wrap { width:min(100%,calc(100dvh - 85px)); max-width:none; }
-body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-card>.draw-pet-avatar { width:clamp(150px,28vh,340px)!important; height:clamp(150px,28vh,340px)!important; }
-body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-name { font-size:clamp(40px,6vh,90px); }
-body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-seat { font-size:clamp(22px,3vh,40px); }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-card>.draw-pet-avatar { width:clamp(170px,34vh,680px)!important; height:clamp(170px,34vh,680px)!important; }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-name { font-size:clamp(56px,12vh,260px); }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-seat { font-size:clamp(28px,5vh,100px); }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-pet-meta { width:min(86%,clamp(420px,70vh,1300px)); max-width:none; }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-pet-level { font-size:clamp(22px,3.6vh,72px); }
+body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-pet-xp { font-size:clamp(15px,2.4vh,48px); }
+body.is-tool-fullscreen[data-window=draw] .dc-order-list { font-size:clamp(14px,calc((100dvh - 190px) / var(--rows,10) * .5),72px); }
 body.is-tool-fullscreen[data-window=draw] .dc-results[data-count="1"] .dc-result-card { gap:16px; }
 body.is-tool-fullscreen[data-window=draw] .dc-results:is([data-count="4"],[data-count="5"]) .dc-result-name { font-size:clamp(22px,3vh,40px); }
 /* 常用時間放在計時數字上方，窄視窗自動分兩列。 */

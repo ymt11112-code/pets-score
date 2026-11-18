@@ -41,7 +41,8 @@
 .exam-schedule-card>span { font-size:clamp(12px,1.4cqw,20px); white-space:nowrap; }
 .exam-reminder { text-align:center; font-size:clamp(14px,1.8cqw,28px); line-height:1.6; margin:14px 0 0; font-weight:700; overflow-wrap:anywhere; }
 .exam-settings { margin-top:14px; border:1px solid #cadfd2; border-radius:16px; background:#f6fbf7; padding:14px; }
-.exam-settings>summary { cursor:pointer; font-weight:800; font-size:16px; }
+.exam-settings[hidden] { display:none; }
+.exam-settings-title { margin:0 0 10px; font-weight:800; font-size:16px; }
 .exam-editor { display:flex; flex-direction:column; gap:12px; margin-top:14px; }
 .exam-editor-meta { display:grid; grid-template-columns:minmax(0,2fr) minmax(150px,1fr); gap:12px; }
 .exam-editor label { display:flex; flex-direction:column; gap:6px; min-width:0; font-size:13px; font-weight:700; }

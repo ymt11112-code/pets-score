@@ -53,6 +53,10 @@
     const result={id:'draw_'+Date.now()+'_'+Math.floor((rng||random)()*1e9),ts:Date.now(),round:draw.round,style:draw.config.style,order,requested,available:pool.length,results};
     draw.drawnIds=Array.from(new Set(draw.drawnIds.concat(results.map(x=>x.studentId))));draw.last=result;draw.history.unshift(result);draw.history=draw.history.slice(0,60);state.drawCenter=draw;return result;
   }
+  /* 整輪排序的課堂表現：優先沿用老師已有的「回答優秀／回答完整／回答正確」規則，沒有就用內建點數。 */
+  const PERFORMANCE=[{key:'excellent',icon:'🏔️',label:'回答優秀',points:2,xp:3,coins:2},{key:'complete',icon:'👍',label:'回答完整',points:1,xp:2,coins:1},{key:'correct',icon:'✅',label:'回答正確',points:1,xp:2,coins:1}];
+  function performanceRule(state,key){const item=PERFORMANCE.find(x=>x.key===key);if(!item)throw new Error('不支援的課堂表現');const word=item.label.slice(2),rules=Array.isArray(state&&state.rules)?state.rules:[];const found=rules.find(r=>r&&r.points>0&&(r.label===item.label||String(r.label||'').includes('回答'+word)));return found||{id:'perf_'+item.key,label:item.label,icon:item.icon,points:item.points,xp:item.xp,coins:item.coins,kind:'add',category:'class'};}
+  function performanceList(state){return PERFORMANCE.map(item=>{const rule=performanceRule(state,item.key);return {key:item.key,icon:item.icon,label:rule.label||item.label,points:rule.points};});}
   function reset(state){const draw=normalize(state.drawCenter);draw.round++;draw.drawnIds=[];draw.last=null;state.drawCenter=draw;return draw;}
-  const api={STYLES,DEFAULTS,normalize,settings,candidates,weightedPick,tasks,snapshot,run,reset,random};root.PetDrawEngine=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+  const api={STYLES,DEFAULTS,normalize,settings,candidates,weightedPick,tasks,snapshot,run,reset,random,PERFORMANCE,performanceRule,performanceList};root.PetDrawEngine=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

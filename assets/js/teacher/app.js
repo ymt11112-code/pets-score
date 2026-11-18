@@ -901,7 +901,7 @@
     if(timerModalHandle&&timerModalHandle.box.isConnected)return;
     let view=initialView==='exam'?'exam':'simple',exam=null;
     const body=el('div',{class:'stack'}),tabs=el('div',{class:'timer-mode-tabs'}),panel=el('div');body.append(tabs,panel);
-    function paint(){tabs.replaceChildren(...[['simple','一般計時'],['exam','📋 考試看板']].map(([id,label])=>el('button',{class:'btn'+(view===id?' btn--primary':' btn--ghost'),type:'button','data-timer-view':id,'aria-pressed':String(view===id),text:label,onclick:()=>{view=id;paint();}})));if(view==='exam'){if(!exam)exam=window.PetExamBoard.create({getAttendance:date=>{const state=S.get();return {students:state.students,absentIds:state.students.filter(st=>S.isAbsent(st.id,date)).map(st=>st.id),unconfirmed:date!==U.todayKey()&&!Object.prototype.hasOwnProperty.call(state.attendance||{},date)};}});panel.replaceChildren(exam.element);}else panel.replaceChildren(timerWidget());timerModalHandle.box.classList.toggle('exam-timer-modal',view==='exam');}
+    function paint(){tabs.replaceChildren(...[['simple','一般計時'],['exam','📋 考試看板']].map(([id,label])=>el('button',{class:'btn'+(view===id?' btn--primary':' btn--ghost'),type:'button','data-timer-view':id,'aria-pressed':String(view===id),text:label,onclick:()=>{view=id;paint();}})));if(view==='exam'){if(!exam)exam=window.PetExamBoard.create({onSubjectEnd:item=>window.PetTimerAlarm.ring({title:item.subject+' 時間到',message:'請停筆，檢查姓名與座號。'}),getAttendance:date=>{const state=S.get();return {students:state.students,absentIds:state.students.filter(st=>S.isAbsent(st.id,date)).map(st=>st.id),unconfirmed:date!==U.todayKey()&&!Object.prototype.hasOwnProperty.call(state.attendance||{},date)};}});panel.replaceChildren(exam.element);}else panel.replaceChildren(timerWidget());timerModalHandle.box.classList.toggle('exam-timer-modal',view==='exam');}
     timerModalHandle=U.modal({wide:fromRemote===true,onClose:()=>{exam?.destroy();timerModalHandle=null;},title:'課堂計時器',body});
     if(fromRemote===true)timerModalHandle.box.classList.add('remote-screen-timer');paint();
   }
@@ -1393,7 +1393,7 @@
     $$('.timer-stage__fill').forEach(node=>node.style.width=(t.mode==='up'?100:t.seconds/t.total*100)+'%');
     $$('[data-lesson-mode]').forEach(node=>node.value=t.mode);
     $$('.timer-stage').forEach(node=>node.classList.toggle('is-flash',t.done));
-    if(event==='finish'){U.toast('⏰ 時間到！');playAlarm();}
+    if(event==='finish'){U.toast('⏰ 時間到！');window.PetTimerAlarm.ring({title:'時間到！',message:'計時結束，請看老師指示。'});}
   });
 
   function drawSnapshot(){const state=S.get();return {className:state.classInfo.className,students:state.students,absentIds:state.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),draw:window.PetDrawEngine.normalize(state.drawCenter)};}
@@ -1406,6 +1406,9 @@
       draw:async request=>{let result;S.commit(s=>{result=E.run(s,s.students.filter(st=>S.isAbsent(st.id)).map(st=>st.id),request);});return result;},
       reset:async()=>{S.commit(s=>E.reset(s));return drawSnapshot();},
       avatar:id=>window.PetDrawAvatar(id,64),
+      info:id=>{const st=S.student(id);if(!st)return null;const level=M.levelFromXp(st.xp||0),pet=st.petId?M.petById(st.petId):null;return {level:level.level,inLevel:level.inLevel,need:level.need,percent:level.percent,xp:Math.floor(st.xp||0),petName:pet?pet.name:''};},
+      performance:()=>E.performanceList(S.get()),
+      perform:async(id,key)=>{if(S.isAbsent(id))throw new Error('這位學生今天不在出席名單');applyRule([id],E.performanceRule(S.get(),key));},
       select:async ids=>openFeedbackModal(ids),
       back:()=>go(window.PetPhoneRemote.isPhone()?'quick':'overview')
     });
@@ -1425,7 +1428,7 @@
         el('div',{class:'timer-stage__time',text:fmtTimer(t.seconds)}),
         el('div',{class:'timer-stage__bar'},[el('div',{class:'timer-stage__fill',style:{width:(t.mode==='up'?100:t.seconds/t.total*100)+'%'}})]),
         el('div',{class:'row',style:{gap:'10px',justifyContent:'center'}},[
-          el('button',{class:'btn btn--primary',text:'▶ 開始',onclick:()=>lessonClock.start()}),
+          el('button',{class:'btn btn--primary',text:'▶ 開始',onclick:()=>{window.PetTimerAlarm.unlock();lessonClock.start();}}),
           el('button',{class:'btn btn--ghost',text:'⏸ 暫停',onclick:()=>lessonClock.pause()}),
           el('button',{class:'btn btn--ghost',text:'↻ 重設',onclick:()=>lessonClock.reset()})
         ])
@@ -1434,7 +1437,8 @@
         el('select',{class:'input','aria-label':'課堂計時方式','data-lesson-mode':'',onchange:e=>lessonClock.configure({mode:e.target.value,seconds:lessonClock.get().total})},[['down','倒數計時'],['up','從0秒正向計時']].map(([value,text])=>el('option',{value,text,selected:t.mode===value?'selected':null})))
       ]),
       el('div',{class:'row',style:{gap:'8px'}},[seconds,el('span',{text:'秒'}),el('button',{class:'btn btn--ghost',text:'設定',onclick:()=>lessonClock.configure({mode:lessonClock.get().mode,seconds:seconds.value})})]),
-      el('div',{class:'timer-presets'},[15,30,60,120,180,300].map(sec=>el('button',{class:'btn btn--ghost btn--sm',text:sec+' 秒',onclick:()=>lessonClock.configure({mode:'down',seconds:sec})})))
+      el('div',{class:'timer-presets'},[15,30,60,120,180,300].map(sec=>el('button',{class:'btn btn--ghost btn--sm',text:sec+' 秒',onclick:()=>lessonClock.configure({mode:'down',seconds:sec})}))),
+      window.PetTimerAlarm.panel()
     ]);
   }
 

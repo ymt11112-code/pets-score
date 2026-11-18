@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('desktopWidget', {
   configureDraw: patch=>ipcRenderer.invoke('configure-draw',patch),
   runDraw: request=>ipcRenderer.invoke('run-draw',request),
   resetDraw: ()=>ipcRenderer.invoke('reset-draw'),
+  awardDrawPerformance: (id,key)=>ipcRenderer.invoke('award-draw-performance',id,key),
   selectDrawnStudents: ids=>ipcRenderer.invoke('select-drawn-students',ids),
   selectDrawnStudent: (id) => ipcRenderer.invoke('select-drawn-student', id),
   toolTimerFinished: () => ipcRenderer.invoke('tool-timer-finished'),
