@@ -465,11 +465,15 @@
     const pts = el('input', { class: 'input', type: 'number', value: e.points });
     const xp = el('input', { class: 'input', type: 'number', value: e.xp || 0 });
     const coins = el('input', { class: 'input', type: 'number', value: e.coins || 0 });
+    const subjectOptions = S.subjects();
+    if (e.subject && subjectOptions.indexOf(e.subject) < 0) subjectOptions.push(e.subject);
+    const subjectSel = el('select', { class: 'select', 'data-entry-subject': '' }, [el('option', { value: '', text: '未指定', selected: !e.subject ? 'selected' : null })].concat(subjectOptions.map((n) => el('option', { value: n, text: n, selected: n === e.subject ? 'selected' : null }))));
     U.modal({
       title: '編輯紀錄',
       body: el('div', { class: 'stack' }, [
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '加分學生（點選學生，綠色表示有加分；橘色虛線表示今天請假）' }), pickTools, pickGrid]),
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '事由' }), label]),
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '科目' }), subjectSel]),
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '備註' }), note]),
         el('div', { class: 'row', style: { gap: '10px' } }, [
           el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: '課堂點數' }), pts]),
@@ -489,7 +493,7 @@
             const changed = picked.size !== originalIds.length || originalIds.some((id) => !picked.has(id));
             try {
               S.editEntry(e.id, {
-                label: nm, note: note.value.trim(),
+                label: nm, note: note.value.trim(), subject: subjectSel.value,
                 points: Number(pts.value) || 0, xp: Number(xp.value) || 0, coins: Number(coins.value) || 0,
                 studentIds: changed ? roster.filter((st) => picked.has(st.id)).map((st) => st.id) : undefined,
               });
@@ -1443,6 +1447,7 @@
       info:id=>{const st=S.student(id);if(!st)return null;const level=M.levelFromXp(st.xp||0),pet=st.petId?M.petById(st.petId):null;return {level:level.level,inLevel:level.inLevel,need:level.need,percent:level.percent,xp:Math.floor(st.xp||0),petName:pet?pet.name:''};},
       performance:()=>E.performanceList(S.get()),
       perform:async(id,key)=>{if(S.isAbsent(id))throw new Error('這位學生今天不在出席名單');applyRule([id],E.performanceRule(S.get(),key));},
+      unperform:async(id,key)=>{const entry=E.findPerformanceEntry(S.get(),id,key);if(!entry)return false;S.undoEntry(entry.id);return true;},
       select:async ids=>openFeedbackModal(ids),
       back:()=>go(window.PetPhoneRemote.isPhone()?'quick':'overview')
     });
@@ -2775,7 +2780,7 @@
 
   /* ================= 點數紀錄 ================= */
   let ledgerTab = 'points';
-  let ledgerFilter = { studentId: '', ruleId: '', range: 'week', showUndone: true, customFrom: '', customTo: '' };
+  let ledgerFilter = { studentId: '', ruleId: '', subject: '', range: 'week', showUndone: true, customFrom: '', customTo: '' };
   let attendanceMode = 'week';
   let attendanceAnchor = Date.now();
 
@@ -2814,9 +2819,10 @@
       pageHead('點數紀錄', '每一筆加扣點都留下紀錄，可依時段查詢；也能查詢每日出席狀況。'),
       el('div', { class: 'seg-toggle', style: { marginBottom: '16px' } }, [
         el('button', { class: 'seg-toggle__btn' + (ledgerTab === 'points' ? ' is-active' : ''), text: '⏱️ 點數紀錄', onclick: () => { ledgerTab = 'points'; render(); } }),
+        el('button', { class: 'seg-toggle__btn' + (ledgerTab === 'subjects' ? ' is-active' : ''), 'data-ledger-tab': 'subjects', text: '📚 科目統計', onclick: () => { ledgerTab = 'subjects'; render(); } }),
         el('button', { class: 'seg-toggle__btn' + (ledgerTab === 'attendance' ? ' is-active' : ''), text: '📋 出席記錄', onclick: () => { ledgerTab = 'attendance'; render(); } }),
       ]),
-      ledgerTab === 'points' ? pageLedgerPoints() : pageLedgerAttendance(),
+      ledgerTab === 'points' ? pageLedgerPoints() : ledgerTab === 'subjects' ? pageLedgerSubjects() : pageLedgerAttendance(),
     ]);
   }
 
@@ -2828,6 +2834,7 @@
       .filter((e) => e.ts >= from && e.ts < to)
       .filter((e) => !ledgerFilter.studentId || e.studentIds.indexOf(ledgerFilter.studentId) >= 0)
       .filter((e) => !ledgerFilter.ruleId || e.ruleId === ledgerFilter.ruleId)
+      .filter((e) => !ledgerFilter.subject || (ledgerFilter.subject === '__none' ? !e.subject : e.subject === ledgerFilter.subject))
       .filter((e) => ledgerFilter.showUndone || !e.undone);
 
     const sel = (val, opts, onchange, style) =>
@@ -2853,6 +2860,7 @@
           (e) => { ledgerFilter.studentId = e.target.value; render(); }),
         sel(ledgerFilter.ruleId, [{ v: '', t: '全部規則' }].concat(s.rules.map((r) => ({ v: r.id, t: r.label }))),
           (e) => { ledgerFilter.ruleId = e.target.value; render(); }),
+        sel(ledgerFilter.subject, subjectFilterOptions(), (e) => { ledgerFilter.subject = e.target.value; render(); }),
         el('label', { class: 'row', style: { gap: '6px', cursor: 'pointer' } }, [
           el('input', { class: 'checkbox', type: 'checkbox', checked: ledgerFilter.showUndone ? 'checked' : null,
             onchange: (e) => { ledgerFilter.showUndone = e.target.checked; render(); } }),
@@ -2863,7 +2871,7 @@
       el('div', { class: 'tbl-wrap' }, [
         el('table', { class: 'tbl' }, [
           el('thead', {}, [el('tr', {}, [
-            el('th', { text: '時間' }), el('th', { text: '學生' }), el('th', { text: '事由' }),
+            el('th', { text: '時間' }), el('th', { text: '學生' }), el('th', { text: '事由' }), el('th', { class: 'col-hide-sm', text: '科目' }),
             el('th', { class: 'col-hide-sm', text: '點數' }), el('th', { class: 'col-hide-sm', text: 'XP／金幣' }),
             el('th', { class: 'col-hide-sm', text: '操作者' }), el('th', { text: '' }),
           ])]),
@@ -2877,6 +2885,7 @@
                 e.note ? el('div', { class: 'cell-student__meta', text: e.note }) : null,
                 e.editedAt ? el('div', { class: 'cell-student__meta', text: '✏️ 已編輯' }) : null,
               ]),
+              el('td', { class: 'col-hide-sm' }, [e.subject ? el('span', { class: 'pill', text: e.subject }) : el('span', { class: 'muted', text: '—' })]),
               el('td', { class: 'col-hide-sm' }, [el('b', { style: { color: e.points < 0 ? 'var(--red)' : 'var(--green)' }, text: (e.points > 0 ? '+' : '') + e.points })]),
               el('td', { class: 'col-hide-sm muted', text: (e.xp ? '+' + e.xp + ' XP' : '—') + ' / ' + (e.coins ? (e.coins > 0 ? '+' : '') + e.coins : '—') }),
               el('td', { class: 'col-hide-sm muted', text: e.by || '—' }),
@@ -2887,9 +2896,93 @@
                     el('button', { class: 'btn btn--danger btn--sm', text: '撤銷', onclick: () => undo(e) }),
                   ])]),
             ]);
-          }) : [el('tr', {}, [el('td', { colspan: '7' }, [el('div', { class: 'empty', text: '這個範圍內沒有紀錄' })])])]),
+          }) : [el('tr', {}, [el('td', { colspan: '8' }, [el('div', { class: 'empty', text: '這個範圍內沒有紀錄' })])])]),
         ]),
       ]),
+    ]);
+  }
+
+  function subjectFilterOptions() {
+    const list = S.subjects();
+    S.get().ledger.forEach((e) => { if (e.subject && list.indexOf(e.subject) < 0) list.push(e.subject); });
+    return [{ v: '', t: '全部科目' }].concat(list.map((n) => ({ v: n, t: n })), [{ v: '__none', t: '未指定科目' }]);
+  }
+
+  /* 科目統計：全班每位學生在各科的課堂表現（點數合計與加分次數）。
+     「依時間範圍」從點數紀錄算（最多保留最近 2000 筆）；「學期累計」用另外累加的總表，不受 2000 筆限制。 */
+  let subjectStatsMode = 'range';
+  function pageLedgerSubjects() {
+    const s = S.get();
+    const students = s.students.slice().sort((a, b) => (a.no || 0) - (b.no || 0));
+    const term = subjectStatsMode === 'term';
+    const { from, to } = ledgerRange(ledgerFilter);
+    const data = {};
+    if (term) {
+      const t = S.subjectTotals();
+      Object.keys(t).forEach((id) => { data[id] = {}; Object.keys(t[id]).forEach((k) => { data[id][k] = t[id][k].slice(); }); });
+    } else {
+      s.ledger.forEach((e) => {
+        if (e.undone || e.ts < from || e.ts >= to || e.ruleId === 'redeem' || String(e.ruleId || '').indexOf('dailyTask:') === 0 || !e.points) return;
+        const subj = e.subject || '';
+        (e.studentIds || []).forEach((id) => { const row = (data[id] = data[id] || {}); const c = (row[subj] = row[subj] || [0, 0]); c[0] += e.points; if (e.points > 0) c[1] += 1; });
+      });
+    }
+    const used = new Set();
+    students.forEach((st) => Object.keys(data[st.id] || {}).forEach((k) => used.add(k)));
+    const known = S.subjects();
+    const cols = known.filter((n) => used.has(n)).concat(Array.from(used).filter((k) => k && known.indexOf(k) < 0));
+    if (used.has('')) cols.push('');
+    const colName = (k) => k || '未指定';
+    const sums = { all: [0, 0] };
+    cols.forEach((k) => { sums[k] = [0, 0]; });
+    const rows = students.map((st) => {
+      const row = data[st.id] || {};
+      let tp = 0, tn = 0;
+      const cells = cols.map((k) => {
+        const c = row[k];
+        if (!c || (!c[0] && !c[1])) return el('td', { style: { textAlign: 'center' } }, [el('span', { class: 'muted', text: '—' })]);
+        tp += c[0]; tn += c[1]; sums[k][0] += c[0]; sums[k][1] += c[1];
+        return el('td', { style: { textAlign: 'center' } }, [el('b', { style: { color: c[0] < 0 ? 'var(--red)' : '' }, text: String(c[0]) }), el('small', { text: c[1] + ' 次' })]);
+      });
+      sums.all[0] += tp; sums.all[1] += tn;
+      return { st, tp, tn, tr: el('tr', {}, [el('td', { class: 'nowrap', text: U.pad2(st.no) + ' ' + st.name })].concat(cells, [el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(tp) }), el('small', { text: tn + ' 次' })])])) };
+    });
+    function exportSubjects() {
+      const head = ['座號', '姓名'].concat(cols.reduce((a, k) => a.concat([colName(k) + '點數', colName(k) + '次數']), []), ['合計點數', '合計加分次數']);
+      const lines = [head].concat(students.map((st) => {
+        const row = data[st.id] || {};
+        let tp = 0, tn = 0;
+        const cells = cols.reduce((a, k) => { const c = row[k] || [0, 0]; tp += c[0]; tn += c[1]; return a.concat([c[0], c[1]]); }, []);
+        return [st.no, st.name].concat(cells, [tp, tn]);
+      })).map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(','));
+      const url = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+      const a = el('a', { href: url, download: '各科表現_' + (term ? '學期累計' : ledgerFilter.range) + '_' + U.todayKey() + '.csv' });
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      U.toast('已匯出 CSV');
+    }
+    const sel = (val, opts, onchange, style) => el('select', { class: 'select', style: style || { maxWidth: '170px' }, onchange }, opts.map((o) => el('option', { value: o.v, text: o.t, selected: o.v === val ? 'selected' : null })));
+    return card('科目統計', '全班每位學生在各科的課堂表現：格子上方是點數合計，下方是加分次數。切換上課科目請用上方「📚 科目」選單。', [
+      el('div', { class: 'tbl-toolbar' }, [
+        el('div', { class: 'seg-toggle' }, [
+          el('button', { class: 'seg-toggle__btn' + (!term ? ' is-active' : ''), 'data-subject-mode': 'range', text: '依時間範圍', onclick: () => { subjectStatsMode = 'range'; render(); } }),
+          el('button', { class: 'seg-toggle__btn' + (term ? ' is-active' : ''), 'data-subject-mode': 'term', text: '學期累計', onclick: () => { subjectStatsMode = 'term'; render(); } }),
+        ]),
+        term ? null : sel(ledgerFilter.range, RANGE_OPTIONS, (e) => { ledgerFilter.range = e.target.value; render(); }, { maxWidth: '130px' }),
+        !term && ledgerFilter.range === 'custom'
+          ? el('div', { class: 'row', style: { gap: '6px' } }, [
+              el('input', { class: 'input', type: 'date', style: { padding: '9px 10px', maxWidth: '150px' }, value: ledgerFilter.customFrom, onchange: (e) => { ledgerFilter.customFrom = e.target.value; render(); } }),
+              el('span', { class: 'muted', text: '～' }),
+              el('input', { class: 'input', type: 'date', style: { padding: '9px 10px', maxWidth: '150px' }, value: ledgerFilter.customTo, onchange: (e) => { ledgerFilter.customTo = e.target.value; render(); } }),
+            ])
+          : null,
+        el('button', { class: 'btn btn--ghost btn--sm', style: { marginLeft: 'auto' }, 'data-subject-export': '', text: '⬇ 匯出 CSV', onclick: exportSubjects }),
+      ]),
+      el('p', { class: 'card__sub', text: term ? '學期累計：從啟用科目功能後開始累加，撤銷與編輯會一併回沖，不受點數紀錄 2000 筆上限影響。啟用前的舊紀錄沒有科目，不會列入。' : '依時間範圍：由點數紀錄計算（只保留最近 2000 筆）；沒選科目時的紀錄歸在「未指定」。' }),
+      cols.length ? el('div', { class: 'tbl-wrap subject-stats' }, [el('table', { class: 'tbl', 'data-subject-table': '' }, [
+        el('thead', {}, [el('tr', {}, [el('th', { text: '學生' })].concat(cols.map((k) => el('th', { style: { textAlign: 'center' }, text: colName(k) })), [el('th', { style: { textAlign: 'center' }, text: '合計' })]))]),
+        el('tbody', {}, rows.map((r) => r.tr).concat([el('tr', { class: 'is-total' }, [el('td', { text: '全班合計' })].concat(cols.map((k) => el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(sums[k][0]) }), el('small', { text: sums[k][1] + ' 次' })])), [el('td', { style: { textAlign: 'center' } }, [el('b', { text: String(sums.all[0]) }), el('small', { text: sums.all[1] + ' 次' })])]))])),
+      ])]) : el('div', { class: 'empty', style: { padding: '18px' }, text: term ? '還沒有累計資料。先在上方選好「📚 科目」，之後的加扣分就會記錄在該科。' : '這個範圍內沒有課堂加扣分紀錄。' }),
     ]);
   }
 
@@ -3031,10 +3124,10 @@
   }
 
   function exportCsv(rows) {
-    const head = ['時間', '學生', '事由', '點數', 'XP', '金幣', '操作者', '備註', '狀態'];
+    const head = ['時間', '學生', '事由', '科目', '點數', 'XP', '金幣', '操作者', '備註', '狀態'];
     const lines = [head.join(',')].concat(rows.map((e) => {
       const names = e.studentIds.map((id) => (S.student(id) || {}).name).filter(Boolean).join('、');
-      return [U.fmtDateTime(e.ts), names, e.label, e.points, e.xp || 0, e.coins || 0, e.by || '', e.note || '', e.undone ? '已撤銷' : '有效']
+      return [U.fmtDateTime(e.ts), names, e.label, e.subject || '', e.points, e.xp || 0, e.coins || 0, e.by || '', e.note || '', e.undone ? '已撤銷' : '有效']
         .map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',');
     }));
     const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -4209,7 +4302,46 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  /* 目前上課科目：上方一鍵切換；之後每筆加扣分都會記下科目，期末可在「點數紀錄 → 科目統計」調出各科表現。 */
+  function renderSubjectPicker() {
+    const host = $('#subjectPick');
+    if (!host) return;
+    const cur = (S.get().settings || {}).currentSubject || '';
+    const list = S.subjects();
+    if (cur && list.indexOf(cur) < 0) list.push(cur);
+    const sel = el('select', {
+      class: 'select subject-select', 'aria-label': '目前上課科目', title: '目前上課科目：之後的加扣分會記在這一科', 'data-current-subject': '',
+      onchange: (e) => { S.setCurrentSubject(e.target.value); U.toast(e.target.value ? '目前科目：' + e.target.value : '已取消指定科目'); },
+    }, [el('option', { value: '', text: '📚 科目：未指定', selected: cur === '' ? 'selected' : null })].concat(list.map((n) => el('option', { value: n, text: '📚 ' + n, selected: n === cur ? 'selected' : null }))));
+    host.replaceChildren(sel, el('button', { type: 'button', class: 'btn btn--ghost', title: '管理科目', 'aria-label': '管理科目', text: '⚙', onclick: openSubjectManager }));
+  }
+
+  function openSubjectManager() {
+    let list = S.subjects();
+    const chips = el('div', { class: 'row', style: { flexWrap: 'wrap', gap: '8px' } });
+    const input = el('input', { class: 'input', placeholder: '新增科目，例如：閩南語', maxlength: '10', 'data-subject-input': '' });
+    function paint() {
+      chips.replaceChildren(...list.map((n, i) => el('span', { class: 'pill', style: { gap: '6px', display: 'inline-flex', alignItems: 'center' } }, [
+        n, el('button', { type: 'button', class: 'btn btn--ghost btn--sm', style: { padding: '0 8px', minHeight: '24px' }, 'aria-label': '刪除' + n, text: '×', onclick: () => { list.splice(i, 1); paint(); } }),
+      ])));
+      if (!list.length) chips.append(el('span', { class: 'muted', text: '還沒有科目，請在下方新增。' }));
+    }
+    function add() { const v = input.value.trim(); if (!v) return; if (list.indexOf(v) < 0) list.push(v); input.value = ''; paint(); input.focus(); }
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+    paint();
+    U.modal({
+      title: '📚 管理科目',
+      body: el('div', { class: 'stack' }, [
+        el('p', { class: 'card__sub', text: '上方「科目」選單會用這份清單。刪除科目不會改到舊紀錄，舊紀錄仍保留當時記下的科目名稱。' }),
+        chips,
+        el('div', { class: 'row', style: { gap: '8px' } }, [input, el('button', { type: 'button', class: 'btn btn--ghost', text: '新增', onclick: add }), el('button', { type: 'button', class: 'btn btn--ghost', text: '還原預設', onclick: () => { list = M.DEFAULT_SUBJECTS.slice(); paint(); } })]),
+      ]),
+      actions: [{ label: '取消' }, { label: '儲存', kind: 'primary', onClick: () => { S.saveSubjects(list); U.toast('已更新科目清單'); } }],
+    });
+  }
+
   function renderTopbar() {
+    renderSubjectPicker();
     const ci = S.get().classInfo;
     $('#teacherName').textContent = ci.teacher || '老師';
     $('#teacherAvatar').textContent = (ci.teacher || '師').slice(0, 1);

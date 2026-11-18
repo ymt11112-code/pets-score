@@ -276,6 +276,9 @@
   ];
 
   /* 預設兌換商店 */
+  /* 課堂表現的科目：老師在上方選目前上哪一科，之後每筆加扣分都會記下科目，方便期末統計各科表現。 */
+  const DEFAULT_SUBJECTS = ['國語', '數學', '社會', '自然', '英語', '音樂', '體育', '綜合'];
+
   const DEFAULT_SHOP = [
     { id: 'sh_seat',   name: '座位選擇券',   icon: '🪑', cost: 60,  stock: 5,  desc: '下週可以自己挑一次座位' },
     { id: 'sh_music',  name: '點歌一首',     icon: '🎵', cost: 40,  stock: 10, desc: '午休時間播放你選的歌' },
@@ -814,7 +817,7 @@
     return x&&y ? x.localeCompare(y,'en',{numeric:true,sensitivity:'base'}) : x?-1:y?1:0;
   }
   global.PetModel = { ruleFields, compareRuleCodes,
-    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, SHOP_PACKS, taskRewardParts, taskRewardText, GROUP_PRESET,
+    PETS, STAGES, COSMETICS, FOODS, DEFAULT_BADGES, BADGE_STAT_DEFS, DEFAULT_RULES, DEFAULT_RULE_CATEGORIES, DEFAULT_CHEST_PRIZES, DEFAULT_SHOP, DEFAULT_SUBJECTS, SHOP_PACKS, taskRewardParts, taskRewardText, GROUP_PRESET,
     DEFAULT_TOOLBAR, TOOLBAR_TOOLS, DEFAULT_PET_STAGES, DEFAULT_PET_STAGES_BY_RARITY, DEFAULT_PET_PATHS, DEFAULT_PET_PATH_NAMES, PATH_BRANCH_STAGE_INDEX,
     DEFAULT_PET_PATH_COUNT_BY_RARITY,
     stageLevelsForRarity, stageLevelsForPet, pathCountForRarity, allowedPathsForPet,

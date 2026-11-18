@@ -57,6 +57,8 @@
   const PERFORMANCE=[{key:'excellent',icon:'🏔️',label:'回答優秀',points:2,xp:3,coins:2},{key:'complete',icon:'👍',label:'回答完整',points:1,xp:2,coins:1},{key:'correct',icon:'✅',label:'回答正確',points:1,xp:2,coins:1}];
   function performanceRule(state,key){const item=PERFORMANCE.find(x=>x.key===key);if(!item)throw new Error('不支援的課堂表現');const word=item.label.slice(2),rules=Array.isArray(state&&state.rules)?state.rules:[];const found=rules.find(r=>r&&r.points>0&&(r.label===item.label||String(r.label||'').includes('回答'+word)));return found||{id:'perf_'+item.key,label:item.label,icon:item.icon,points:item.points,xp:item.xp,coins:item.coins,kind:'add',category:'class'};}
   function performanceList(state){return PERFORMANCE.map(item=>{const rule=performanceRule(state,item.key);return {key:item.key,icon:rule.icon||item.icon,label:rule.label||item.label,points:rule.points};});}
+  /* 取消加分用：找出最近一筆「只對這位學生、用這條規則」且還沒撤銷的紀錄。 */
+  function findPerformanceEntry(state,studentId,key){const rule=performanceRule(state,key),ledger=Array.isArray(state&&state.ledger)?state.ledger:[];return ledger.find(e=>e&&!e.undone&&e.ruleId===rule.id&&Array.isArray(e.studentIds)&&e.studentIds.length===1&&e.studentIds[0]===studentId)||null;}
   function reset(state){const draw=normalize(state.drawCenter);draw.round++;draw.drawnIds=[];draw.last=null;state.drawCenter=draw;return draw;}
-  const api={STYLES,DEFAULTS,normalize,settings,candidates,weightedPick,tasks,snapshot,run,reset,random,PERFORMANCE,performanceRule,performanceList};root.PetDrawEngine=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+  const api={STYLES,DEFAULTS,normalize,settings,candidates,weightedPick,tasks,snapshot,run,reset,random,PERFORMANCE,performanceRule,performanceList,findPerformanceEntry};root.PetDrawEngine=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -228,14 +228,42 @@
     ])));
   }
 
+  /* 人數多的紀錄不逐一列名字，簡略成「事由 共 N 人」（滑鼠停著可看完整名單）；3 人以內才列姓名。 */
+  function ledgerWho(l, nameOf) {
+    const ids = l.studentIds || [];
+    const tag = l.subject ? '［' + l.subject + '］' : '';
+    if (ids.length > 3) return tag + (l.label || '加點') + ' 共 ' + ids.length + ' 人';
+    return tag + ids.map(nameOf).join('、') + ' ' + (l.label || '');
+  }
+  /* 金額欄：有點數顯示點數；只有 XP／金幣的紀錄（例如今日任務）改顯示 XP 或金幣，不再是「+0」。 */
+  function ledgerAmount(l) {
+    const sign = (n) => (n > 0 ? '+' : '') + n;
+    if (l.points) return { text: sign(l.points), minus: l.points < 0 };
+    if (l.xp) return { text: sign(l.xp) + ' XP', minus: l.xp < 0 };
+    if (l.coins) return { text: '🪙' + sign(l.coins), minus: l.coins < 0 };
+    return { text: '+0', minus: false };
+  }
+
+  /* 目前上課科目：之後每筆加扣分都會記下科目（網頁與小工具共用同一個設定）。 */
+  function subjectRow(s) {
+    const cur = (s.settings && s.settings.currentSubject) || '';
+    const list = S.subjects();
+    if (cur && list.indexOf(cur) < 0) list.push(cur);
+    return el('label', { class: 'dw-subject' }, [
+      el('span', { text: '📚 目前科目' }),
+      el('select', { class: 'input dw-subject__select', 'aria-label': '目前上課科目', onchange: (e) => S.setCurrentSubject(e.target.value) },
+        [el('option', { value: '', text: '未指定', selected: cur === '' ? 'selected' : null })].concat(list.map((n) => el('option', { value: n, text: n, selected: n === cur ? 'selected' : null })))),
+    ]);
+  }
+
   function ledgerPanel(s) {
     if (!ledgerOpen) return null;
     const rows = (s.ledger || []).slice(0, 50);
     const nameOf = (id) => { const st = s.students.find((x) => x.id === id); return st ? st.name : '？'; };
     const body = rows.length
       ? rows.map((l) => el('div', { class: 'dw-ledger__row' + (l.undone ? ' is-undone' : '') }, [
-          el('span', { class: 'dw-ledger__row-who', text: (l.studentIds || []).map(nameOf).join('、') + ' ' + (l.label || '') }),
-          el('span', { class: 'dw-ledger__row-pts' + ((l.points || 0) < 0 ? ' is-minus' : ''), text: (l.points >= 0 ? '+' : '') + (l.points || 0) }),
+          el('span', { class: 'dw-ledger__row-who', title: (l.studentIds || []).map(nameOf).join('、'), text: ledgerWho(l, nameOf) }),
+          el('span', { class: 'dw-ledger__row-pts' + (ledgerAmount(l).minus ? ' is-minus' : ''), text: ledgerAmount(l).text }),
         ]))
       : [el('div', { class: 'dw-ledger__empty', text: '還沒有紀錄' })];
     return el('div', { class: 'dw-ledger' }, [el('div', { class: 'dw-ledger__body' }, body)]);
@@ -275,6 +303,7 @@
     const nodes = [
       el('div', { class: 'dw-syncline' }, [syncDot(), el('span', { class: 'dw-syncline__msg', text: S.getSync().message || '' })]),
       classroomToolButtons(),
+      subjectRow(s),
       bar,
       widthControls(),
       ruleKindTabs(s),
@@ -369,6 +398,10 @@
         const rule = window.PetDrawEngine.performanceRule(S.get(), key);
         suppressNextDiff = true;
         try { S.award([id], rule, '', S.get().classInfo.teacher); } finally { suppressNextDiff = false; }
+      } else if(request.type==='draw-unperform') {
+        const { id, key } = request.payload;
+        const entry = window.PetDrawEngine.findPerformanceEntry(S.get(), id, key);
+        if (entry) { suppressNextDiff = true; try { S.undoEntry(entry.id); } finally { suppressNextDiff = false; } }
       } else if(request.type==='draw-reset') {
         S.commit(s=>window.PetDrawEngine.reset(s));
       } else if (request.type === 'task-students') {

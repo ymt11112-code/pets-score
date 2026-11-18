@@ -72,6 +72,7 @@
       avatar:id=>{const st=state.students.find(st=>st.id===id);const template=document.createElement('template');template.innerHTML=st?.avatarHtml||'<span>🐾</span>';return template.content.firstElementChild;},
       info:id=>state.students.find(st=>st.id===id)?.petInfo||null,
       performance:()=>state.performance||[],
+      unperform:async(id,key)=>{state=await bridge.undoDrawPerformance(id,key);drawController.update(drawSnapshot());return true;},
       perform:async(id,key)=>{state=await bridge.awardDrawPerformance(id,key);drawController.update(drawSnapshot());const item=(state.performance||[]).find(x=>x.key===key),student=state.students.find(st=>st.id===id);U.toast((student?student.name:'學生')+' '+(item?item.label+' +'+item.points+' 點':'已加分'));}
     });else drawController.update(drawSnapshot());
     return drawController.element;

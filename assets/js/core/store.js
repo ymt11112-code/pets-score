@@ -899,6 +899,34 @@
   }
 
   /* 回傳因為這次加點而升級的學生清單 */
+  /* 目前上的科目（設定裡的 currentSubject；沒選就是空字串）。 */
+  function currentSubjectOf(s) { return ((s && s.settings && s.settings.currentSubject) || '').toString(); }
+  function subjects() {
+    const list = state.settings && Array.isArray(state.settings.subjects) && state.settings.subjects.length ? state.settings.subjects : M.DEFAULT_SUBJECTS;
+    return list.slice();
+  }
+  /* 各科累計（學期總表）：每筆課堂加扣分依「學生 × 科目」累加 [點數合計, 加分次數]，撤銷／編輯時會一起回沖。
+     點數紀錄最多只保留最近 2000 筆，期末要看整學期的各科表現就用這份累計，不會因為舊紀錄被截掉而少算。
+     只計算有記下科目欄位的新紀錄；兌換與今日任務不算課堂表現。 */
+  function tallyEntry(s, rec, sign) {
+    if (!rec || typeof rec.subject !== 'string' || rec.ruleId === 'redeem' || String(rec.ruleId || '').indexOf('dailyTask:') === 0) return;
+    const pts = Number(rec.points) || 0;
+    if (!pts) return;
+    s.subjectTotals = s.subjectTotals || {};
+    (rec.studentIds || []).forEach((id) => {
+      const row = (s.subjectTotals[id] = s.subjectTotals[id] || {});
+      const cell = (row[rec.subject] = row[rec.subject] || [0, 0]);
+      cell[0] += sign * pts;
+      if (pts > 0) cell[1] += sign;
+    });
+  }
+  function subjectTotals() { return (state && state.subjectTotals) || {}; }
+  function setCurrentSubject(name) { commit((s) => { s.settings = s.settings || {}; s.settings.currentSubject = String(name || ''); }); }
+  function saveSubjects(list) {
+    const clean = Array.from(new Set((list || []).map((x) => String(x || '').trim()).filter(Boolean))).slice(0, 30);
+    commit((s) => { s.settings = s.settings || {}; s.settings.subjects = clean; if (s.settings.currentSubject && clean.indexOf(s.settings.currentSubject) < 0) s.settings.currentSubject = ''; });
+  }
+
   function award(studentIds, ruleObj, note, by) {
     const ids = Array.isArray(studentIds) ? studentIds.slice() : [studentIds];
     const ts = Date.now();
@@ -940,9 +968,11 @@
         coins: ruleObj.coins || 0,
         note: note || '',
         by: by || s.classInfo.teacher,
+        subject: ruleObj.subject !== undefined ? String(ruleObj.subject || '') : currentSubjectOf(s),
         undone: false,
       });
       if (s.ledger.length > 2000) s.ledger.length = 2000;
+      tallyEntry(s, s.ledger[0], 1);
     });
     return levelUps;
   }
@@ -987,10 +1017,11 @@
         id: U.uid('lg'), ts, studentIds: activeIds,
         ruleId: 'classScore', label: o.label || '全班加分',
         points: delta.points, xp: delta.xp, coins: delta.coins,
-        note: o.note || '', by: o.by || s.classInfo.teacher, undone: false,
+        note: o.note || '', by: o.by || s.classInfo.teacher, undone: false, subject: currentSubjectOf(s),
         classPoints,
       });
       if (s.ledger.length > 2000) s.ledger.length = 2000;
+      tallyEntry(s, s.ledger[0], 1);
     });
     return levelUps;
   }
@@ -1002,6 +1033,7 @@
       if (!e || e.undone) return;
       e.undone = true;
       e.undoneAt = Date.now();
+      tallyEntry(s, e, -1);
       e.studentIds.forEach((id) => {
         const st = s.students.find((x) => x.id === id);
         if (!st) return;
@@ -1030,6 +1062,7 @@
     commit((s) => {
       const e = s.ledger.find((x) => x.id === entryId);
       if (!e || e.undone) return;
+      const tallyBefore = typeof e.subject === 'string' ? { ruleId: e.ruleId, subject: e.subject, points: e.points || 0, studentIds: e.studentIds.slice() } : null;
       const p = patch || {};
       const oldPoints = e.points || 0;
       const newPoints = p.points != null ? Number(p.points) || 0 : oldPoints;
@@ -1111,6 +1144,8 @@
       e.xp = newXp;
       e.coins = newCoins;
       e.studentIds = newIds;
+      if (p.subject !== undefined) e.subject = String(p.subject || '');
+      if (tallyBefore) { tallyEntry(s, tallyBefore, -1); tallyEntry(s, e, 1); }
       e.editedAt = Date.now();
     });
   }
@@ -1727,7 +1762,7 @@
       t.done = ids.length;
     });
     if (toReward.length) {
-      award(toReward, { id: 'dailyTask:' + taskId, label: '今日任務：' + taskTitle, points: taskPoints, xp: taskXp, coins: taskCoins }, '', state.classInfo.teacher);
+      award(toReward, { id: 'dailyTask:' + taskId, label: '今日任務：' + taskTitle, points: taskPoints, xp: taskXp, coins: taskCoins, subject: '' }, '', state.classInfo.teacher);
       /* XP 已經直接發到學生帳上了（不是待領取的獎勵），這則訊息純粹是通知，不帶 reward，
          不然學生還要跑去訊息中心「領取」一次，會跟已經到帳的 XP 搞混、重複的感覺。 */
       sendMessage(toReward, '完成了今日任務！', '「' + taskTitle + '」完成了，獲得 ' + M.taskRewardText({ points: taskPoints, xp: taskXp, coins: taskCoins }) + '！', taskIcon);
@@ -1738,7 +1773,7 @@
     init, subscribe, commit, get, getConfig, saveConfig, getSync,
     student, group, rule, activeLedger, todayPoints, yesterdayPoints, weeklyGain, groupPoints, weekStartTs,
     groupChestInfo, openGroupChest, drawGroupChestLottery,
-    award, awardClass, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
+    subjects, subjectTotals, setCurrentSubject, saveSubjects, award, awardClass, undoEntry, editEntry, feedPet, unlockCosmetic, equipCosmetic, choosePet, choosePetPath, choosePetPathFor, giftPetPath, renamePetPath, redeem,
     avatarDisplayLevel, setAvatarStage, setAvatarStageFor,
     canCollectPets, adoptPet, drawPetGacha, drawFirstPet, firstDrawPool, switchMainPet, setDisplayPet, petPathClaimedCount, petInstances,
     sendMessage, studentMessages, unreadMessageCount, markMessagesRead, claimMessageReward,
