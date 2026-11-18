@@ -642,3 +642,27 @@
 .dc-order-list.is-narrow .dc-order-info { display:none; }
 .dc-order-list.is-narrow .dc-perform { gap:2px; }
 .draw-center .dc-order-list.is-narrow .dc-perform-btn { width:clamp(22px,1.9em,28px); height:clamp(22px,1.9em,28px); font-size:.85em; }
+
+/* 單人抽籤樣式（轉盤／拉霸／扭蛋）：不分左右畫面，抽中後直接顯示中籤同學。 */
+.draw-center .dc-workspace.is-solo { grid-template-columns:minmax(0,1fr)!important; grid-template-rows:minmax(0,1fr) auto; }
+.draw-center .dc-workspace.is-solo .dc-splitter { display:none!important; }
+.draw-center .dc-workspace.is-solo .dc-results,.draw-center .dc-workspace.is-solo .dc-side-rest { display:none; }
+.draw-center .dc-workspace.is-solo .dc-side { display:block; grid-column:1; grid-row:2; min-width:0; }
+.draw-center .dc-workspace.is-solo .dc-draw-pane { grid-column:1; grid-row:1; }
+.draw-center .dc-workspace.is-solo .dc-side-actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+.draw-center.is-projecting .dc-workspace.is-solo .dc-side { display:none; }
+.draw-center.is-projecting .dc-workspace.is-solo { grid-template-rows:minmax(0,1fr); }
+.draw-center.is-projecting .dc-workspace.is-solo .dc-wheel-wrap { margin:0 auto; }
+.dc-winner { position:fixed; inset:0; z-index:5100; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(6,30,34,.82); animation:dc-winner-in .28s ease-out; }
+.dc-winner-card { display:flex; flex-direction:column; align-items:center; gap:clamp(8px,1.6vh,18px); min-width:min(86vw,420px); max-width:92vw; padding:clamp(20px,4vh,44px) clamp(24px,5vw,64px); border-radius:28px; background:#fffdf5; color:#183d36; border:4px solid #f4cd61; box-shadow:0 24px 70px rgba(0,0,0,.45); text-align:center; }
+.dc-winner-kicker { margin:0; font-size:clamp(20px,3vh,34px); font-weight:800; color:#b5830b; }
+.dc-winner .draw-pet-avatar { width:clamp(130px,24vh,280px)!important; height:clamp(130px,24vh,280px)!important; }
+.dc-winner .pet-face { width:100%!important; height:100%!important; }
+.dc-winner .pet-face--emoji { font-size:clamp(100px,18vh,200px)!important; }
+.dc-winner-seat { font-size:clamp(28px,4.2vh,60px); font-weight:800; color:#5b7d73; }
+.dc-winner-name { font-size:clamp(44px,8vh,110px); line-height:1.1; }
+.dc-winner-task { font-size:clamp(20px,3vh,38px); padding:6px 16px; border-radius:99px; background:#e8f3ea; }
+.dc-winner-hint { color:#6c8a80; font-size:clamp(14px,2vh,20px); }
+.dc-winner-actions { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+.dc-winner-actions .dc-button { font-size:clamp(16px,2.4vh,24px); padding:10px 22px; }
+@keyframes dc-winner-in { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:none; } }

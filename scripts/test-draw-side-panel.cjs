@@ -4,7 +4,7 @@ const {browser,wait,assert}=require('./browser-test-helper.cjs');let b;
   await send('Emulation.setDeviceMetricsOverride',{width:1400,height:900,deviceScaleFactor:1,mobile:false});
   await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   for(let i=0;i<60;i++){if(await run('!!(window.PetStore&&PetStore.get())'))break;await wait(100);}
-  await run("document.getElementById('authGateInput').value='qa123456';document.getElementById('authGateBtn').click();PetStore.commit(s=>PetDrawEngine.settings(s,{config:{count:1,style:'wheel',sound:false,groupCount:0}}));document.querySelector('[data-page=tools]').click()");await wait(300);
+  await run("document.getElementById('authGateInput').value='qa123456';document.getElementById('authGateBtn').click();PetStore.commit(s=>PetDrawEngine.settings(s,{config:{count:1,style:'race',sound:false,groupCount:0}}));document.querySelector('[data-page=tools]').click()");await wait(300);
   const geometry=()=>run("(()=>{const q=s=>document.querySelector(s),side=q('.dc-side').getBoundingClientRect(),work=q('.dc-workspace').getBoundingClientRect(),stage=q('.dc-stage').getBoundingClientRect(),actions=q('.dc-side-actions').getBoundingClientRect(),res=q('.dc-results').getBoundingClientRect(),rest=q('.dc-side-rest')?.getBoundingClientRect();return {halfWidth:side.width/(work.width),left:side.left>=stage.right,actionsTop:actions.top<=side.top+1,results:res.height,rest:rest?rest.height:0,labels:[...document.querySelectorAll('.dc-side-actions button')].map(x=>x.textContent)}})()");
   const g=await geometry();
   assert(g.halfWidth>.45&&g.halfWidth<.55&&g.left,JSON.stringify(g));

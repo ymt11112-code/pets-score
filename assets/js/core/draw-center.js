@@ -117,7 +117,10 @@
       if(window.ResizeObserver){splitObserver=new window.ResizeObserver(place);splitObserver.observe(ws);}
     }
     function focusSide(){if(projected||!refs.side||!refs.side.scrollIntoView)return;requestAnimationFrame(()=>{try{refs.side.scrollIntoView({block:'start',behavior:'smooth'});}catch{}});}
-    let flashTimer=null,splitObserver=null;
+    let flashTimer=null,splitObserver=null,winnerTimer=null,soloRun=false;
+    /* 轉盤、拉霸、扭蛋一次只抽一位：不需要左右分割，抽完直接顯示中籤同學。 */
+    const SOLO_STYLES=['wheel','slot','gacha'];
+    const soloStyle=()=>SOLO_STYLES.includes(data.config.style)&&(Number(data.config.count)||1)<=1;
     function flash(text){if(!projected)return;rootEl.querySelectorAll('.dc-award-flash').forEach(node=>node.remove());const box=el('div',{class:'dc-award-flash',role:'status'},[el('span',{text:'✅','aria-hidden':'true'}),el('strong',{text})]);rootEl.append(box);clearTimeout(flashTimer);flashTimer=setTimeout(()=>box.remove(),4200);}
     function performBar(item){
       const list=adapter.performance&&adapter.perform?adapter.performance():null;if(!list||!list.length)return null;
@@ -140,6 +143,7 @@
     }
     function paintResults(result){
       refs.results.dataset.count=String(result?result.results.length:0);refs.results.replaceChildren();
+      if(refs.workspace)refs.workspace.classList.toggle('is-solo',soloStyle()&&view!=='roster'&&!(result&&result.order));
       const mode=view==='roster'?'roster':result&&result.order?'order':'result';
       refs.side.dataset.view=mode;refs.rosterBtn.textContent=mode==='roster'?'↩ 返回抽籤結果':'👥 全員名單・權重';refs.rosterBtn.classList.toggle('dc-primary',mode==='roster');refs.rosterBtn.setAttribute('aria-pressed',String(mode==='roster'));
       paintRest(result);
@@ -167,7 +171,7 @@
         btn(projected?'結束投影':'⛶ 大字投影',()=>toggleProject()),adapter.back?btn('返回',()=>{cancelPresentation();if(projected)toggleProject(false);adapter.back();}):null,clockStrip()
       ])]);rootEl.append(header);
       rootEl.append(el('div',{class:'dc-style-list','aria-label':'抽籤樣式'},THEMES.map(([id,image,label])=>btn(image+' '+label,()=>{if(running)return;configure({config:id==='devil'?{style:id,taskMode:'punishment'}:{style:id,taskMode:data.config.style==='devil'?'none':data.config.taskMode}});render();},'',{'data-style':id,'data-lock':'','aria-pressed':String(data.config.style===id)}))));
-      const workspace=el('div',{class:'dc-workspace'}),drawPane=el('div',{class:'dc-draw-pane'});rootEl.append(workspace);workspace.append(drawPane);
+      const workspace=el('div',{class:'dc-workspace'}),drawPane=el('div',{class:'dc-draw-pane'});refs.workspace=workspace;rootEl.append(workspace);workspace.append(drawPane);
       refs.stage=el('div',{class:'dc-stage','aria-label':'抽籤動畫區'});drawPane.append(refs.stage);
       buildScene(null,currentPool(),false);
       refs.start=btn('開始抽籤',()=>start(false),'dc-primary',{'data-draw-start':''});refs.order=btn('🔢 抽出整輪排序',()=>start(true),'',{'data-lock':'','data-draw-order':''});refs.rosterBtn=btn('👥 全員名單・權重',()=>{if(running)return;view=view==='roster'?'result':'roster';paintResults(data.last);if(view==='roster')focusSide();},'',{'data-lock':'','data-roster-toggle':''});refs.reveal=btn('直接揭曉全部結果',()=>{if(revealNow)revealNow();},'');refs.reveal.hidden=true;
@@ -232,9 +236,19 @@
     function finishResult(result){
       if(!running||disposed)return;running=false;revealNow=null;if(data.config.autoTimer){clock.configure({mode:data.config.timerMode,seconds:data.config.timerSeconds});clock.start();}audio.finish(data.config);paintResults(result);const oldHistory=rootEl.querySelector('.dc-history');if(oldHistory)oldHistory.replaceWith(history());refresh();
       if(result.order)setNotice('已排出整輪 '+result.results.length+' 位同學的順序；按「一鍵重置名單」可開始新的一輪。');else if(result.results.length<result.requested)setNotice('本輪只剩 '+result.results.length+' 位，已全部抽出；按重置可開始新一輪。');else setNotice('已抽出 '+result.results.length+' 位，本輪紀錄已保存。');
+      if(soloRun&&!result.order&&result.results.length===1){soloRun=false;celebrate(result.results[0]);}else soloRun=false;
     }
+    function removeWinner(){clearTimeout(winnerTimer);winnerTimer=null;rootEl.querySelectorAll('.dc-winner').forEach(node=>node.remove());}
+    /* 抽中後先大大顯示中籤同學，接著（網頁版）自動跳出學生個人畫面。全螢幕時彈窗會被擋住，所以先退出全螢幕。 */
+    function celebrate(item){
+      removeWinner();const auto=!!(adapter.select&&adapter.autoSelect);
+      const open=async()=>{removeWinner();if(projected){toggleProject(false);await new Promise(done=>setTimeout(done,260));}if(disposed||!adapter.select)return;try{await adapter.select([item.studentId]);}catch(error){setNotice(error.message);}};
+      const box=el('div',{class:'dc-winner',role:'dialog','aria-label':'抽中學生','data-winner':item.studentId},[el('div',{class:'dc-winner-card'},[el('p',{class:'dc-winner-kicker',text:'🎉 抽中了！'}),avatar(item),el('span',{class:'dc-winner-seat',text:U.pad2(item.no)+' 號'}),el('strong',{class:'dc-winner-name',text:item.name}),item.task?el('span',{class:'dc-winner-task',text:item.task}):null,auto?el('small',{class:'dc-winner-hint',text:'即將開啟學生個人畫面…'}):null,el('div',{class:'dc-winner-actions'},[adapter.select?btn(auto?'立即開啟學生畫面':'為他加分',open,'dc-primary',{'data-winner-open':''}):null,btn('關閉',removeWinner,'',{'data-winner-close':''})])])]);
+      rootEl.append(box);if(auto)winnerTimer=setTimeout(open,2200);
+    }
+
     async function start(order){
-      if(running||disposed)return;const pool=currentPool();if(!pool.length)return;running=true;view='result';if(order)performed.clear();if(data.config.autoTimer)clock.pause();setNotice('正在抽取…');audio.unlock(data.config);refresh();const token=++presentation;
+      if(running||disposed)return;const pool=currentPool();if(!pool.length)return;running=true;view='result';removeWinner();soloRun=!order&&soloStyle();if(soloRun&&!projected)toggleProject(true);if(order)performed.clear();if(data.config.autoTimer)clock.pause();setNotice('正在抽取…');audio.unlock(data.config);refresh();const token=++presentation;
       try{
         const result=await adapter.draw({order:!!order});if(disposed||token!==presentation)return;
         if(order){buildScene(null,pool,false);finishResult(result);focusSide();return;}
@@ -248,12 +262,12 @@
         const animate=now=>{if(disposed||token!==presentation)return;const progress=Math.min(1,(now-began)/duration);if(now-previous>45){scene.tick(progress);previous=now;}if(progress<1)frame=requestAnimationFrame(animate);else{scene.tick(1);scene.finish();contextCardIndex=null;finishResult(result);}};frame=requestAnimationFrame(animate);
       }catch(error){running=false;revealNow=null;audio.stop();setNotice(error.message);refresh();}
     }
-    function cancelPresentation(){presentation++;if(frame)cancelAnimationFrame(frame);frame=null;audio.stop();running=false;revealNow=null;}
+    function cancelPresentation(){removeWinner();soloRun=false;presentation++;if(frame)cancelAnimationFrame(frame);frame=null;audio.stop();running=false;revealNow=null;}
     function toggleProject(force){projected=typeof force==='boolean'?force:!projected;rootEl.classList.toggle('is-projecting',projected);const button=rootEl.querySelector('.dc-header-actions button');if(button)button.textContent=projected?'結束投影':'⛶ 大字投影';if(projected&&rootEl.requestFullscreen){rootEl.requestFullscreen().catch(()=>{});}else if(!projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});}
     function update(next){if(!next||disposed)return;const rosterChanged=JSON.stringify([snapshot.students.map(st=>[st.id,st.no,st.name]),snapshot.absentIds])!==JSON.stringify([next.students.map(st=>[st.id,st.no,st.name]),next.absentIds]);const old=data,last=data.last&&data.last.id;snapshot=next;data=E.normalize(next.draw);if(!running&&(rosterChanged||last!==(data.last&&data.last.id)||old.round!==data.round||old.config.style!==data.config.style))render();else {refresh();if(!running&&data.last&&view!=='roster')paintResults(data.last);}}
     function escape(event){if(event.key==='Escape'&&projected){toggleProject(false);return;}if(event.key==='Escape'&&view==='roster'){view='result';paintResults(data.last);}}
     document.addEventListener('keydown',escape);render();
-    return{element:rootEl,update,get running(){return running;},destroy(){disposed=true;if(splitObserver)splitObserver.disconnect();clearTimeout(flashTimer);unsubscribeClock();cancelPresentation();document.removeEventListener('keydown',escape);if(projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});rootEl.remove();}};
+    return{element:rootEl,update,get running(){return running;},destroy(){disposed=true;clearTimeout(winnerTimer);if(splitObserver)splitObserver.disconnect();clearTimeout(flashTimer);unsubscribeClock();cancelPresentation();document.removeEventListener('keydown',escape);if(projected&&document.fullscreenElement===rootEl)document.exitFullscreen().catch(()=>{});rootEl.remove();}};
   }
   root.PetDrawCenter={create};
 })(window);

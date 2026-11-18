@@ -1450,6 +1450,7 @@
       perform:async(id,key)=>{if(S.isAbsent(id))throw new Error('這位學生今天不在出席名單');applyRule([id],E.performanceRule(S.get(),key));},
       unperform:async(id,key)=>{const entry=E.findPerformanceEntry(S.get(),id,key);if(!entry)return false;S.undoEntry(entry.id);return true;},
       select:async ids=>{if(ids.length===1)openStudentProfile(ids[0]);else openFeedbackModal(ids);},
+      autoSelect:true,
       back:()=>go(window.PetPhoneRemote.isPhone()?'quick':'overview')
     });
     else drawController.update(drawSnapshot());
