@@ -2776,7 +2776,8 @@
   /* ================= 點數紀錄 ================= */
   let ledgerTab = 'points';
   let ledgerFilter = { studentId: '', ruleId: '', range: 'week', showUndone: true, customFrom: '', customTo: '' };
-  let attendanceWeekOffset = 0;
+  let attendanceMode = 'week';
+  let attendanceAnchor = Date.now();
 
   const RANGE_OPTIONS = [
     { v: 'today', t: '今天' }, { v: 'yesterday', t: '昨天' },
@@ -2892,58 +2893,140 @@
     ]);
   }
 
+  /* 出席記錄：單日／每週／整月三種查詢，上方的日期欄可以直接指定日期跳過去。
+     到校率 = (有記錄的天數 − 病假/事假/喪假/早退/未分類請假) ÷ 有記錄的天數；遲到仍算到校。 */
   function pageLedgerAttendance() {
     const s = S.get();
-    const weekStart = U.addDays(U.startOfWeek(Date.now()), attendanceWeekOffset * 7);
-    const days = [0, 1, 2, 3, 4, 5, 6].map((i) => U.addDays(weekStart, i));
-    const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
-    const hasAnyRecord = days.some((d) => !!s.attendance[U.todayKey(d)]);
+    const A = window.PetAttendance;
+    const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+    const anchor = new Date(attendanceAnchor);
+    const keyOf = (d) => U.todayKey(d.getTime());
+    const recordOf = (d) => s.attendance[keyOf(d)];
+    const pillClass = (k) => 'pill' + (A.isExcluded(k) ? ' pill--red' : k === 'late' ? ' pill--gold' : '');
+    const statusPill = (status) => el('span', { class: pillClass(status), text: A.label(status) });
+    const nameOf = (st) => U.pad2(st.no) + ' ' + st.name;
+    const studentCell = (st) => el('td', {}, [el('div', { class: 'cell-student' }, [petCell(st, 34), el('div', { class: 'cell-student__name', text: nameOf(st) })])]);
+    const centered = (child) => el('td', { style: { textAlign: 'center' } }, [child]);
+    const dash = () => el('span', { class: 'muted', text: '—' });
+    const pct = (present, recorded) => (recorded ? Math.round((present / recorded) * 100) : null);
+    function shift(n) {
+      const d = new Date(attendanceAnchor);
+      if (attendanceMode === 'month') { d.setDate(1); d.setMonth(d.getMonth() + n); } else d.setDate(d.getDate() + (attendanceMode === 'week' ? 7 * n : n));
+      attendanceAnchor = d.getTime(); render();
+    }
+    function download(name, head, rows) {
+      const lines = [head].concat(rows).map((r) => r.map((v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(','));
+      const url = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+      const a = el('a', { href: url, download: name });
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      U.toast('已匯出 CSV');
+    }
 
-    const rows = s.students.map((st) => {
-      let presentCount = 0;
-      let recordedCount = 0;
-      const cells = days.map((d) => {
-        const dayRecord = s.attendance[U.todayKey(d)];
-        if (!dayRecord) return el('td', { style: { textAlign: 'center' } }, [el('span', { class: 'muted', text: '—' })]);
-        recordedCount += 1;
-        const status = dayRecord[st.id] || '';
-        const absent = window.PetAttendance.isExcluded(status);
-        if (!absent) presentCount += 1;
-        return el('td', { style: { textAlign: 'center' } }, [
-          el('span', { class: 'pill' + (absent ? ' pill--red' : ''), text: window.PetAttendance.label(status) }),
-        ]);
+    let label = '', body = null, exportBtn = null, summary = null;
+    if (attendanceMode === 'day') {
+      label = U.fmtDate(anchor.getTime()) + '（週' + dayNames[anchor.getDay()] + '）';
+      const rec = recordOf(anchor);
+      if (!rec) body = el('div', { class: 'empty', style: { padding: '18px' }, text: '這一天沒有出席紀錄。可以用上方日期欄換一天，或到「批次加點」頁的「出席」按鈕記錄。' });
+      else {
+        const counts = {};
+        const rows = s.students.map((st) => { const status = rec[st.id] || ''; counts[status] = (counts[status] || 0) + 1; return { st, status }; });
+        summary = el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', marginBottom: '12px' } }, [el('b', { text: '共 ' + s.students.length + ' 人：' })].concat(
+          ['', 'late', 'sick', 'personal', 'bereavement', 'early', 'absent'].filter((k) => counts[k]).map((k) => el('span', { class: pillClass(k), text: A.label(k) + ' ' + counts[k] }))));
+        body = el('div', { class: 'tbl-wrap' }, [el('table', { class: 'tbl', 'data-attendance-view': 'day' }, [
+          el('thead', {}, [el('tr', {}, [el('th', { text: '學生' }), el('th', { style: { textAlign: 'center' }, text: '狀態' })])]),
+          el('tbody', {}, rows.map(({ st, status }) => el('tr', {}, [studentCell(st), centered(statusPill(status))]))),
+        ])]);
+        exportBtn = () => download('出席_' + keyOf(anchor) + '.csv', ['座號', '姓名', '狀態'], rows.map(({ st, status }) => [st.no, st.name, A.label(status)]));
+      }
+    } else if (attendanceMode === 'week') {
+      const weekStart = new Date(U.startOfWeek(anchor.getTime()));
+      const days = [0, 1, 2, 3, 4, 5, 6].map((i) => new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i));
+      label = U.fmtDate(days[0].getTime()) + ' – ' + U.fmtDate(days[6].getTime());
+      const hasAny = days.some((d) => !!recordOf(d));
+      const names = ['一', '二', '三', '四', '五', '六', '日'];
+      const out = [];
+      const rows = s.students.map((st) => {
+        let present = 0, recorded = 0;
+        const cells = days.map((d) => {
+          const rec = recordOf(d);
+          if (!rec) return centered(dash());
+          recorded += 1;
+          const status = rec[st.id] || '';
+          if (!A.isExcluded(status)) present += 1;
+          return centered(statusPill(status));
+        });
+        const p = pct(present, recorded);
+        out.push([st.no, st.name].concat(days.map((d) => { const rec = recordOf(d); return rec ? A.label(rec[st.id] || '') : ''; }), [p == null ? '' : p + '%']));
+        return el('tr', {}, [studentCell(st)].concat(cells, [el('td', { class: 'nowrap' }, [p == null ? dash() : el('b', { text: p + '%' })])]));
       });
-      const pct = recordedCount ? Math.round((presentCount / recordedCount) * 100) : null;
-      return el('tr', {}, [el('td', {}, [
-        el('div', { class: 'cell-student' }, [
-          petCell(st, 34),
-          el('div', { class: 'cell-student__name', text: U.pad2(st.no) + ' ' + st.name }),
-        ]),
-      ])].concat(cells).concat([
-        el('td', { class: 'nowrap' }, [pct == null ? el('span', { class: 'muted', text: '—' }) : el('b', { text: pct + '%' })]),
-      ]));
-    });
-
-    return card('出席記錄', '依週查詢每位學生的到校狀況；到「批次加點」頁的「出席」按鈕即可記錄。', [
-      el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' } }, [
-        el('div', { class: 'row', style: { gap: '10px' } }, [
-          el('button', { class: 'btn btn--ghost btn--sm', text: '◀ 上一週', onclick: () => { attendanceWeekOffset -= 1; render(); } }),
-          el('b', { text: U.fmtDate(days[0]) + ' – ' + U.fmtDate(days[6]) }),
-          el('button', { class: 'btn btn--ghost btn--sm', text: '下一週 ▶', onclick: () => { attendanceWeekOffset += 1; render(); } }),
-        ]),
-        attendanceWeekOffset !== 0
-          ? el('button', { class: 'btn btn--ghost btn--sm', text: '回到本週', onclick: () => { attendanceWeekOffset = 0; render(); } })
-          : null,
-      ]),
-      !hasAnyRecord ? el('div', { class: 'empty', style: { padding: '18px' }, text: '這一週還沒有出席紀錄。' }) : null,
-      el('div', { class: 'tbl-wrap' }, [
-        el('table', { class: 'tbl' }, [
-          el('thead', {}, [el('tr', {}, [el('th', { text: '學生' })]
-            .concat(dayNames.map((n, i) => el('th', { style: { textAlign: 'center' }, text: n + ' ' + U.fmtDate(days[i]).slice(5) })))
-            .concat([el('th', { text: '到校率' })]))]),
+      body = el('div', {}, [
+        !hasAny ? el('div', { class: 'empty', style: { padding: '18px' }, text: '這一週還沒有出席紀錄。' }) : null,
+        el('div', { class: 'tbl-wrap' }, [el('table', { class: 'tbl', 'data-attendance-view': 'week' }, [
+          el('thead', {}, [el('tr', {}, [el('th', { text: '學生' })].concat(days.map((d, i) => el('th', { style: { textAlign: 'center' }, text: names[i] + ' ' + U.fmtDate(d.getTime()).slice(5) })), [el('th', { text: '到校率' })]))]),
           el('tbody', {}, rows),
+        ])]),
+      ]);
+      exportBtn = () => download('出席_週_' + keyOf(days[0]) + '.csv', ['座號', '姓名'].concat(days.map((d) => keyOf(d)), ['到校率']), out);
+    } else {
+      const y = anchor.getFullYear(), m = anchor.getMonth();
+      const total = new Date(y, m + 1, 0).getDate();
+      const days = Array.from({ length: total }, (_, i) => new Date(y, m, i + 1));
+      label = y + ' 年 ' + (m + 1) + ' 月';
+      const recorded = days.filter((d) => !!recordOf(d));
+      const KEYS = ['late', 'sick', 'personal', 'bereavement', 'early', 'absent'];
+      let rateSum = 0, rateN = 0;
+      const stats = s.students.map((st) => {
+        const c = { '': 0, late: 0, sick: 0, personal: 0, bereavement: 0, early: 0, absent: 0 };
+        const notes = [];
+        recorded.forEach((d) => {
+          const status = recordOf(d)[st.id] || '';
+          c[status] = (c[status] || 0) + 1;
+          if (status) notes.push((d.getMonth() + 1) + '/' + d.getDate() + ' ' + A.label(status).replace('（未分類）', ''));
+        });
+        const present = recorded.length - KEYS.filter((k) => A.isExcluded(k)).reduce((n, k) => n + (c[k] || 0), 0);
+        const p = pct(present, recorded.length);
+        if (p != null) { rateSum += p; rateN += 1; }
+        return { st, c, notes, p };
+      });
+      summary = el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', marginBottom: '12px' } }, [
+        el('span', { class: 'pill pill--green', text: '本月有記錄 ' + recorded.length + ' / ' + total + ' 天' }),
+        rateN ? el('span', { class: 'pill', text: '全班平均到校率 ' + Math.round(rateSum / rateN) + '%' }) : null,
+      ].concat(KEYS.map((k) => ({ k, n: stats.reduce((n, x) => n + (x.c[k] || 0), 0) })).filter((x) => x.n).map((x) => el('span', { class: pillClass(x.k), text: A.label(x.k) + ' ' + x.n + ' 人次' }))));
+      body = el('div', {}, [
+        !recorded.length ? el('div', { class: 'empty', style: { padding: '18px' }, text: '這個月還沒有出席紀錄。' }) : null,
+        el('div', { class: 'tbl-wrap' }, [el('table', { class: 'tbl', 'data-attendance-view': 'month' }, [
+          el('thead', {}, [el('tr', {}, ['學生', '記錄天數', '出席', '遲到', '病假', '事假', '喪假', '早退', '未分類請假', '到校率', '非正常出席日期'].map((t, i) => el('th', { style: i && i < 10 ? { textAlign: 'center' } : {}, text: t })))]),
+          el('tbody', {}, stats.map(({ st, c, notes, p }) => el('tr', {}, [studentCell(st), centered(el('span', { text: String(recorded.length) })), centered(el('span', { text: String(c['']) }))]
+            .concat(KEYS.map((k) => centered(c[k] ? el('b', { text: String(c[k]) }) : dash())),
+              [el('td', { class: 'nowrap', style: { textAlign: 'center' } }, [p == null ? dash() : el('b', { text: p + '%' })]), el('td', { class: 'muted', style: { fontSize: '13px', minWidth: '160px' }, text: notes.join('、') })])))),
+        ])]),
+      ]);
+      exportBtn = () => download('出席_月_' + y + '-' + U.pad2(m + 1) + '.csv', ['座號', '姓名', '記錄天數', '出席', '遲到', '病假', '事假', '喪假', '早退', '未分類請假', '到校率', '非正常出席日期'],
+        stats.map(({ st, c, notes, p }) => [st.no, st.name, recorded.length, c['']].concat(KEYS.map((k) => c[k]), [p == null ? '' : p + '%', notes.join('、')])));
+    }
+
+    const modes = [['day', '單日'], ['week', '每週'], ['month', '整月']];
+    const dateInput = el('input', {
+      class: 'input', type: 'date', value: keyOf(anchor), 'aria-label': '指定日期', 'data-attendance-date': '', style: { width: 'auto' },
+      onchange: (e) => { const v = e.target.value; if (!v) return; const t = new Date(v + 'T00:00:00').getTime(); if (!isNaN(t)) { attendanceAnchor = t; render(); } },
+    });
+    const unit = { day: ['前一天', '後一天'], week: ['上一週', '下一週'], month: ['上個月', '下個月'] }[attendanceMode];
+    return card('出席記錄', '可看單日、每週或整月統計；用「指定日期」直接跳到某一天（週與月會顯示那一天所在的週／月）。到「批次加點」頁的「出席」按鈕即可記錄。', [
+      el('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px', alignItems: 'center' } }, [
+        el('div', { class: 'seg-toggle' }, modes.map(([v, t]) => el('button', { class: 'seg-toggle__btn' + (attendanceMode === v ? ' is-active' : ''), 'data-attendance-mode': v, text: t, onclick: () => { attendanceMode = v; render(); } }))),
+        el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', alignItems: 'center' } }, [
+          el('button', { class: 'btn btn--ghost btn--sm', 'data-attendance-prev': '', text: '◀ ' + unit[0], onclick: () => shift(-1) }),
+          el('b', { 'data-attendance-label': '', text: label }),
+          el('button', { class: 'btn btn--ghost btn--sm', 'data-attendance-next': '', text: unit[1] + ' ▶', onclick: () => shift(1) }),
         ]),
       ]),
+      el('div', { class: 'row', style: { gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' } }, [
+        el('label', { class: 'field__label', style: { margin: 0 }, text: '指定日期' }), dateInput,
+        el('button', { class: 'btn btn--ghost btn--sm', text: '回到今天', onclick: () => { attendanceAnchor = Date.now(); render(); } }),
+        exportBtn ? el('button', { class: 'btn btn--ghost btn--sm', text: '⬇ 匯出 CSV', 'data-attendance-export': '', onclick: exportBtn }) : null,
+      ]),
+      summary, body,
     ]);
   }
 
