@@ -3342,6 +3342,18 @@
     function reorderRule(srcId, targetId) {
       S.commit((d) => reorderInArray(d.rules, srcId, targetId));
     }
+    function reorderTask(srcId, targetId) {
+      S.commit((d) => reorderInArray(d.dailyTasks, srcId, targetId));
+    }
+    /* 觸控裝置不能拖曳，編輯視窗裡也提供「往前／往後」按鈕調整今日任務順序。 */
+    function moveTask(id, dir) {
+      S.commit((d) => {
+        const i = d.dailyTasks.findIndex((x) => x.id === id), j = i + dir;
+        if (i < 0 || j < 0 || j >= d.dailyTasks.length) return;
+        const item = d.dailyTasks.splice(i, 1)[0];
+        d.dailyTasks.splice(j, 0, item);
+      });
+    }
     function reorderCategory(srcId, targetId) {
       S.commit((d) => reorderInArray(d.ruleCategories, srcId, targetId));
     }
@@ -3612,6 +3624,11 @@
             el('div', { class: 'row rule-score-fields', style: { gap: '10px' } }, [field('班級分數', bClass), field('每人點數', bPts), field('每人 XP', bXp), field('每人金幣', bCoins)]),
           ]),
           iconFold,
+          isNew ? null : el('div', { class: 'row', style: { gap: '8px', alignItems: 'center' } }, [
+            el('span', { class: 'card__sub', style: { margin: 0 }, text: '排列順序' }),
+            el('button', { type: 'button', class: 'btn btn--ghost btn--sm', 'data-task-move': 'up', text: '◀ 往前', onclick: () => moveTask(t.id, -1) }),
+            el('button', { type: 'button', class: 'btn btn--ghost btn--sm', 'data-task-move': 'down', text: '往後 ▶', onclick: () => moveTask(t.id, 1) }),
+          ]),
           isNew ? null : el('div', { class: 'row', style: { gap: '10px', alignItems: 'center', marginTop: '4px' } }, [
             el('span', { class: 'card__sub', style: { margin: 0 }, text: '目前已完成 ' + (t.doneBy || []).length + ' 人' }),
             el('button', {
@@ -3638,7 +3655,7 @@
 
     function taskCardGrid() {
       const s2 = S.get();
-      const cards = (s2.dailyTasks || []).map((t) => el('button', { class: 'rule-btn', onclick: () => openEditTask(t, false) }, [
+      const cards = (s2.dailyTasks || []).map((t) => el('button', Object.assign({ class: 'rule-btn', 'data-task-id': t.id, title: '點一下編輯，按住拖曳可以調整順序', onclick: () => openEditTask(t, false) }, dragHandlers(t.id, reorderTask)), [
         el('div', { class: 'rule-btn__emoji', text: t.icon }),
         el('div', { class: 'rule-btn__pts', text: (t.done || 0) + '/' + M.taskTarget(t, S.get().students.length) }),
         el('div', { class: 'rule-btn__label', text: t.title }),
@@ -3671,7 +3688,7 @@
           categoryCardGrid(),
         ]),
         batchShortcutSettingsCard(),
-        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標，以及完成後的課堂點數、寵物 XP、金幣，還能設定「全班完成獎勵」（最後一位完成時自動發班級分數與每人獎勵）；完成名單請到批次加點快捷列「今日任務」勾選，學生第一次被勾選時自動加分。', [
+        sectionCard('tasks', '今日任務', '點卡片可以編輯圖示、名稱、全班目標（拖曳卡片可調整順序），以及完成後的課堂點數、寵物 XP、金幣，還能設定「全班完成獎勵」（最後一位完成時自動發班級分數與每人獎勵）；完成名單請到批次加點快捷列「今日任務」勾選，學生第一次被勾選時自動加分。', [
           taskResetBar(),
           taskCardGrid(),
         ]),
