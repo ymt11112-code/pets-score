@@ -182,7 +182,7 @@ function createWindow() {
   // 'screen-saver' 是 Windows 上少數能蓋過「全螢幕簡報模式」的層級，一般 App 疊不過去
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  win.webContents.on('did-finish-load', () => { if (desktopOpenPending) showWidgetAgain();else if(backgroundPending)hideWidgetSoftly(); });
+  win.webContents.on('did-finish-load', () => { if (desktopOpenPending) {showWidgetAgain();if(win&&win.isVisible())ebooks.confirmPending();}else if(backgroundPending)hideWidgetSoftly(); });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
   dockSide = computeDockSide(win.getBounds());
@@ -354,7 +354,7 @@ ipcMain.handle('bubble-done', () => {
 
 const desktopLauncher=require('./launcher-settings').install({app,BrowserWindow,ipcMain,dialog,getMainWindow:()=>win,showMainWindow:showWidgetAgain});
 let classroomTools;
-const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:(kind,action)=>{if(kind==='points'){if(desktopLauncher.upgrade('classpet://open',500))return;showWidgetAgain();return;}return classroomTools.openRemoteTool(kind,action);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState(),getBackgroundStartup:()=>desktopLauncher.backgroundStartup(),setBackgroundStartup:enabled=>desktopLauncher.setBackgroundStartup(enabled)});
+const ebooks=require('./ebooks')({app,BrowserWindow,ipcMain,dialog,shell,getMainWindow:()=>win,controlTool:(kind,action)=>{if(kind==='points'){if(desktopLauncher.upgrade('classpet://open',500))return 'relaunch';showWidgetAgain();return;}return classroomTools.openRemoteTool(kind,action);},controlTimer:command=>classroomTools.controlTimer(command),getTimerState:()=>classroomTools.getTimerState(),getBackgroundStartup:()=>desktopLauncher.backgroundStartup(),setBackgroundStartup:enabled=>desktopLauncher.setBackgroundStartup(enabled)});
 
 classroomTools=require('./tools-window')({ app, BrowserWindow, ipcMain,
   getMainWindow: () => win, getPickerWindow: () => pickerWin,
