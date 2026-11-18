@@ -250,4 +250,4 @@ img { max-width: 100%; display: block; }
 
 .clay-icon[data-sheet="v2"] { background-image:url('img/rule-icons/clay-classroom-v2.png'); background-size:800% 600%; }
 .clay-icon[data-sheet="svg"] { background-size:contain; background-position:center; }
-.draw-center .dc-perform-btn .clay-icon { width:1.35em; height:1.35em; vertical-align:0; }
+.draw-center .dc-perform-btn .clay-icon { width:72%; height:72%; min-width:0; margin:0; vertical-align:0; }

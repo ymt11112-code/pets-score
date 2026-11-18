@@ -574,7 +574,7 @@
 .draw-center .dc-perform-btn { height:100%; max-height:2.5em; min-width:0; min-height:0; aspect-ratio:1 / 1; padding:0; border:1px solid #cbe0d3; border-radius:50%; background:#f3f9f5; font-size:inherit; line-height:1; cursor:pointer; display:grid; place-items:center; transition:transform .12s,background .12s; }
 .draw-center .dc-perform-btn:hover:not(:disabled) { transform:scale(1.14); background:#fff3cf; border-color:#e0b84c; }
 .draw-center .dc-perform-btn.is-done { background:#2caa83; border-color:#1e8a68; box-shadow:0 0 0 2px #bfe9d6; }
-.dc-award-flash { position:fixed; right:clamp(14px,2vw,40px); bottom:clamp(14px,2vw,40px); z-index:7000; display:flex; align-items:center; gap:14px; max-width:calc(100vw - 28px); padding:clamp(14px,2.2vh,28px) clamp(18px,2.6vh,34px); border-radius:24px; border-left:8px solid #2caa83; background:rgba(245,255,250,.98); color:#244c43; font-size:clamp(18px,3vh,44px); box-shadow:0 14px 40px rgba(0,0,0,.35); animation:dcFlashIn .25s ease-out; }
+.dc-award-flash { position:fixed; right:clamp(14px,2vw,40px); bottom:clamp(76px,10vh,130px); z-index:7000; display:flex; align-items:center; gap:14px; max-width:calc(100vw - 28px); padding:clamp(18px,3vh,38px) clamp(24px,3.6vh,48px); border-radius:24px; border-left:12px solid #2caa83; background:rgba(245,255,250,.98); color:#244c43; font-size:clamp(26px,4.6vh,64px); box-shadow:0 14px 40px rgba(0,0,0,.35); animation:dcFlashIn .25s ease-out; }
 .dc-award-flash span { font-size:1.2em; }
 @keyframes dcFlashIn { from { transform:translateY(18px) scale(.96); opacity:0; } to { transform:none; opacity:1; } }
 @container (max-width:560px) { .draw-center .dc-perform-btn { min-width:30px; } }
