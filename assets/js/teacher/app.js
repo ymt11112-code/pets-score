@@ -706,7 +706,8 @@
 
     function paintList() {
       listWrap.innerHTML = '';
-      const rules = s.rules.filter((r) => (tab === 'pos' ? r.points >= 0 : r.points < 0));
+      /* 規則編號（A01、1、2…）由小到大排；沒有編號的維持原順序放最後。 */
+      const rules = s.rules.filter((r) => (tab === 'pos' ? r.points >= 0 : r.points < 0)).slice().sort(M.compareRuleCodes);
       listWrap.appendChild(el('div', { class: 'rule-grid rule-grid--dense' }, rules.length ? rules.map((r) =>
         el('button', { class: 'rule-btn', onclick: () => { applyRule(ids, r); onApplied(); } }, [
           el('div', { class: 'rule-btn__emoji', text: r.icon }),
@@ -1448,7 +1449,7 @@
       performance:()=>E.performanceList(S.get()),
       perform:async(id,key)=>{if(S.isAbsent(id))throw new Error('這位學生今天不在出席名單');applyRule([id],E.performanceRule(S.get(),key));},
       unperform:async(id,key)=>{const entry=E.findPerformanceEntry(S.get(),id,key);if(!entry)return false;S.undoEntry(entry.id);return true;},
-      select:async ids=>openFeedbackModal(ids),
+      select:async ids=>{if(ids.length===1)openStudentProfile(ids[0]);else openFeedbackModal(ids);},
       back:()=>go(window.PetPhoneRemote.isPhone()?'quick':'overview')
     });
     else drawController.update(drawSnapshot());
