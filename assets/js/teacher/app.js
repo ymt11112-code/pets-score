@@ -430,7 +430,36 @@
   }
 
   function openEditEntry(e) {
-    const names = e.studentIds.map((id) => (S.student(id) || {}).name).filter(Boolean).join('、');
+    const roster = S.get().students.slice().sort((a, b) => (a.no || 0) - (b.no || 0));
+    const originalIds = e.studentIds.filter((id) => roster.some((st) => st.id === id));
+    const picked = new Set(originalIds);
+    const pickSummary = el('strong', { class: 'ledger-pick-count' }), pickDiff = el('small', { class: 'ledger-pick-diff' });
+    const tiles = new Map();
+    const paintPick = () => {
+      tiles.forEach((tile, id) => { const on = picked.has(id); tile.classList.toggle('is-on', on); tile.setAttribute('aria-pressed', String(on)); });
+      const added = roster.filter((st) => picked.has(st.id) && originalIds.indexOf(st.id) < 0).length;
+      const removed = originalIds.filter((id) => !picked.has(id)).length;
+      pickSummary.textContent = '已選 ' + picked.size + ' 位';
+      pickDiff.textContent = added || removed ? '（新增 ' + added + ' 位、移除 ' + removed + ' 位，儲存後會自動補上或收回點數）' : '（與原本相同）';
+    };
+    const pickGrid = el('div', { class: 'ledger-pick-grid', role: 'group', 'aria-label': '加分學生' }, roster.map((st) => {
+      const tile = el('button', {
+        type: 'button', class: 'ledger-pick-tile' + (S.isAbsent(st.id) ? ' is-absent' : ''), 'data-pick-student': st.id,
+        title: st.name + (S.isAbsent(st.id) ? '（今天請假）' : ''),
+        onclick: () => { if (picked.has(st.id)) picked.delete(st.id); else picked.add(st.id); paintPick(); },
+      }, [el('b', { text: String(st.no) }), el('small', { text: st.name })]);
+      tiles.set(st.id, tile);
+      return tile;
+    }));
+    const pickTools = el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
+      pickSummary, pickDiff,
+      el('span', { class: 'grow' }),
+      el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: '全選', onclick: () => { roster.forEach((st) => picked.add(st.id)); paintPick(); } }),
+      el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: '到校全選', onclick: () => { picked.clear(); roster.filter((st) => !S.isAbsent(st.id)).forEach((st) => picked.add(st.id)); paintPick(); } }),
+      el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: '清空', onclick: () => { picked.clear(); paintPick(); } }),
+      el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: '還原', onclick: () => { picked.clear(); originalIds.forEach((id) => picked.add(id)); paintPick(); } }),
+    ]);
+    paintPick();
     const label = el('input', { class: 'input', value: e.label });
     const note = el('input', { class: 'input', value: e.note || '', placeholder: '備註（選填）' });
     const pts = el('input', { class: 'input', type: 'number', value: e.points });
@@ -439,7 +468,7 @@
     U.modal({
       title: '編輯紀錄',
       body: el('div', { class: 'stack' }, [
-        el('p', { class: 'card__sub', text: '學生：' + (names || '—') }),
+        el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '加分學生（點選學生，綠色表示有加分；橘色虛線表示今天請假）' }), pickTools, pickGrid]),
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '事由' }), label]),
         el('div', { class: 'field' }, [el('label', { class: 'field__label', text: '備註' }), note]),
         el('div', { class: 'row', style: { gap: '10px' } }, [
@@ -447,7 +476,7 @@
           el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: '寵物 XP' }), xp]),
           el('div', { class: 'field grow' }, [el('label', { class: 'field__label', text: '金幣' }), coins]),
         ]),
-        el('p', { class: 'card__sub', text: '修改後會自動用差額補上或收回每位學生目前的點數／經驗／金幣。' }),
+        el('p', { class: 'card__sub', text: '修改後會自動用差額補上或收回每位學生目前的點數／經驗／金幣；新選的學生會補上整筆加分，取消選取的學生會整筆收回。' }),
       ]),
       actions: [
         { label: '取消' },
@@ -456,10 +485,15 @@
           onClick: () => {
             const nm = label.value.trim();
             if (!nm) { U.toast('請輸入事由', 'warn'); return true; }
-            S.editEntry(e.id, {
-              label: nm, note: note.value.trim(),
-              points: Number(pts.value) || 0, xp: Number(xp.value) || 0, coins: Number(coins.value) || 0,
-            });
+            if (!picked.size) { U.toast('至少要選一位學生；整筆都不算請改用「撤銷」', 'warn'); return true; }
+            const changed = picked.size !== originalIds.length || originalIds.some((id) => !picked.has(id));
+            try {
+              S.editEntry(e.id, {
+                label: nm, note: note.value.trim(),
+                points: Number(pts.value) || 0, xp: Number(xp.value) || 0, coins: Number(coins.value) || 0,
+                studentIds: changed ? roster.filter((st) => picked.has(st.id)).map((st) => st.id) : undefined,
+              });
+            } catch (error) { U.toast(error.message, 'warn'); return true; }
             U.toast('已更新紀錄');
           },
         },

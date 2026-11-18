@@ -1036,8 +1036,45 @@
       const dPoints = newPoints - oldPoints;
       const dXp = (p.xp != null ? Number(p.xp) || 0 : (e.xp || 0)) - (e.xp || 0);
       const dCoins = (p.coins != null ? Number(p.coins) || 0 : (e.coins || 0)) - (e.coins || 0);
+      const oldXp = e.xp || 0, oldCoins = e.coins || 0;
+      const newXp = p.xp != null ? Number(p.xp) || 0 : oldXp;
+      const newCoins = p.coins != null ? Number(p.coins) || 0 : oldCoins;
 
-      e.studentIds.forEach((id) => {
+      /* 可以重新指定加分學生：保留的學生照差額調整、被移除的學生整筆回沖、新增的學生比照新加點。 */
+      const oldIds = e.studentIds.slice();
+      let newIds = oldIds.slice();
+      if (Array.isArray(p.studentIds)) {
+        newIds = Array.from(new Set(p.studentIds)).filter((id) => s.students.some((x) => x.id === id));
+        if (!newIds.length) throw new Error('至少要選一位學生；若整筆都不算，請改用「撤銷」。');
+      }
+      const keptIds = oldIds.filter((id) => newIds.indexOf(id) >= 0);
+      const removedIds = oldIds.filter((id) => newIds.indexOf(id) < 0);
+      const addedIds = newIds.filter((id) => oldIds.indexOf(id) < 0);
+
+      removedIds.forEach((id) => {
+        const st = s.students.find((x) => x.id === id);
+        if (!st) return;
+        applyDelta(st, { points: -oldPoints, xp: -oldXp, coins: -oldCoins });
+        if (oldPoints > 0) {
+          st.totalPoints = Math.max(0, (st.totalPoints || 0) - oldPoints);
+          if (e.ruleId && st.ruleCount && st.ruleCount[e.ruleId]) st.ruleCount[e.ruleId] -= 1;
+        }
+        st.petLevel = M.levelFromXp(st.xp).level;
+      });
+      addedIds.forEach((id) => {
+        const st = s.students.find((x) => x.id === id);
+        if (!st) return;
+        applyDelta(st, { points: newPoints, xp: newXp, coins: newCoins });
+        if (newPoints > 0) {
+          bumpStreak(st, Date.now());
+          st.ruleCount = st.ruleCount || {};
+          if (e.ruleId) st.ruleCount[e.ruleId] = (st.ruleCount[e.ruleId] || 0) + 1;
+        }
+        st.petLevel = M.levelFromXp(st.xp).level;
+        refreshBadges(st);
+      });
+
+      keptIds.forEach((id) => {
         const st = s.students.find((x) => x.id === id);
         if (!st) return;
         applyDelta(st, { points: dPoints, xp: dXp, coins: dCoins });
@@ -1057,8 +1094,8 @@
       /* 全班加分（e.classPoints 有值）的班級分數是獨立指定的數字，不是從 points 換算來的，
          這裡編輯的是連動個人的點數，不會連帶改班級分數——要調班級分數請直接撤銷重加。 */
       if (e.classPoints == null) {
-        const oldClass = oldPoints > 0 ? oldPoints * e.studentIds.length : 0;
-        const newClass = newPoints > 0 ? newPoints * e.studentIds.length : 0;
+        const oldClass = oldPoints > 0 ? oldPoints * oldIds.length : 0;
+        const newClass = newPoints > 0 ? newPoints * newIds.length : 0;
         const dClass = newClass - oldClass;
         if (dClass !== 0) {
           s.classInfo.classStars = Math.max(0, (s.classInfo.classStars || 0) + dClass);
@@ -1071,8 +1108,9 @@
       if (p.label != null) e.label = p.label;
       if (p.note != null) e.note = p.note;
       e.points = newPoints;
-      e.xp = p.xp != null ? Number(p.xp) || 0 : (e.xp || 0);
-      e.coins = p.coins != null ? Number(p.coins) || 0 : (e.coins || 0);
+      e.xp = newXp;
+      e.coins = newCoins;
+      e.studentIds = newIds;
       e.editedAt = Date.now();
     });
   }
