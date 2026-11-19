@@ -421,15 +421,11 @@
     }));
   }
 
-  /* 紀錄的數值：課堂點數、寵物 XP、金幣有哪些就列哪些（只寫點數會讓純 XP／金幣的紀錄看起來像沒加分）。 */
+  /* 紀錄的數值：⭐點數、🧪XP、🪙金幣三項固定都列出來（沒變動的顯示 0 並淡化），一眼看得出這筆給了什麼。 */
   function entryAmounts(e) {
     const sign = (n) => (n > 0 ? '+' : '') + n;
-    const parts = [];
-    if (e.points) parts.push({ t: sign(e.points) + ' 點', minus: e.points < 0 });
-    if (e.xp) parts.push({ t: sign(e.xp) + ' XP', minus: e.xp < 0 });
-    if (e.coins) parts.push({ t: '🪙 ' + sign(e.coins), minus: e.coins < 0 });
-    if (!parts.length) parts.push({ t: '0', minus: false });
-    return el('div', { class: 'log-row__amounts' }, parts.map((x) => el('span', { class: 'log-row__pts' + (x.minus ? ' is-minus' : ''), text: x.t })));
+    const cell = (icon, name, n, cls) => el('span', { class: 'pill log-amt ' + (n ? cls : 'log-amt--zero') + (n < 0 ? ' is-minus' : ''), 'data-amt': name, text: icon + ' ' + (name === 'points' ? '' : (name === 'xp' ? 'XP ' : '金幣 ')) + sign(n || 0) });
+    return el('div', { class: 'log-row__amounts' }, [cell('⭐', 'points', e.points, 'pill--gold'), cell('🧪', 'xp', e.xp, 'pill--blue'), cell('🪙', 'coins', e.coins, '')]);
   }
   function undo(e) {
     U.confirmDialog('撤銷這筆紀錄？', '「' + e.label + '」的點數、經驗與金幣都會回沖。', '撤銷').then((ok) => {

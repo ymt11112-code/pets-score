@@ -845,6 +845,13 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 @media(max-width:900px) { .subject-select { max-width:110px; } }
 .subject-stats td small { display:block; color:#7a9288; font-size:11px; }
 .subject-select option { color:#1f4a3f; background:#fff; }
-
-.log-row__amounts { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px; text-align:right; white-space:nowrap; }
-.log-row__amounts .log-row__pts { margin-left:0; }
+.log-row__amounts { margin-left:auto; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
+.log-amt { font-weight:800; white-space:nowrap; }
+.log-amt.is-minus { color:var(--red); }
+.log-amt--zero { opacity:.42; background:transparent; font-weight:600; }
+/* 學生檔案視窗加寬，點數紀錄的文字與數值不用換行。 */
+.modal--wide:has(.profile-layout) { width: min(1120px, 100%); }
+.profile-content .log-row__name,.profile-content .log-row__meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-content .log-row .grow { min-width: 0; }
+.profile-content .log-row__amounts { flex-wrap: nowrap; flex: 0 0 auto; }
+.profile-content .log-row > .row { flex: 0 0 auto; flex-wrap: nowrap; }
