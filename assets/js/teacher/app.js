@@ -413,7 +413,7 @@
           el('div', { class: 'log-row__name truncate', text: names.length > 1 ? names[0] + ' 等 ' + names.length + ' 人' : (names[0] || '—') }),
           el('div', { class: 'log-row__meta', text: e.label + ' · ' + U.fmtClock(e.ts) }),
         ]),
-        el('span', { class: 'log-row__pts' + (e.points < 0 ? ' is-minus' : ''), text: (e.points > 0 ? '+' : '') + e.points }),
+        entryAmounts(e),
         !e.undone
           ? el('button', { class: 'btn btn--ghost btn--sm', text: '撤銷', onclick: () => undo(e) })
           : el('span', { class: 'pill pill--gray', text: '已撤銷' }),
@@ -421,6 +421,16 @@
     }));
   }
 
+  /* 紀錄的數值：課堂點數、寵物 XP、金幣有哪些就列哪些（只寫點數會讓純 XP／金幣的紀錄看起來像沒加分）。 */
+  function entryAmounts(e) {
+    const sign = (n) => (n > 0 ? '+' : '') + n;
+    const parts = [];
+    if (e.points) parts.push({ t: sign(e.points) + ' 點', minus: e.points < 0 });
+    if (e.xp) parts.push({ t: sign(e.xp) + ' XP', minus: e.xp < 0 });
+    if (e.coins) parts.push({ t: '🪙 ' + sign(e.coins), minus: e.coins < 0 });
+    if (!parts.length) parts.push({ t: '0', minus: false });
+    return el('div', { class: 'log-row__amounts' }, parts.map((x) => el('span', { class: 'log-row__pts' + (x.minus ? ' is-minus' : ''), text: x.t })));
+  }
   function undo(e) {
     U.confirmDialog('撤銷這筆紀錄？', '「' + e.label + '」的點數、經驗與金幣都會回沖。', '撤銷').then((ok) => {
       if (!ok) return;
@@ -840,7 +850,7 @@
             el('div', { class: 'log-row__name', text: e.label }),
             el('div', { class: 'log-row__meta', text: U.fmtDateTime(e.ts) + (e.note ? ' · ' + e.note : '') }),
           ]),
-          el('span', { class: 'log-row__pts' + (e.points < 0 ? ' is-minus' : ''), text: (e.points > 0 ? '+' : '') + e.points }),
+          entryAmounts(e),
           e.undone
             ? el('span', { class: 'pill pill--gray', text: '已撤銷' })
             : el('div', { class: 'row', style: { gap: '4px' } }, [

@@ -845,3 +845,6 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 @media(max-width:900px) { .subject-select { max-width:110px; } }
 .subject-stats td small { display:block; color:#7a9288; font-size:11px; }
 .subject-select option { color:#1f4a3f; background:#fff; }
+
+.log-row__amounts { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px; text-align:right; white-space:nowrap; }
+.log-row__amounts .log-row__pts { margin-left:0; }
