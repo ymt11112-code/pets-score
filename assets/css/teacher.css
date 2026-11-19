@@ -855,3 +855,7 @@ button.roster-card:hover { border-color: var(--green); background: #fff; transfo
 .profile-content .log-row .grow { min-width: 0; }
 .profile-content .log-row__amounts { flex-wrap: nowrap; flex: 0 0 auto; }
 .profile-content .log-row > .row { flex: 0 0 auto; flex-wrap: nowrap; }
+/* 手機遙控器的計時器：常用時間按鈕 */
+.phone-timer-presets { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.phone-timer-preset { min-height:52px; font-size:16px; font-weight:800; }
+.phone-timer-preset.is-selected { background:#d6f1e2; border-color:#17966f; box-shadow:0 0 0 1px #17966f; }

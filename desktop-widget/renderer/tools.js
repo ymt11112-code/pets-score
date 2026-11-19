@@ -8,7 +8,7 @@
   const kinds=[['attendance','📋','出席'],['draw','🎲','抽籤'],['timer','⏱️','計時器'],['tasks','✅','今日任務']];
   let active=new URLSearchParams(location.search).get('tool') || 'attendance';
   if(!kinds.some(x=>x[0]===active))active='attendance';
-  let state=null,busy=false,drawController=null,examController=null,timerView='simple';
+  let state=null,busy=false,drawController=null,examController=null,timerView='simple',timerSettingsOpen=false;
   let editingTask=null, taskDraft=new Set();
   const windowKind=new URLSearchParams(location.search).get('window')||active;
   const timerOwner=windowKind==='timer';
@@ -107,8 +107,11 @@
       el('div',{class:'dt-actions'},[
         button(timer.running?'倒數中':'▶ 開始',startClock,true),button('⏸ 暫停',()=>{stopClock();render();}),button('↻ 重設',()=>setClock(timer.total))
       ]),
-      el('div',{class:'dt-custom'},[custom,el('span',{text:'分鐘'}),button('設定',()=>{const minutes=Number(custom.value);if(!Number.isFinite(minutes)||minutes<=0||minutes>180)return U.toast('請輸入 0 到 180 之間的分鐘數','warn');setClock(Math.max(1,Math.round(minutes*60)));})]),
-      window.PetTimerAlarm.panel()
+      (()=>{const card=el('details',{class:'dt-timer-settings','data-timer-settings':'',open:timerSettingsOpen?'open':null},[
+        el('summary',{text:'⚙️ 計時設定（自訂分鐘、時間到提示）'}),
+        el('div',{class:'dt-custom'},[custom,el('span',{text:'分鐘'}),button('設定',()=>{const minutes=Number(custom.value);if(!Number.isFinite(minutes)||minutes<=0||minutes>180)return U.toast('請輸入 0 到 180 之間的分鐘數','warn');setClock(Math.max(1,Math.round(minutes*60)));})]),
+        window.PetTimerAlarm.panel()
+      ]);card.addEventListener('toggle',()=>{timerSettingsOpen=card.open;});return card;})()
     ]);
   }
   function timerPanel(){

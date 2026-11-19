@@ -57,3 +57,21 @@ body[data-window=timer] .dt-presets .dt-preset.is-selected { background:#d6f1e2;
 .timer-mode-tabs>.btn { flex:1; min-height:42px; }
 body.is-tool-fullscreen .timer-mode-tabs { display:none; }
 body.is-tool-fullscreen .exam-exit-projection { display:none; }
+
+/* 計時器：下方設定收合成卡片，時間放大；全螢幕只留時間＋進度＋開始／暫停／重設。 */
+.dt-timer-settings { border:1px solid #cadfd2; border-radius:16px; background:#f6fbf7; padding:0 14px; }
+.dt-timer-settings > summary { cursor:pointer; padding:12px 0; font-weight:800; color:#2d5a4c; list-style:none; }
+.dt-timer-settings > summary::-webkit-details-marker { display:none; }
+.dt-timer-settings > summary::after { content:'▾'; float:right; transition:transform .15s; }
+.dt-timer-settings[open] > summary::after { transform:rotate(180deg); }
+.dt-timer-settings[open] { padding-bottom:14px; display:grid; gap:12px; }
+.dt-timer-settings[open] > summary { padding-bottom:0; }
+body[data-window=timer] .dt-timer-stage { flex:1 1 auto; min-height:clamp(200px,32vh,900px); }
+body[data-window=timer] .dt-timer-time { font-size:clamp(90px,min(27vw,36vh),640px); line-height:1.05; }
+body.is-tool-fullscreen[data-window=timer] .dt-content { padding:10px; overflow:hidden; }
+body.is-tool-fullscreen[data-window=timer] .dt-panel { height:calc(100dvh - 20px); min-height:0; display:flex; flex-direction:column; gap:10px; }
+body.is-tool-fullscreen[data-window=timer] :is(.dt-preset-section,.dt-timer-settings,.dt-custom) { display:none; }
+body.is-tool-fullscreen[data-window=timer] .dt-timer-stage { flex:1 1 auto; min-height:0; }
+body.is-tool-fullscreen[data-window=timer] .dt-timer-time { font-size:clamp(120px,min(32vw,64vh),900px); }
+body.is-tool-fullscreen[data-window=timer] .dt-timer-bar { height:14px; margin-top:2vh; }
+body.is-tool-fullscreen[data-window=timer] .dt-actions { flex:0 0 auto; padding-right:120px; }
